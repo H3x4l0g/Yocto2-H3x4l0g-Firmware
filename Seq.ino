@@ -298,6 +298,7 @@ void SeqParameter()
             longerInstLength = z;
           }
         }
+        UpdateLongerInst();
         ResyncStepCount(curInst);//keep it in phase with the grid
       }
       else if (shiftBtn.pressed){
@@ -306,6 +307,7 @@ void SeqParameter()
           pattern[ptrnBuffer].length[z] = pattern[ptrnBuffer].globalLength;
           ResyncStepCount(z);
         }
+        UpdateLongerInst();
       }
       needLcdUpdate = TRUE;
       patternWasEdited = TRUE;

@@ -99,6 +99,7 @@ void InitPattern()
     group.length = pattern[ptrnBuffer].groupLength;
     group.firstPattern = curPattern - pattern[ptrnBuffer].groupPos;
   }
+  UpdateLongerInst();//the loaded pattern decides which instrument spans the measure
   /////////////////////COULD BE REMOVED/////////////////////////////
   //Init Ride, Crash velocity to HIGH_VEL
   /*for (int stp = 0; stp < NBR_STEP; stp++){
@@ -317,4 +318,18 @@ void ResyncStepCount(byte inst)
   if (grid < 0) grid = 0;
   stepCount[inst] = grid % (pattern[ptrnBuffer].length[inst] + 1);
   SREG = sreg;
+}
+
+//Find which instrument carries the pattern length--------------------------------
+//longerInstLength drives globalStepCount in the ISR - therefore the end of measure,
+//and the advance of chains and tracks. It used to be assigned in one single place
+//(the per instrument length edit) : never on a pattern load, never on a global
+//length edit. A stale value made the measure advance on another instrument's scale.
+void UpdateLongerInst()
+{
+  byte longest = 0;
+  for (byte z = 1; z < NBR_INST; z++){
+    if (pattern[ptrnBuffer].length[z] > pattern[ptrnBuffer].length[longest]) longest = z;
+  }
+  longerInstLength = longest;
 }

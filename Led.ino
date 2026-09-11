@@ -108,7 +108,7 @@ void SetLeds()
     //------------------------------
     unsigned int temp;// tmep data of stepLeds;
   case TRACK_PLAY:
-    if (isRunning) stepLeds = (1 << trk.current) ^ (blinkFast[curInst] << curStep[curInst]); 
+    if (isRunning) stepLeds = (1 << trk.current) ^ (1 << curStep[longerInstLength]);
     else stepLeds = blinkTempo << trk.current;
     break;
   case TRACK_WRITE:
@@ -119,7 +119,7 @@ void SetLeds()
       stepLeds = 1 << trk.current;
     }
     else{
-      if (isRunning) stepLeds = (1 <<(curPattern % NBR_PATTERN)) ^ (blinkFast[curInst] << curStep[curInst]); 
+      if (isRunning) stepLeds = (1 <<(curPattern % NBR_PATTERN)) ^ (1 << curStep[longerInstLength]);
       else stepLeds = blinkTempo << (curPattern % NBR_PATTERN); 
     }
     break;
@@ -135,10 +135,10 @@ void SetLeds()
           for (int a = 0; a <= group.length; a++){
             bitSet(temp,(group.firstPattern % NBR_PATTERN) + a);
           }
-          stepLeds = temp & ~(!blinkTempo << (nextPattern % NBR_PATTERN))  ^ (blinkFast[curInst] << curStep[curInst]);
+          stepLeds = (temp & ~(!blinkTempo << (nextPattern % NBR_PATTERN))) ^ (1 << curStep[longerInstLength]);
         }
         else {
-          stepLeds = (blinkTempo <<(nextPattern % NBR_PATTERN)) ^ (blinkFast[curInst] << curStep[curInst]); 
+          stepLeds = (blinkTempo <<(nextPattern % NBR_PATTERN)) ^ (1 << curStep[longerInstLength]);
         }
       }
       else if (!isRunning){
