@@ -110,7 +110,14 @@ static_assert(sizeof(FW_AUTHOR)  <= 17, "FW_AUTHOR depasse les 16 colonnes du LC
 #define SCALE_32 PPQN/8
 #define SCALE_16t PPQN/6
 #define SCALE_8t PPQN/3
-#define MAX_SHUF_TYPE 7
+//Swing : the even step stays on the grid, the odd one is pushed (setting - 1) ticks
+//late. Swing ratio = (scale + k) / (2 * scale), so on the 16th grid (scale 24) :
+//  setting  1  2  3  4  5  6  7  8  9 10 11
+//  swing % 50 52 54 56 58 60 62 64 67 69 71   (exact triplet shuffle 66.67 % at 9)
+//Was 7, which capped the 16th grid at 62.5 % and could not reach triplet shuffle.
+//12 is the hard ceiling : in SCALE_32 one step is only 12 ticks, so a 12 tick delay
+//would land the odd step exactly on the next even one.
+#define MAX_SHUF_TYPE 11
 #define DEFAULT_SHUF 1
 #define DEFAULT_LEN 16
 #define DEFAULT_SCALE 24
@@ -313,22 +320,6 @@ byte nextPattern;
 boolean changeDir[NBR_INST]; //use to PING PONG change dir
 volatile boolean endMeasure;
 unsigned int metronome;//value of metronome trig
-int shuffle[MAX_SHUF_TYPE][2]={
-  {
-    0                    }
-  ,{
-    0,-1                  }
-  ,{
-    0,-2                  }
-  ,{
-    0,-3                  }
-  ,{
-    0,-4                  }
-  ,{
-    0,-5                  }
-  ,{
-    0,-6                  }
-};
 volatile boolean shufPolarity[NBR_INST];
 
 //Pattern-------------------------------------------

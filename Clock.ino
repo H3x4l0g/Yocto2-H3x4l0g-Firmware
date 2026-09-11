@@ -54,7 +54,13 @@ void CountPPQN()
       //-----------------------------------------------------------------------------
       //Here is everything happen each step
       //-----------------------------------------------------------------------------
-      if (((p + shuffle[(pattern[ptrnBuffer].shuffle[z])-1][shufPolarity[z]]) % pattern[ptrnBuffer].scale[z] == 0) && stepChanged[z])
+      //Swing offset. The shuffle[MAX_SHUF_TYPE][2] table this replaces held nothing the
+      //index did not already carry : column 0 was always 0, column 1 always minus the row
+      //number. Computing it drops 28 bytes of RAM and a two dimensional lookup per
+      //instrument inside the ISR, and extending the range costs nothing.
+      int swing = shufPolarity[z] ? -(int)(pattern[ptrnBuffer].shuffle[z] - 1) : 0;
+
+      if (((p + swing) % pattern[ptrnBuffer].scale[z] == 0) && stepChanged[z])
       {//Each Step
         stepChanged[z] = FALSE;//flag that we already trig this step
         shufPolarity[z] = !shufPolarity[z];

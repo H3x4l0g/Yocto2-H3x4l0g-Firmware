@@ -86,13 +86,13 @@ void LcdUpdate()
           lcd.print("  Shuffle value ");
           lcd.setCursor(0,1);
           LcdClearLine();
-          lcd.setCursor(2,1);
+          lcd.setCursor(0,1);
           lcd.print("-");
-          lcd.setCursor(5,1);
-          LcdPrintLine(7);
+          lcd.setCursor(2,1);
+          LcdPrintLine(MAX_SHUF_TYPE);//columns 2 to 12
           lcd.setCursor(14,1);
           lcd.print("+");
-          lcd.setCursor(4 + pattern[ptrnBuffer].shuffle[curInst],1);
+          lcd.setCursor(1 + pattern[ptrnBuffer].shuffle[curInst],1);
           lcd.print((char)219);
         }
         else if (keyboardMode){
