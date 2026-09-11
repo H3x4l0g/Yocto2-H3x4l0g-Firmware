@@ -115,13 +115,20 @@ void ResetDoutTrig()
 void SetDacA(byte velocity)
 {
   if (velocity >= 127) velocity = 127;
-  unsigned int milliVolt = map(velocity, 0, 127, 0, 4090);
+  //map(velocity, 0, 127, 0, 4090) was a 32 bit division, called 12 times per SetMux().
+  //4090/127 = 32.2047 and 515/16 = 32.1875, so the output is at most 3 mV low at
+  //velocity 127 - 0.07 % on a DAC whose LSB is 1 mV. velocity is clamped above, so
+  //127*515 = 65405 still fits in 16 bits.
+  unsigned int milliVolt = ((unsigned int)velocity * 515) >> 4;
   unsigned int command = 0;
   command |= 0x1000;// Active DAC out A
   command |= (milliVolt & 0x0FFF);
-  SPI.beginTransaction(SPIset);
+  //CS asserted and settled before the transaction : with SPI.usingInterrupt(255) the
+  //library masks every interrupt between begin and endTransaction, no need to spend
+  //the 5 us settling time in there.
   DAC_CS_LOW;
   delayMicroseconds(5);
+  SPI.beginTransaction(SPIset);
   SPI.transfer(command >> 8);
   SPI.transfer(command & 0xFF);
   DAC_CS_HIGH;

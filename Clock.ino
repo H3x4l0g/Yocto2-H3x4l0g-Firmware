@@ -12,22 +12,26 @@ ISR(TIMER1_COMPA_vect) {
 //Tick proceed each pulse
 void CountPPQN()
 {
-  blinkVeryFast =! blinkVeryFast;
-  if (ppqn % (PPQN/2) == 0) blinkTempo = !blinkTempo;
-  if (ppqn  % (pattern[ptrnBuffer].scale[curInst]/2) == 0) blinkFast[curInst] = LOW;
-  //if (ppqn % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq
+  //p is volatile and was re-read from SRAM on each of its ~40 uses below.
+  //One read here, one write back at the end.
+  byte p = ppqn;
 
-  if (ppqn % 4 == 0) {                                
+  blinkVeryFast =! blinkVeryFast;
+  if (p % (PPQN/2) == 0) blinkTempo = !blinkTempo;
+  if (p  % (pattern[ptrnBuffer].scale[curInst]/2) == 0) blinkFast[curInst] = LOW;
+  //if (p % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq
+
+  if (p % 4 == 0) {                                
     while (!(UCSR1A & (1 << UDRE1))) {
     };                                            // [zabox] directly adressing the uart fixes the midi clock lag
     UDR1 = CLOCK_CMD; //Tick
   }
   if (seq.sync == MASTER){
-    if (ppqn % 4 == 0){
+    if (p % 4 == 0){
       DIN_CLK_HIGH;
       dinClkState = HIGH;
     }
-    else if (ppqn % 4 == 2) {
+    else if (p % 4 == 2) {
       DIN_CLK_LOW;
       dinClkState = LOW;
     }    
@@ -35,20 +39,22 @@ void CountPPQN()
 
   if (isRunning)
   {
-    if (ppqn % pattern[ptrnBuffer].globalScale == (pattern[ptrnBuffer].globalScale/2)) tapStepCount++;
+    if (p % pattern[ptrnBuffer].globalScale == (pattern[ptrnBuffer].globalScale/2)) tapStepCount++;
 
     if (tapStepCount > pattern[ptrnBuffer].globalLength) tapStepCount = 0;
 
-    // Initialize the step value
-    stepValue = 0; 
+      //stepValue is volatile and read by Led.ino, but it was also accumulated with
+      //|= inside the 16 instrument loop - one SRAM round trip per iteration.
+      //Built in a local, published once.
+      unsigned int sv = 0;
 
     for (byte z = 0; z < NBR_INST; z++){
-      if (ppqn % pattern[ptrnBuffer].scale[z] == 0) stepChanged[z] = TRUE;//Step changed ?
+      if (p % pattern[ptrnBuffer].scale[z] == 0) stepChanged[z] = TRUE;//Step changed ?
 
       //-----------------------------------------------------------------------------
       //Here is everything happen each step
       //-----------------------------------------------------------------------------
-      if (((ppqn + shuffle[(pattern[ptrnBuffer].shuffle[z])-1][shufPolarity[z]]) % pattern[ptrnBuffer].scale[z] == 0) && stepChanged[z])
+      if (((p + shuffle[(pattern[ptrnBuffer].shuffle[z])-1][shufPolarity[z]]) % pattern[ptrnBuffer].scale[z] == 0) && stepChanged[z])
       {//Each Step
         stepChanged[z] = FALSE;//flag that we already trig this step
         shufPolarity[z] = !shufPolarity[z];
@@ -75,7 +81,7 @@ void CountPPQN()
         //Set each step value in a 16bit word depending step counter and direction of each instrument
         //Compare the current step of each instrument and store in "stepValue"
         if ( z != TOTAL_ACC ){//&& z != TR1 && z != TR2){
-          stepValue |= ((bitRead(pattern[ptrnBuffer].inst[z],curStep[z])) << z);
+          sv |= ((bitRead(pattern[ptrnBuffer].inst[z],curStep[z])) << z);
         }
 
         //Set the multiplexer for velocity out just before Trig
@@ -84,36 +90,36 @@ void CountPPQN()
     }
 
     //incremente global step count according the longer instrument length
-    if (ppqn % pattern[ptrnBuffer].scale[longerInstLength] == 0){
+    if (p % pattern[ptrnBuffer].scale[longerInstLength] == 0){
       globalStepCount++;
     }
 
     //Set Metronome value to be trigged
-    if (ppqn % pattern[ptrnBuffer].globalScale == 0){
-      stepValue |= (bitRead(metronome,(globalStepCount-1)) << RM);
+    if (p % pattern[ptrnBuffer].globalScale == 0){
+      sv |= (bitRead(metronome,(globalStepCount-1)) << RM);
     }
 
     //Add Mute value to StepValue
-    stepValue &= ~muteInst;
+    sv &= ~muteInst;
+    stepValue = sv;//published for Led.ino
 
     //Is there something to trig ?
-    if (stepValue) {
-      if (bitRead(stepValue, TR1)){
+    if (sv) {
+      if (bitRead(sv, TR1)){
         TR1_LOW;//Trigout pulse 
         trig1State = HIGH;
       }
-      if (bitRead(stepValue, TR2)){
+      if (bitRead(sv, TR2)){
         TR2_HIGH;//Trigout pulse 
         trig2State = HIGH;
       }
       SetMux();
       //Trig according mute value
-      SetDoutTrig(stepValue);      
-      delayMicroseconds(2000);
-      ResetDoutTrig();
+      SetDoutTrig(sv);
+      StartTrigPulse();//Timer2 releases the outputs 2 ms later
 
       //Trig external instrument-------------------------------------
-      if (bitRead(stepValue, EXT_INST))//pattern[ptrnBuffer].inst[EXT_INST], curStep[EXT_INST]))
+      if (bitRead(sv, EXT_INST))//pattern[ptrnBuffer].inst[EXT_INST], curStep[EXT_INST]))
       {
         InitMidiNoteOff();
         MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], HIGH_VEL);
@@ -142,7 +148,7 @@ void CountPPQN()
      }
      }*/
 
-    if (globalStepCount > pattern[ptrnBuffer].globalLength){// && (ppqn % 24 == pattern[ptrnBuffer].scale - 1))
+    if (globalStepCount > pattern[ptrnBuffer].globalLength){// && (p % 24 == pattern[ptrnBuffer].scale - 1))
       endMeasure = TRUE;
       trackPosNeedIncremante = TRUE;
       globalStepCount = 0;
@@ -150,12 +156,13 @@ void CountPPQN()
       //cleared nextPatternReady first. Single copy in SwitchPatternBuffer() now,
       //which also stops the interrupt writing ptrnBuffer behind the main loop.
     }
-    if (ppqn % pattern[ptrnBuffer].globalScale == 4 && globalStepCount == 0){ 
+    if (p % pattern[ptrnBuffer].globalScale == 4 && globalStepCount == 0){ 
       endMeasure = FALSE;
     }
   }
 
-  if (ppqn++ >= PPQN ) ppqn = 1;
+  if (++p > PPQN) p = 1;
+  ppqn = p;
 }// END COUNT FUNCTION
 
 //
