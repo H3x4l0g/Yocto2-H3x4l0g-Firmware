@@ -5,7 +5,7 @@
 
 /////////////////////Function//////////////////////
 
-//Voices terst mode send a trig each second on all analog Voices
+//Voices test mode send a trig each second on all analog Voices
 void VoicesTestMode()
 {
   while(1){

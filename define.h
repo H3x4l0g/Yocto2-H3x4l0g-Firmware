@@ -472,7 +472,9 @@ boolean dinStartState = LOW;
 boolean dinClkState = LOW;
 
 //trigState----------------------------------------
-boolean trig1State = LOW;
+//volatile : written by the sequencer ISR (Clock.ino), read by SetTrigTime() in the
+//main loop. Without it the compiler is free to cache the read across loop iterations.
+volatile boolean trig1State = LOW;
 boolean trig2State = LOW;
 unsigned long trigTime = 0;
 boolean trigTimeOk;
