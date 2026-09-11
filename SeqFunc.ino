@@ -302,3 +302,19 @@ void SwitchPatternBuffer()
   InitPattern();//SHOULD BE REMOVED WHEN EEPROM WILL BE INITIALIZED
   InstToStepWord();
 }
+
+//Realign an instrument step counter on the measure grid---------------------------
+//Instrument lengths can be edited while the sequencer runs, and nothing used to
+//resynchronise stepCount[]. Going 16 -> 6 -> 16 steps left the instrument at an
+//arbitrary phase : it kept playing, but no longer in step with the grid drawn on
+//the step buttons. Taking globalStepCount modulo the new length puts it where it
+//would be if it had always run at that length, in phase with the measure.
+void ResyncStepCount(byte inst)
+{
+  uint8_t sreg = SREG;
+  cli();
+  int grid = globalStepCount;
+  if (grid < 0) grid = 0;
+  stepCount[inst] = grid % (pattern[ptrnBuffer].length[inst] + 1);
+  SREG = sreg;
+}

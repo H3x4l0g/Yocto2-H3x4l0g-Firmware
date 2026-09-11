@@ -58,7 +58,13 @@ void LcdUpdate()
 
     }
     else{
-      switch (curSeqMode){
+      //MUTE only overlays the step buttons, it is not a display mode of its own :
+      //keep showing the screen of whatever is actually playing underneath, so the
+      //pattern readout follows the chain instead of freezing.
+      SeqMode dispMode = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
+      switch (dispMode){
+      case MUTE:
+        break;//never reached : dispMode resolves MUTE to the mode underneath
       case PTRN_PLAY:
         lcd.setCursor(0,0);
         lcd.print("  Pattern Play  ");

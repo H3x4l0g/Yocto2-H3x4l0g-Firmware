@@ -298,11 +298,13 @@ void SeqParameter()
             longerInstLength = z;
           }
         }
+        ResyncStepCount(curInst);//keep it in phase with the grid
       }
       else if (shiftBtn.pressed){
         pattern[ptrnBuffer].globalLength = FirstBitOn();
         for (byte z = 0; z < NBR_INST; z++){
           pattern[ptrnBuffer].length[z] = pattern[ptrnBuffer].globalLength;
+          ResyncStepCount(z);
         }
       }
       needLcdUpdate = TRUE;
@@ -540,10 +542,12 @@ void SeqParameter()
         {
           group.length = SecondBitOn() - FirstBitOn();
           nextPattern = group.firstPattern = FirstBitOn() + curBank * NBR_PATTERN;
-          //SYNC while running : the current pattern finishes and the chain starts at
-          //its first pattern next measure, so the next index to play is 0. Otherwise
-          //the first pattern is loaded right away and the next one is index 1.
-          if (isRunning && (seq.ptrnChangeSync == SYNC)) group.pos = 0;
+          //SYNC while running : the current measure finishes first. If it is already
+          //the chain's first pattern it counts as the chain's first step, otherwise
+          //it would be played twice. Outside SYNC the first pattern is loaded right
+          //away, so the next index to play is 1 either way.
+          if (isRunning && (seq.ptrnChangeSync == SYNC))
+            group.pos = (curPattern == group.firstPattern) ? 1 : 0;
           else group.pos = 1;
           doublePush = TRUE;
           group.priority = TRUE;
