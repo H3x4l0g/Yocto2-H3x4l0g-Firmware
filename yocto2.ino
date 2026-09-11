@@ -112,9 +112,9 @@ void setup()
   //-----------------------------------------------
 
   lcd.setCursor(0, 0);
-  lcd.print("Yocto v2.003beta");
+  lcd.print(FW_VERSION);
   lcd.setCursor(0,1);
-  lcd.print("by e-licktronic ");
+  lcd.print(FW_AUTHOR);
   delay(1000);
 
 }
