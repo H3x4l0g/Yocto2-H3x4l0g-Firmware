@@ -97,7 +97,7 @@ void SeqParameter()
       needLcdUpdate = TRUE;
       keyboardMode = FALSE;
       seq.configMode  = FALSE;
-      trackNeedSaved = FALSE;
+      //trackNeedSaved deliberately left alone : cf the ptrnBtn handler below.
     }
     if (bankBtn.justPressed){
       CopyPatternToBuffer();
@@ -122,8 +122,15 @@ void SeqParameter()
   //-------------------Shift button released------------------------------
   else {
     if (trkBtn.justPressed){
-      if(curSeqMode == TRACK_WRITE) curSeqMode = TRACK_PLAY;
-      else curSeqMode = TRACK_WRITE;
+      //Each button toggles inside its own family, but crossing from one family to the
+      //other used to land on the edit screen whatever you came from : Patt play + TRK
+      //gave Track edit, Track play + PATT gave Patt edit. The two lines that decided
+      //this did not know about each other, and each only tested its own mode.
+      //The play/edit character of the mode being left is now carried across.
+      SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
+      if (from == TRACK_WRITE)     curSeqMode = TRACK_PLAY;//toggle inside the family
+      else if (from == TRACK_PLAY) curSeqMode = TRACK_WRITE;
+      else curSeqMode = (from == PTRN_PLAY) ? TRACK_PLAY : TRACK_WRITE;//crossing over
       needLcdUpdate = TRUE;
       keyboardMode = FALSE;
       seq.configMode  = FALSE;
@@ -132,12 +139,17 @@ void SeqParameter()
     //if (fwdBtn.justPressed) ;//foward track postion
     if (numBtn.pressed) ;//select Track number
     if (ptrnBtn.justPressed){
-      if (curSeqMode == PTRN_STEP) curSeqMode = PTRN_PLAY;
-      else curSeqMode = PTRN_STEP;
+      SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;//cf trkBtn above
+      if (from == PTRN_STEP)      curSeqMode = PTRN_PLAY;//toggle inside the family
+      else if (from == PTRN_PLAY) curSeqMode = PTRN_STEP;
+      else curSeqMode = (from == TRACK_PLAY) ? PTRN_PLAY : PTRN_STEP;//crossing over
       needLcdUpdate = TRUE;
       keyboardMode = FALSE;
       seq.configMode  = FALSE;
-      trackNeedSaved = FALSE;
+      //trackNeedSaved was cleared here. It is the flag that blinks the ENTER LED and
+      //gates SaveTrack(), so leaving TRACK through this button silently dropped pending
+      //track edits : the LED went dark and holding ENTER saved nothing. The data was
+      //still in RAM but destroyed for good by the next LoadTrack().
     }
     if (tapBtn.justPressed) ShiftLeftPattern();
     if (dirBtn.justPressed) ShiftRightPattern();
