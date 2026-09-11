@@ -54,16 +54,23 @@ void CountPPQN()
       //-----------------------------------------------------------------------------
       //Here is everything happen each step
       //-----------------------------------------------------------------------------
-      //Swing offset. The shuffle[MAX_SHUF_TYPE][2] table this replaces held nothing the
-      //index did not already carry : column 0 was always 0, column 1 always minus the row
-      //number. Computing it drops 28 bytes of RAM and a two dimensional lookup per
-      //instrument inside the ISR, and extending the range costs nothing.
-      int swing = shufPolarity[z] ? -(int)(pattern[ptrnBuffer].shuffle[z] - 1) : 0;
+      //Swing offset : even steps stay on the grid, odd steps are pushed (setting - 1)
+      //ticks late. Derived from stepCount, never from a flag of its own.
+      //shufPolarity was a boolean toggled on every step played, and it drifted : on a
+      //pattern with an odd number of steps it came back inverted at each loop, so the
+      //swing moved onto the even steps. It was reset on PLAY only - not on a pattern
+      //change, not on a length change, not on a resync - so the swing phase was
+      //effectively arbitrary the rest of the time. stepCount[z] already carries the
+      //step number and is wrapped, reset and resynchronised everywhere it must be, so
+      //reading its low bit makes the drift structurally impossible.
+      //This also replaces the shuffle[MAX_SHUF_TYPE][2] table, which held nothing the
+      //index did not already carry : column 0 was always 0, column 1 always minus the
+      //row number.
+      int swing = (stepCount[z] & 1) ? -(int)(pattern[ptrnBuffer].shuffle[z] - 1) : 0;
 
       if (((p + swing) % pattern[ptrnBuffer].scale[z] == 0) && stepChanged[z])
       {//Each Step
         stepChanged[z] = FALSE;//flag that we already trig this step
-        shufPolarity[z] = !shufPolarity[z];
         blinkFast[z] = HIGH;// TO BE REMOVED OUT OF THIS FOR LOOP
 
         //sequencer direction for each instruments-----------

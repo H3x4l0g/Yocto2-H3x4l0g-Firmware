@@ -320,7 +320,6 @@ byte nextPattern;
 boolean changeDir[NBR_INST]; //use to PING PONG change dir
 volatile boolean endMeasure;
 unsigned int metronome;//value of metronome trig
-volatile boolean shufPolarity[NBR_INST];
 
 //Pattern-------------------------------------------
 typedef struct Pattern Pattern;

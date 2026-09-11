@@ -38,7 +38,6 @@ void SeqParameter()
     globalStepCount = 0;
     for(byte z = 0; z < NBR_INST; z++){
       stepCount[z] = 0;
-      shufPolarity[z] = 0;//Init shuffle polarity
       changeDir[z] = 1;//restart Forward direction on each instrument
     }
     tapStepCount = 0;
