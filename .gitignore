@@ -1,0 +1,8 @@
+# Arduino build output
+build/
+*.hex
+*.elf
+*.bin
+
+# Flash backups (keep these, but off the repo - they contain the bootloader)
+yocto-backup*.hex
