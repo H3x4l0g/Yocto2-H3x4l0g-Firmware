@@ -310,8 +310,12 @@ volatile unsigned int stepValue = 0;//value of each trig step used in "Clock"
 volatile byte noteIndexCpt = 0;
 boolean isRunning = FALSE;
 boolean isStop = TRUE;
-SeqMode curSeqMode = PTRN_STEP;
-SeqMode prevSeqMode = PTRN_STEP;//mode overlayed by MUTE
+//Boot mode. Was PTRN_STEP, so the machine came up on the pattern edit grid : the step
+//buttons toggled steps before you had chosen anything. Pattern Play is the right place
+//to land - you pick a pattern, you press play. Nothing in setup() reads curSeqMode,
+//every reader lives in the main loop, so this is purely the arrival point.
+SeqMode curSeqMode = PTRN_PLAY;
+SeqMode prevSeqMode = PTRN_PLAY;//mode overlayed by MUTE ; always written on MUTE entry
 byte curInst = BD;//0 is BD trig out shift register
 byte curBank = 0;//0 to 7 banks
 byte curPattern = 0;// 0 to 255
