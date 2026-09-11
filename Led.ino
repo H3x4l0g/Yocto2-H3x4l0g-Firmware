@@ -15,7 +15,7 @@ void SetLeds()
   scaleLed = scaleBtn.pressed;
   lastStepLed = lastStepBtn.pressed ;
   if (isRunning){
-    menuLed = LED_PLAY & ~LED_STOP | shiftLed<<1 | instLed<<2 | clearLed<<3 | shufLed<<4 | lastStepLed<<5 | scaleLed<<6 ;
+    menuLed = LED_PLAY | shiftLed<<1 | instLed<<2 | clearLed<<3 | shufLed<<4 | lastStepLed<<5 | scaleLed<<6 ;
     //stepLeds = pattern[ptrnBuffer].inst[curInst] ^ (blinkFast << curStep-1);
   }
   else{
@@ -181,7 +181,9 @@ void SetLeds()
       }
       //this function is to fade low velocity leds
       if(flagLedIntensity >= 8){
-        stepLeds = stepLedsHigh | stepLedsLow ^ blinkFast[curInst] << curStep[curInst];//B1111111111111111;
+        stepLeds = stepLedsHigh | (stepLedsLow ^ (blinkFast[curInst] << curStep[curInst]));
+        //Parenthesised exactly as the compiler read it. The sibling line below and the
+        //intent suggest (High | Low) ^ playhead instead : cf TODO.md, to judge by eye.
         flagLedIntensity = 0;
       }
       else{

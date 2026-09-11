@@ -247,9 +247,6 @@ void HandleNoteOff(byte channel, byte pitch, byte velocity)
 //MidiTrigOn insturment
 void MidiTrigOn(byte inst, byte velocity)
 {
-  static byte hhSelect;//OH selected = 0, CH selected = 1
-  byte trigInst;//instrument trigged
-
   if (instWasMidiTrigged[inst] == FALSE){
     SetMuxTrigMidi(inst, velocity);
     SetDoutTrig(1 << inst );

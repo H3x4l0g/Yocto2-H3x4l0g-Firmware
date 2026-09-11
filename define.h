@@ -25,7 +25,6 @@ static_assert(sizeof(FW_AUTHOR)  <= 17, "FW_AUTHOR depasse les 16 colonnes du LC
 #define STOP_CMD 0xFC
 #define ALL_NOTE_OFF 0x7B
 #define CONTINU_CMD 0xFB
-#define MIDI_BAUD 31250
 
 //Button
 #define BTN_PLAY     B10000000
@@ -199,6 +198,9 @@ static_assert(sizeof(FW_AUTHOR)  <= 17, "FW_AUTHOR depasse les 16 colonnes du LC
 #define CY 8
 #define OH 9
 #define CH 10
+//avr/io.h defines PC2 as the PORTC bit 2 mask. Nothing here uses the port bit macros,
+//so shadow it deliberately rather than rename the instrument in ten call sites.
+#undef PC2
 #define PC2 11
 
 #define TOTAL_ACC 12 //
@@ -288,7 +290,6 @@ struct SeqConfig {
 seq;
 
 volatile byte ppqn = 0;
-volatile byte globalCurStep = 0;//current step of the pattern, egal the length of the longer instrument 16 max
 volatile byte curStep[NBR_INST] = {
   0};//current played step of each instrument
 volatile int globalStepCount = -1;
@@ -338,7 +339,6 @@ struct Pattern
   byte globalScale;
   byte globalDir;//0=>forward, 1=>backword, 2=>ping-pong, 3=>random
   byte globalShuffle;
-  byte flam;
   unsigned int inst[NBR_INST];
   unsigned int step[NBR_STEP];
   byte velocity[NBR_INST][NBR_STEP];
@@ -424,7 +424,6 @@ byte noteIndex = 0;//external inst note index
 SPISettings SPIset(4000000, MSBFIRST, SPI_MODE0);
 
 //Encoder--------------------------------------------
-#define ENCSTATE 3
 //State read on the two encoder pins when the knob rests in a detent
 //(both contacts open => both pins pulled HIGH)
 #define ENC_DETENT_STATE 3
@@ -432,13 +431,9 @@ SPISettings SPIset(4000000, MSBFIRST, SPI_MODE0);
 //A complete detent is +/-4, 2 keeps the decoding tolerant to a missed sample
 //while still rejecting the contact bounce (which always sums back to 0).
 #define ENC_NOTCH_THRESHOLD 2
-byte encoder_A;
-byte encoder_B;
-byte encoder_A_prev=0;
 boolean encSwValue[2];
 boolean encSwState;
 byte oldStateEnc = ENC_DETENT_STATE;
-byte encPosition = 0;
 int8_t encAccu = 0;//quadrature transitions accumulated since the last detent
 int8_t encNotch = 0;//-1, 0 or +1 : one validated detent waiting to be consumed
 const int8_t knobDir[] = {

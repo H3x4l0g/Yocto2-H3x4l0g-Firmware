@@ -28,12 +28,11 @@ void InitSeq()
     MIDI.setHandleStop(HandleStop);
     MIDI.setHandleContinue(HandleContinue);
     break;
-    seq.syncChanged = FALSE;
   }
 }
 
 //copy pattern to buffer
-void CopyPatternToBuffer(byte patternNum)
+void CopyPatternToBuffer()
 {
   for (byte i = 0; i < NBR_INST; i++){ 
     bufferedPattern.inst[i] =  pattern[ptrnBuffer].inst[i] ;
@@ -63,7 +62,7 @@ void CopyPatternToBuffer(byte patternNum)
 }
 
 //paste buffer to current pattern
-void PasteBufferToPattern(byte patternNum)
+void PasteBufferToPattern()
 {
   for (byte i = 0; i < NBR_INST; i++){ 
     pattern[ptrnBuffer].inst[i] =  bufferedPattern.inst[i];
@@ -150,7 +149,7 @@ void ShiftLeftPattern()
     byte temp = pattern[ptrnBuffer].velocity[curInst][0];
 
     //Shift Left trig value
-    if (bitRead(pattern[ptrnBuffer].inst[curInst],0))pattern[ptrnBuffer].inst[curInst] = pattern[ptrnBuffer].inst[curInst] >> 1 | (1 << pattern[ptrnBuffer].length[curInst]);
+    if (bitRead(pattern[ptrnBuffer].inst[curInst],0))pattern[ptrnBuffer].inst[curInst] = pattern[ptrnBuffer].inst[curInst] >> 1 | (1U << pattern[ptrnBuffer].length[curInst]);
     else pattern[ptrnBuffer].inst[curInst] = pattern[ptrnBuffer].inst[curInst] >> 1;
 
     //shift left velocity value
@@ -168,7 +167,7 @@ void ShiftLeftPattern()
       temp[nbrInst] = pattern[ptrnBuffer].velocity[nbrInst][0];
 
       //Shift Left trig value of all instrument
-      if (bitRead(pattern[ptrnBuffer].inst[nbrInst],0))pattern[ptrnBuffer].inst[nbrInst] = pattern[ptrnBuffer].inst[nbrInst] >> 1 | (1 << pattern[ptrnBuffer].length[nbrInst]);
+      if (bitRead(pattern[ptrnBuffer].inst[nbrInst],0))pattern[ptrnBuffer].inst[nbrInst] = pattern[ptrnBuffer].inst[nbrInst] >> 1 | (1U << pattern[ptrnBuffer].length[nbrInst]);
       else pattern[ptrnBuffer].inst[nbrInst] = pattern[ptrnBuffer].inst[nbrInst] >> 1;
 
       //shift left velocity value of all instrument

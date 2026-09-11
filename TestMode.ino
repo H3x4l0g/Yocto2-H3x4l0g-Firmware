@@ -12,7 +12,7 @@ void VoicesTestMode()
     lcd.setCursor(0, 0);
     lcd.print("Voices Test Mode");
     lcd.setCursor(0,1);
-    lcd.print("                 ");
+    lcd.print("                ");
     SetMuxTest();//Set velocity to 127
     SetDoutTrig(0xFFFF);//Trig all instrument    
     delayMicroseconds(1000);

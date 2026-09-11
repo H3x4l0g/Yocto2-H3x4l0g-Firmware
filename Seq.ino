@@ -101,10 +101,10 @@ void SeqParameter()
       trackNeedSaved = FALSE;
     }
     if (bankBtn.justPressed){
-      CopyPatternToBuffer(curPattern);
+      CopyPatternToBuffer();
     } // copy current pattern to the buffer
     if (muteBtn.justPressed){
-      PasteBufferToPattern(curPattern);
+      PasteBufferToPattern();
       patternWasEdited = TRUE;
     } //paste copy buffered pattern to the current pattern number
 
@@ -403,10 +403,7 @@ void SeqParameter()
       } 
       if (!lastStepBtn.pressed && !instBtn)
       {
-        static boolean doublePushOH;
 
-        if (bitRead(readButtonState,12) && bitRead(readButtonState,13)) doublePushOH = 1;
-        else doublePushOH = 0;
 
         for (byte a = 0; a < NBR_STEP_BTN; a++){
           stepBtn[a].curState = bitRead(readButtonState,a);

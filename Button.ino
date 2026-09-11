@@ -111,8 +111,8 @@ unsigned int StepButtonGet(byte mode)
     break;
   case MOMENTARY:
     return data;
-    break;
   }
+  return 0;//unreachable with TOGGLE / MOMENTARY, closes the function properly
 }
 
 unsigned int InstValueGet(unsigned int value)
@@ -225,9 +225,12 @@ byte FirstBitOn()
   for (int a = 0; a < NBR_BTN_STEP; a++){
     if (bitRead (tempStepBtnValue, a)){
       return a;
-      break;
     }
   }
+  //No button held : the callers read the step buttons again after justPressed, and the
+  //button can have been released in between. Returning nothing left the bank, the
+  //pattern or the track number set from an indeterminate value.
+  return 0;
 }
 
 //return value of second pressed step button
