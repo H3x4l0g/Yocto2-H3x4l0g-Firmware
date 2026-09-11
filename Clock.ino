@@ -15,7 +15,7 @@ void CountPPQN()
   blinkVeryFast =! blinkVeryFast;
   if (ppqn % (PPQN/2) == 0) blinkTempo = !blinkTempo;
   if (ppqn  % (pattern[ptrnBuffer].scale[curInst]/2) == 0) blinkFast[curInst] = LOW;
-  //if (ppqn % 4 == 0) MIDI.sendRealTime(Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq
+  //if (ppqn % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq
 
   if (ppqn % 4 == 0) {                                
     while (!(UCSR1A & (1 << UDRE1))) {
@@ -146,21 +146,9 @@ void CountPPQN()
       endMeasure = TRUE;
       trackPosNeedIncremante = TRUE;
       globalStepCount = 0;
-      //In pattern play mode this peace of code execute in the PPQNCount function
-      if(nextPatternReady && curSeqMode == PTRN_PLAY){
-        nextPatternReady = FALSE;
-        keybOct = DEFAULT_OCT;
-        noteIndex = 0;
-        InitMidiNoteOff();
-        //When pattern changed init all instrument step counter
-        for (byte z = 0; z < NBR_INST; z++){
-          stepCount[z] = 0;
-        }
-        ptrnBuffer = !ptrnBuffer;
-        InitPattern();//SHOULD BE REMOVED WHEN EEPROM WILL BE INITIALIZED
-        //SetHHPattern();
-        InstToStepWord();
-      }
+      //The buffer swap used to be duplicated here ; it never ran, the main loop
+      //cleared nextPatternReady first. Single copy in SwitchPatternBuffer() now,
+      //which also stops the interrupt writing ptrnBuffer behind the main loop.
     }
     if (ppqn % pattern[ptrnBuffer].globalScale == 4 && globalStepCount == 0){ 
       endMeasure = FALSE;

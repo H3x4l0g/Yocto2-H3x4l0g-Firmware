@@ -44,7 +44,7 @@ void SeqParameter()
     tapStepCount = 0;
     stopBtn.counter = 0;
     noteIndexCpt = 0;//init ext instrument note index counter
-    MIDI.sendRealTime(Start);//;MidiSend(START_CMD);
+    MIDI.sendRealTime(midi::Start);//;MidiSend(START_CMD);
     DIN_START_HIGH;
     dinStartState = HIGH;
     DIN_CLK_HIGH;
@@ -62,7 +62,7 @@ void SeqParameter()
     case 1:
       isStop = TRUE;
       isRunning = FALSE;
-      MIDI.sendRealTime(Stop);//;MidiSend(STOP_CMD);
+      MIDI.sendRealTime(midi::Stop);//;MidiSend(STOP_CMD);
       DIN_START_LOW;
       dinStartState = LOW;
       break;
@@ -71,7 +71,7 @@ void SeqParameter()
       isRunning = TRUE;
       stopBtn.counter = 0;
       ppqn = 0;
-      MIDI.sendRealTime(Continue);//MidiSend(CONTINU_CMD);
+      MIDI.sendRealTime(midi::Continue);//MidiSend(CONTINU_CMD);
       DIN_START_HIGH;
       dinStartState = HIGH;
       break;
@@ -335,6 +335,7 @@ void SeqParameter()
                 trackPosNeedIncremante = FALSE;                                                               // [zabox] fixes group bug
                 group.length = SecondBitOn() - FirstBitOn();
                 nextPattern = group.firstPattern = FirstBitOn() + curBank * NBR_PATTERN;
+                group.pos = 1;//first pattern loaded right away, next measure plays index 1
                 doublePush = TRUE;
                 group.priority = TRUE;
                 //Store groupe in eeprom
@@ -367,14 +368,7 @@ void SeqParameter()
           }
         }
       }
-      if (trackPosNeedIncremante && group.length ){//&& stepCount > 0)
-        group.pos++;
-        if (group.pos > group.length) group.pos = 0;
-        nextPattern = group.firstPattern + group.pos;
-        if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-        trackPosNeedIncremante = FALSE;
-        needLcdUpdate = TRUE;
-      }
+      //pattern chain advance : cf PatternChainUpdate(), called from the common part
 
       //--------------------------------sequencer run direction-----------------------
       if (shiftBtn.pressed && dirBtn.justPressed){
@@ -546,9 +540,11 @@ void SeqParameter()
         {
           group.length = SecondBitOn() - FirstBitOn();
           nextPattern = group.firstPattern = FirstBitOn() + curBank * NBR_PATTERN;
-          if (isRunning && (seq.ptrnChangeSync == SYNC)) {                                                    // [zabox] fixes group bug while running
-            group.pos = group.length;                                                                           
-          }
+          //SYNC while running : the current pattern finishes and the chain starts at
+          //its first pattern next measure, so the next index to play is 0. Otherwise
+          //the first pattern is loaded right away and the next one is index 1.
+          if (isRunning && (seq.ptrnChangeSync == SYNC)) group.pos = 0;
+          else group.pos = 1;
           doublePush = TRUE;
           group.priority = TRUE;
         }
@@ -571,19 +567,7 @@ void SeqParameter()
       }
     }
 
-    //--------------------------------pattern next update---------------------------
-    if (trackPosNeedIncremante && group.length ){// && stepCount > 0)
-      if (group.pos > group.length) group.pos = 0;
-      nextPattern = group.firstPattern + group.pos;
-      group.pos++;
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-      trackPosNeedIncremante = FALSE;
-      needLcdUpdate = TRUE;
-    }
-    else if (trackPosNeedIncremante && group.length == 0){
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-      trackPosNeedIncremante = FALSE;
-    }
+    //pattern next update : cf PatternChainUpdate(), called from the common part
 
   }//END IF MODE PLAY PATTERN
 
@@ -614,17 +598,17 @@ void SeqParameter()
       }
     }
     //decremente track position
-    if (backBtn.justPressed){
-      trk.pos--;
-      if (trk.pos < 0 || trk.pos > MAX_PTRN_TRACK) trk.pos = 0;
+    //SHIFT + BACK is the "delete" shortcut : it must not move the position here
+    if (backBtn.justPressed && !shiftBtn.pressed){
+      if (trk.pos) trk.pos--;//trk.pos is unsigned, never let it wrap under 0
       nextPattern = track[trkBuffer].patternNbr[trk.pos];
       if(curPattern != nextPattern) selectedPatternChanged = TRUE;
       needLcdUpdate = TRUE;
     }
     //incremente track position
-    if (fwdBtn.justPressed){
+    if (fwdBtn.justPressed && !shiftBtn.pressed){
       trk.pos++;
-      if (trk.pos > MAX_PTRN_TRACK) trk.pos = MAX_PTRN_TRACK;
+      if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;
       nextPattern = track[trkBuffer].patternNbr[trk.pos];
       if(curPattern != nextPattern) selectedPatternChanged = TRUE;
       needLcdUpdate = TRUE;
@@ -640,45 +624,37 @@ void SeqParameter()
       //go to last measure
       if (numBtn.pressed){
         trk.pos = track[trkBuffer].length;
+        if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;
         nextPattern = track[trkBuffer].patternNbr[trk.pos];
         if(curPattern != nextPattern) selectedPatternChanged = TRUE;
         needLcdUpdate = TRUE;
       }
-      //delete current pattern in the current position
-   // if(backBtn.justPressed) {
-      if (backBtn.justPressed && track[trkBuffer].length){                                                  // [zabox] fixes crashs when deleting the last track pos
-        if (trk.pos < (track[trkBuffer].length - 1)) {                                                      // [zabox] delete only valid track pos
-        for (int a = trk.pos + 1; a < track[trkBuffer].length; a++){         
-          track[trkBuffer].patternNbr[a] = track[trkBuffer].patternNbr[a + 1]; 
+      //delete the pattern at the current position
+      if (backBtn.justPressed && trk.pos < track[trkBuffer].length){
+        //Every index is unsigned here : the loop can never walk below
+        //patternNbr[0], just under which the two length bytes live (cf SaveTrack)
+        for (unsigned int a = trk.pos; a < track[trkBuffer].length - 1; a++){
+          track[trkBuffer].patternNbr[a] = track[trkBuffer].patternNbr[a + 1];
         }
-        trk.pos +=1;//to stay in the same position
-        track[trkBuffer].length = track[trkBuffer].length - 1;//decremente length by 1 du to deleted pattern
+        track[trkBuffer].length--;//decremente length by 1 due to deleted pattern
+        if (trk.pos > track[trkBuffer].length) trk.pos = track[trkBuffer].length;
         nextPattern = track[trkBuffer].patternNbr[trk.pos];
         if(curPattern != nextPattern) selectedPatternChanged = TRUE;
         trackNeedSaved = TRUE;
         needLcdUpdate = TRUE;
-        }
-        else {
-          trk.pos +=1;//to stay in the same position
-        }
       }
-      //insert a pattern
-      if (fwdBtn.justPressed) {                                                                              
-        if (trk.pos < (track[trkBuffer].length + 1)) {                                                     // [zabox] insert only inside track
-        for (int a = track[trkBuffer].length + 1; a >= trk.pos; a--){                                             
-          track[trkBuffer].patternNbr[a] = track[trkBuffer].patternNbr[a - 1]; 
+      //insert a pattern at the current position
+      if (fwdBtn.justPressed && trk.pos <= track[trkBuffer].length
+          && track[trkBuffer].length < MAX_TRACK_POS){
+        for (unsigned int a = track[trkBuffer].length; a > trk.pos; a--){
+          track[trkBuffer].patternNbr[a] = track[trkBuffer].patternNbr[a - 1];
         }
-        trk.pos -=1;//to stay in the same position
         track[trkBuffer].patternNbr[trk.pos] = curPattern;
-        track[trkBuffer].length = track[trkBuffer].length + 1;//decremente length by 1 du to deleted pattern
+        track[trkBuffer].length++;//incremente length by 1 due to inserted pattern
         nextPattern = track[trkBuffer].patternNbr[trk.pos];
         if(curPattern != nextPattern) selectedPatternChanged = TRUE;
         trackNeedSaved = TRUE;
         needLcdUpdate = TRUE;
-        }
-        else {
-          trk.pos -=1;//to stay in the same position
-        }
       }
     }//end shift
 
@@ -686,7 +662,7 @@ void SeqParameter()
     if (enterBtn.justRelease && !trackJustSaved){
       track[trkBuffer].patternNbr[trk.pos] = curPattern;
       trk.pos++;
-      if (trk.pos > MAX_PTRN_TRACK) trk.pos = MAX_PTRN_TRACK;
+      if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;
       nextPattern = track[trkBuffer].patternNbr[trk.pos];
       if(curPattern != nextPattern) selectedPatternChanged = TRUE;
       track[trkBuffer].length = trk.pos;
@@ -698,15 +674,7 @@ void SeqParameter()
     //////////////////////////MODE TRACK PLAY/////////////////////////////////
   if (curSeqMode == TRACK_PLAY)
   {
-    if (trackPosNeedIncremante){//(endMeasure)
-      trk.pos++;
-      if (trk.pos >= track[trkBuffer].length) trk.pos = 0;
-      nextPattern = track[trkBuffer].patternNbr[trk.pos];
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-      trackPosNeedIncremante = FALSE;
-      needLcdUpdate = TRUE;
-
-    }
+    //track position update : cf TrackPlayUpdate(), called from the common part
     //go to first measure
     if (clearBtn.justPressed){
       trk.pos = 0;
@@ -747,6 +715,14 @@ void SeqParameter()
     trackJustSaved = FALSE;
   }
 
+  //--------------------------------playback advance---------------------------------
+  //MUTE only takes over the step buttons, it is NOT a transport mode. Gating the
+  //advance on curSeqMode froze playback on the pattern that was running when MUTE
+  //was entered, so drive it from the mode that is actually playing instead.
+  SeqMode playMode = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
+  if (playMode == PTRN_STEP || playMode == PTRN_PLAY) PatternChainUpdate(playMode);
+  else if (playMode == TRACK_PLAY) TrackPlayUpdate();
+
   if (selectedPatternChanged)
   {
     //Serial.println("changed!!");
@@ -758,20 +734,7 @@ void SeqParameter()
     nextPatternReady = TRUE;
   }
 
-  if(nextPatternReady){///In pattern play mode this peace of code execute in the PPQ Count function
-    //Serial.println("Ready!!");
-    //if ((isRunning && endMeasure) || !isRunning ){//|| (curSeqMode != PTRN_PLAY))
-    // Serial.println("endMeasure!!");
-    nextPatternReady = FALSE;
-    keybOct = DEFAULT_OCT;
-    noteIndex = 0;
-    InitMidiNoteOff();
-    ptrnBuffer = !ptrnBuffer;
-    //Serial.println("switched!!");
-    InitPattern();//SHOULD BE REMOVED WHEN EEPROM WILL BE INITIALIZED
-    //SetHHPattern();
-    InstToStepWord();
-  }
+  if (nextPatternReady) SwitchPatternBuffer();
 
   if (patternWasEdited)
   {//update Pattern

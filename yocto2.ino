@@ -12,7 +12,13 @@
 #include <MIDI.h>
 #include <EEPROM.h>
 
+#if DEBUG
 #include <MemoryFree.h>
+#endif
+
+//MIDI is wired on the second UART. With the v3.2 library this was a USE_SERIAL_PORT
+//edit inside MIDI.h ; from 5.x the port belongs to the sketch.
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 LiquidCrystal lcd(18, 19, 20, 21, 22, 23);
 
@@ -89,7 +95,7 @@ void setup()
   InstToStepWord();
   SetDoutTrig(0);
 
-  MIDI.begin();//Serial1.begin(MIDI_BAUD);
+  MIDI.begin();//opens Serial1 at 31250 baud
   MIDI.setHandleNoteOn(HandleNoteOn);
   MIDI.setHandleNoteOff(HandleNoteOff);
   MIDI.setInputChannel(seq.RXchannel);

@@ -31,9 +31,7 @@ void LcdUpdate()
         lcd.setCursor(0,1);
         LcdClearLine();
         lcd.setCursor(0,1);
-        char  sync[2];
-        strcpy_P(sync, (char*)pgm_read_word(&(nameSync[seq.sync])));
-        lcd.print(sync);
+        LcdPrintLabel(nameSync, seq.sync);
         lcd.setCursor(4,1);
         lcd.print(seq.defaultBpm);
         lcd.setCursor(9,1);
@@ -48,9 +46,7 @@ void LcdUpdate()
         lcd.setCursor(0,1);
         LcdClearLine();
         lcd.setCursor(0,1);
-        char  ptrnSyncChange[2];
-        strcpy_P(ptrnSyncChange, (char*)pgm_read_word(&(namePtrnChange[seq.ptrnChangeSync])));
-        lcd.print(ptrnSyncChange);
+        LcdPrintLabel(namePtrnChange, seq.ptrnChangeSync);
         lcd.setCursor(4,1);
         lcd.print("xxx");
         lcd.setCursor(8,1);
@@ -103,16 +99,12 @@ void LcdUpdate()
           lcd.setCursor(1,1);
           lcd.print(noteIndex + 1);
           lcd.setCursor(4,1);
-          char note[2];
-          strcpy_P(note, (char*)pgm_read_word(&(nameNote[pattern[ptrnBuffer].extNote[noteIndex] % 12])));
-          lcd.print(note);
+          LcdPrintLabel(nameNote, pattern[ptrnBuffer].extNote[noteIndex] % 12);
           lcd.print(pattern[ptrnBuffer].extNote[noteIndex] / 12);//note octave
           lcd.setCursor(9,1);
           lcd.print(pattern[ptrnBuffer].extLength + 1);
           lcd.setCursor(13,1);
-          char octave[2];
-          strcpy_P(octave, (char*)pgm_read_word(&(nameOct[keybOct])));
-          lcd.print(octave);
+          LcdPrintLabel(nameOct, keybOct);
         }
         else{
           lcd.setCursor(0,0);
@@ -127,9 +119,7 @@ void LcdUpdate()
           lcd.setCursor(8,1);
           LcdPrintScale();
           lcd.setCursor(12,1);
-          char instName[3];
-          strcpy_P(instName, (char*)pgm_read_word(&(selectInstString[curInst])));
-          lcd.print(instName);
+          LcdPrintLabel(selectInstString, curInst);
         }
         break;
         /* case PTRN_TAP:
@@ -176,6 +166,16 @@ void LcdUpdate()
       }
     }
   }
+}
+
+//print a label straight out of one of string.h's PROGMEM tables----------------
+//These were copied into local char buffers first, and all five buffers were declared
+//one or two bytes short of the strings they received (" BD", "MST" and "FRE" need 4
+//bytes with the terminator), so strcpy_P wrote past the stack frame on every refresh.
+//Printing from flash needs no buffer at all.
+void LcdPrintLabel(const char * const *table, byte index)
+{
+  lcd.print((const __FlashStringHelper *)pgm_read_word(&(table[index])));
 }
 
 //clear 16 character line-------------------------------------

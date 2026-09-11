@@ -267,7 +267,8 @@ void LoadPattern(byte patternNbr)
   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + PTRN_RETRIG_OFFSET);
   WireBeginTX(adress);
   Wire.endTransmission();
-  Wire.requestFrom(HRDW_ADDRESS,MAX_PAGE_SIZE); //request of  128 bytes
+  hrdwAddress = HRDW_ADDRESS + (adress >> 16);//same hardcoded chip bug as LoadPatternGroup
+  Wire.requestFrom(hrdwAddress, MAX_PAGE_SIZE); //request of  128 bytes
 
   for (byte j = 0; j < MAX_PAGE_SIZE; j++){
     pattern[!ptrnBuffer].extNote[j] = Wire.read();
@@ -357,6 +358,9 @@ void LoadSeqSetup()
 void SavePatternGroup(byte firstPattern, byte length)
 {
   for (int a = 0; a <= length ; a++){
+    //Never step outside the pattern area : past MAX_PTRN the address lands in the
+    //tracks. firstPattern and length can come from EEPROM content.
+    if (firstPattern + a >= MAX_PTRN) break;
     unsigned long adress = (unsigned long)(PTRN_OFFSET + ((firstPattern + a) * PTRN_SIZE) + OFFSET_GROUP);
     WireBeginTX(adress);
     /* Serial.print("adresse=");
@@ -376,6 +380,9 @@ void SavePatternGroup(byte firstPattern, byte length)
 void ClearPatternGroup(byte firstPattern, byte length)
 {
   for (int a = 0; a <= length ; a++){
+    //Same guard as SavePatternGroup : this one is called with values read back from
+    //the EEPROM, which the hardcoded chip address bug could have left inconsistent.
+    if (firstPattern + a >= MAX_PTRN) break;
     unsigned long adress = (unsigned long)(PTRN_OFFSET + ((firstPattern + a) * PTRN_SIZE) + OFFSET_GROUP);
     WireBeginTX(adress);
     Wire.write((byte)(0)); //pattern[ptrnBuffer].groupPos
@@ -391,7 +398,11 @@ byte LoadPatternGroup(byte patternNum, byte type)
   unsigned long adress = (unsigned long)(PTRN_OFFSET + (patternNum * PTRN_SIZE) + OFFSET_GROUP + type);
   WireBeginTX(adress);
   Wire.endTransmission();
-  Wire.requestFrom(HRDW_ADDRESS,(unsigned long)(1)); //
+  //The chip address carries bits 16 and up, so it has to follow the address. Reading
+  //from a hardcoded HRDW_ADDRESS returned another chip's data past pattern 51, and the
+  //caller in Seq.ino feeds that straight into ClearPatternGroup().
+  byte hrdwAddress = HRDW_ADDRESS + (adress >> 16);
+  Wire.requestFrom(hrdwAddress, (byte)1);
   byte data = (Wire.read() & 0xFF);
   return data;
 }

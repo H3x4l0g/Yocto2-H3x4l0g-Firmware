@@ -247,24 +247,58 @@ void ShiftRightPattern()
   }
 
 }
+//Advance the pattern chain by one measure
+//Single copy shared by PTRN_STEP and PTRN_PLAY. Each mode used to carry its own
+//version : one pre-incremented group.pos, the other post-incremented it, so
+//switching mode in the middle of a chain repeated or skipped a pattern.
+//Convention kept : group.pos always holds the index of the NEXT pattern to play.
+//playMode is the mode actually playing - MUTE is only a step button overlay.
+void PatternChainUpdate(SeqMode playMode)
+{
+  if (!trackPosNeedIncremante) return;
+  trackPosNeedIncremante = FALSE;
 
+  if (group.length){
+    if (group.pos > group.length) group.pos = 0;
+    nextPattern = group.firstPattern + group.pos;
+    group.pos++;
+    needLcdUpdate = TRUE;
+  }
+  //Without a chain, only PTRN_PLAY defers a pattern change to the measure boundary
+  else if (playMode != PTRN_PLAY) return;
 
+  if (curPattern != nextPattern) selectedPatternChanged = TRUE;
+}
 
+//Advance the track by one measure------------------------------------------------
+void TrackPlayUpdate()
+{
+  if (!trackPosNeedIncremante) return;
+  trackPosNeedIncremante = FALSE;
 
+  trk.pos++;
+  if (trk.pos >= track[trkBuffer].length) trk.pos = 0;
+  nextPattern = track[trkBuffer].patternNbr[trk.pos];
+  if (curPattern != nextPattern) selectedPatternChanged = TRUE;
+  needLcdUpdate = TRUE;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//Swap the pattern double buffer---------------------------------------------------
+//Used to exist twice : here and in the Timer1 ISR. Only the ISR copy reset the step
+//counters, and it never ran - the main loop cleared nextPatternReady first. Both
+//also wrote ptrnBuffer, a non atomic read-modify-write shared with the interrupt.
+//One copy now, in the main loop, keeping the step counter reset.
+void SwitchPatternBuffer()
+{
+  nextPatternReady = FALSE;
+  keybOct = DEFAULT_OCT;
+  noteIndex = 0;
+  InitMidiNoteOff();
+  //When pattern changed init all instrument step counter
+  for (byte z = 0; z < NBR_INST; z++){
+    stepCount[z] = 0;
+  }
+  ptrnBuffer = !ptrnBuffer;
+  InitPattern();//SHOULD BE REMOVED WHEN EEPROM WILL BE INITIALIZED
+  InstToStepWord();
+}

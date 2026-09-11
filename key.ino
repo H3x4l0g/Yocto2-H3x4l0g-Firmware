@@ -18,7 +18,7 @@ void KeyboardUpdate()
       InitMidiNoteOff();
       isStop = TRUE;
       isRunning = FALSE;
-      MIDI.sendRealTime(Stop);//;MidiSend(STOP_CMD);
+      MIDI.sendRealTime(midi::Stop);//;MidiSend(STOP_CMD);
       stopBtn.counter = 1;//like a push on stop button
     }
     needLcdUpdate = TRUE;

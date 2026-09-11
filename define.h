@@ -92,6 +92,9 @@
 #define MAX_PTRN 128
 #define MAX_TRACK 16
 #define MAX_PTRN_TRACK 1024
+//patternNbr[1020] and [1021] hold the stored track length (cf SaveTrack),
+//so the usable track positions and length stop at 999
+#define MAX_TRACK_POS 999
 #define MIN_BPM 30
 #define MAX_BPM 250
 #define DEFAULT_BPM 120
@@ -292,7 +295,7 @@ volatile byte noteIndexCpt = 0;
 boolean isRunning = FALSE;
 boolean isStop = TRUE;
 SeqMode curSeqMode = PTRN_STEP;
-SeqMode prevSeqMode;
+SeqMode prevSeqMode = PTRN_STEP;//mode overlayed by MUTE
 byte curInst = BD;//0 is BD trig out shift register
 byte curBank = 0;//0 to 7 banks
 byte curPattern = 0;// 0 to 255
@@ -414,13 +417,22 @@ SPISettings SPIset(4000000, MSBFIRST, SPI_MODE0);
 
 //Encoder--------------------------------------------
 #define ENCSTATE 3
+//State read on the two encoder pins when the knob rests in a detent
+//(both contacts open => both pins pulled HIGH)
+#define ENC_DETENT_STATE 3
+//Quadrature transitions to accumulate between two detents to validate one notch.
+//A complete detent is +/-4, 2 keeps the decoding tolerant to a missed sample
+//while still rejecting the contact bounce (which always sums back to 0).
+#define ENC_NOTCH_THRESHOLD 2
 byte encoder_A;
 byte encoder_B;
 byte encoder_A_prev=0;
 boolean encSwValue[2];
 boolean encSwState;
-byte oldStateEnc = 3;
+byte oldStateEnc = ENC_DETENT_STATE;
 byte encPosition = 0;
+int8_t encAccu = 0;//quadrature transitions accumulated since the last detent
+int8_t encNotch = 0;//-1, 0 or +1 : one validated detent waiting to be consumed
 const int8_t knobDir[] = {
   0, -1,  1,  0,
   1,  0,  0, -1,

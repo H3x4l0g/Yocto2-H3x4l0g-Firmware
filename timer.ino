@@ -19,10 +19,22 @@ void TimerStop(void)
   TCCR1A = TCCR1B = OCR1A = 0;
 }
 
+//Tick rate for Timer1 = (BPM * PPQN) / 60 Hz
+//Kept in 32 bits and divided once. The previous two step integer division,
+//(bpm*PPQN)/60 then (F_CPU/8)/that, truncated twice and hit the exact tempo for only
+//7 of the 221 settings - up to 0.54 BPM off, ie 0.75 s adrift over four minutes at
+//121 BPM. CTC counts OCR1A + 1 ticks per period, hence the -1.
 void TimerSetFrequency()
 {
-  // Calculates frequency for Timer1 = (BPM*ppqn)/60s
-#define FREQUENCY (((seq.bpm)*(PPQN))/60)
-  OCR1A =(F_CPU/ 8) / FREQUENCY;
+  unsigned int bpm = constrain(seq.bpm, MIN_BPM, MAX_BPM);
+  unsigned long ticks = ((unsigned long)(F_CPU / 8) * 60UL) / ((unsigned long)bpm * PPQN);
+
+  uint8_t sreg = SREG;
+  cli();
+  OCR1A = (unsigned int)(ticks - 1);
+  //A new OCR1A below the count already reached would simply be missed : the counter
+  //would climb to 0xFFFF before wrapping, a 32 ms hiccup. Restart the period instead.
+  if (TCNT1 > OCR1A) TCNT1 = 0;
+  SREG = sreg;
 }
 

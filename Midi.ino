@@ -74,10 +74,10 @@ void HandleContinue()
 //Disconned midi real time callback
 void DisconnectMidiHandleRealTime()
 {
-  MIDI.disconnectCallbackFromType(Clock);
-  MIDI.disconnectCallbackFromType(Start);
-  MIDI.disconnectCallbackFromType(Stop);
-  MIDI.disconnectCallbackFromType(Continue);
+  MIDI.disconnectCallbackFromType(midi::Clock);
+  MIDI.disconnectCallbackFromType(midi::Start);
+  MIDI.disconnectCallbackFromType(midi::Stop);
+  MIDI.disconnectCallbackFromType(midi::Continue);
 }
 
 //Handle noteON

@@ -7,6 +7,9 @@
 
 void EncGet()
 {
+  //Sample the encoder ONCE per loop, the branches below only consume the notch
+  EncRead();
+
   //////////////////////////////////SHUFFLE////////////////////////////////////
   if (shufBtn.pressed && curSeqMode == PTRN_STEP){
     if (shiftBtn.pressed){
@@ -53,7 +56,7 @@ void EncGet()
     case 0://track position
       if(instBtn) trk.pos = EncGet(trk.pos, 10);
       else trk.pos = EncGet(trk.pos, 1);
-      trk.pos = constrain(trk.pos, 0, 999);
+      trk.pos = constrain(trk.pos, 0, MAX_TRACK_POS);
       static unsigned int prevTrkPos;
       if (trk.pos != prevTrkPos){
         prevTrkPos = trk.pos;
@@ -75,7 +78,7 @@ void EncGet()
       case 2://track length
         if(instBtn) track[trkBuffer].length = EncGet(track[trkBuffer].length, 10);
         else track[trkBuffer].length = EncGet(track[trkBuffer].length, 1);
-        track[trkBuffer].length = constrain(track[trkBuffer].length, 0, 999);
+        track[trkBuffer].length = constrain(track[trkBuffer].length, 0, MAX_TRACK_POS);
         static unsigned int prevTrkLength;
         if (track[trkBuffer].length != prevTrkLength){
           prevTrkLength = track[trkBuffer].length;
@@ -214,35 +217,39 @@ void EncGet()
 }
 
 
-//Get encoder value-------------------------------------------------------
+//Read the encoder and validate ONE notch per detent-----------------------
+//A mechanical encoder runs a complete quadrature cycle (4 transitions)
+//between two detents. Counting every transition made the edited value jump
+//by 4 at each detent, so the transitions are accumulated instead and a notch
+//is emitted only when the knob settles back on its detent.
+void EncRead()
+{
+  byte thisState = digitalRead(ENC_PINB) | (digitalRead(ENC_PINA) << 1);
+
+  if (thisState == oldStateEnc) return;
+
+  encAccu += knobDir[thisState | (oldStateEnc << 2)];
+  oldStateEnc = thisState;
+
+  if (thisState == ENC_DETENT_STATE){
+    //Contact bounce sums back to 0, only a real rotation reaches the threshold
+    if (encAccu >= ENC_NOTCH_THRESHOLD) encNotch = 1;
+    else if (encAccu <= -ENC_NOTCH_THRESHOLD) encNotch = -1;
+    encAccu = 0;
+  }
+}
+
+//Apply the pending notch to a value--------------------------------------
+//The notch is consumed here, so when several parameters are candidates in
+//the same loop (SHUFFLE + BPM for instance) only the first one moves.
 int EncGet(int value, int dif)
 {
-  int sig1 = digitalRead(1);
-  int sig2 = digitalRead(0);
-  byte thisState = sig1 | (sig2 << 1);
-
-  if (oldStateEnc != thisState) {
-    if (knobDir[thisState | (oldStateEnc << 2)] == 1){
-      value += dif;
-    }
-    else if (knobDir[thisState | (oldStateEnc << 2)] == -1){
-      if(instBtn){
-        switch (curIndex){
-        case 0:
-        case 2:
-          if (value >= 10) value -= dif;
-          break;
-        case 1:
-          if (value >= 16) value -= dif;
-          break;
-        }
-      }
-      else{
-        if (value != 0) value -= dif;  // to not go under 0
-      }
-    }    
-    oldStateEnc = thisState;
-  } 
+  if (encNotch > 0) value += dif;
+  else if (encNotch < 0){
+    value -= dif;
+    if (value < 0) value = 0;// every edited parameter is positive, no wrap around
+  }
+  encNotch = 0;
   return value;
 }
 
