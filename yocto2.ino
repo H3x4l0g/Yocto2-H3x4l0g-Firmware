@@ -125,11 +125,13 @@ void setup()
   }
   //-----------------------------------------------
 
-  lcd.setCursor(0, 0);
+  lcd.clear();//the EEPROM auto init screen may still be up
+  lcd.setCursor(LCD_CENTER(FW_VERSION), 0);
   lcd.print(FW_VERSION);
-  lcd.setCursor(0,1);
+  lcd.setCursor(LCD_CENTER(FW_AUTHOR), 1);
   lcd.print(FW_AUTHOR);
   delay(1000);
+  BootSweep();//one more second of version, spent on a chase light
 
 }
 

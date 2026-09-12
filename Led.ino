@@ -5,6 +5,37 @@
 
 ////////////////////////Function//////////////////////
 
+//Boot sweep : one Knight Rider bounce across the sixteen step LEDs, played while the
+//version stays on screen.
+//The LEDs are plain on/off - there is no PWM anywhere on this board - so the comet tail
+//is dithered in time instead. Within one position the head is lit on every frame, the
+//LED just behind it on three frames out of eight, the one behind that on one out of
+//eight. At 4 ms a frame the eye integrates the three duty cycles into a gradient, and
+//that is what makes a tail rather than a hard block of three.
+//30 positions : 0 up to 15, then 14 back down to 1, so neither end is held twice.
+void BootSweep()
+{
+  for (byte pos = 0; pos < 30; pos++){
+    byte head = (pos < NBR_BTN_STEP) ? pos : (30 - pos);
+    int  back = (pos < NBR_BTN_STEP) ? -1 : 1;//the tail trails behind the head
+
+    for (byte frame = 0; frame < 8; frame++){
+      unsigned int leds = 1U << head;
+      if (frame < 3){
+        int t = head + back;
+        if (t >= 0 && t < NBR_BTN_STEP) leds |= 1U << t;
+      }
+      if (frame < 1){
+        int t = head + 2 * back;
+        if (t >= 0 && t < NBR_BTN_STEP) leds |= 1U << t;
+      }
+      SetDoutLed(leds, 0, 0);
+      delay(4);
+    }
+  }
+  SetDoutLed(0, 0, 0);
+}
+
 void SetLeds()
 {
   //------------------------------Menu LEDS-------------------------------
