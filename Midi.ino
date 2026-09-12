@@ -44,9 +44,17 @@ void MidiSendNoteOn (byte channel, byte value, byte velocity)
 void HandleClock()
 {
   DIN_CLK_HIGH;
+  //A delayMicroseconds(2000) used to sit between the second and third call. It was there
+  //to let the trigger pulse finish before the next tick could retrigger, back when the
+  //sequencer interrupt held the outputs with its own 2 ms busy wait. Timer2 carries the
+  //pulse now, so the wait had nothing left to wait for - it only blocked the main loop
+  //for 2 ms on every incoming MIDI clock, which is 48 ms per second at 120 BPM.
+  //zabox reached the same conclusion on the NAVA and commented it out there.
+  //The four back to back calls are still wrong - the four sub ticks ought to be spread
+  //over the incoming clock period rather than fired at once - but that is a rewrite,
+  //noted separately in TODO.md.
   CountPPQN();//execute 4x because internal sequencer run as 96 ppqn
   CountPPQN();
-  delayMicroseconds(2000);
   CountPPQN();
   CountPPQN();
   DIN_CLK_LOW;

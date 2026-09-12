@@ -16,7 +16,6 @@ void CountPPQN()
   //One read here, one write back at the end.
   byte p = ppqn;
 
-  blinkVeryFast =! blinkVeryFast;
   if (p % (PPQN/2) == 0) blinkTempo = !blinkTempo;
   if (p  % (pattern[ptrnBuffer].scale[curInst]/2) == 0) blinkFast[curInst] = LOW;
   //if (p % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq

@@ -10,7 +10,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.010"
+#define FW_VERSION  "Yocto v2.011"
 #define FW_AUTHOR   "2026 H3X4L0G"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -274,7 +274,6 @@ unsigned int configLed;
 volatile boolean blinkTempo = 1;
 volatile boolean blinkFast[NBR_INST] = {
   1};//each instrument could blink in different scale
-volatile boolean blinkVeryFast;
 boolean stopLed, trackLed, backLed, fwdLed, numLed, ptrnLed, tapLed, dirLed, guideLed, bankLed, muteLed, tempoLed, instLed, shiftLed, clearLed, shufLed, scaleLed, lastStepLed;
 /*boolean eighttLed;//tempo scale Leds
  boolean sixteentLed;

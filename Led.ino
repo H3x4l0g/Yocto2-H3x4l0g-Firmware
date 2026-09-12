@@ -249,7 +249,23 @@ void SetLeds()
     break;
   }
   //Send OUTPUTS now !
-  SetDoutLed(stepLeds, configLed , menuLed);
+  //Only push to the shift registers when something actually changed. SetLeds() runs on
+  //every pass of loop() - about 2800 times a second, measured on the scope - and each
+  //SetDoutLed() is five SPI bytes with the interrupts masked throughout, some 20 us.
+  //Most of those passes resend a word identical to the one already latched.
+  //This does not touch the frame rate, so the low velocity dithering of flagLedIntensity
+  //above keeps its cadence : when it is active the value alternates every frame and the
+  //write happens anyway. What disappears is the idle traffic.
+  //The initial values are 0 because that is what is really in the registers : setup()
+  //writes SetDoutLed(0, 0, 0) and BootSweep() ends on the same.
+  static unsigned int prevStepLeds = 0, prevConfigLed = 0;
+  static byte prevMenuLed = 0;
+  if (stepLeds != prevStepLeds || configLed != prevConfigLed || menuLed != prevMenuLed){
+    prevStepLeds  = stepLeds;
+    prevConfigLed = configLed;
+    prevMenuLed   = menuLed;
+    SetDoutLed(stepLeds, configLed , menuLed);
+  }
 }
 
 
