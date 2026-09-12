@@ -39,7 +39,11 @@ void EncGet()
     }
   }
   //////////////////////////////////TOTAL ACCENT////////////////////////////////////
-  if (curInst == TOTAL_ACC && curSeqMode == PTRN_STEP){
+  //Behind INST held, because the knob became the instrument selector below : ungated,
+  //scrolling onto ACC trapped the knob there - the value edit ate the notch and the only
+  //way out was INST + step button, which you have to know. On ACC the screen IS the
+  //value (a bargraph), so the knob belongs to it once you ask for it.
+  if (instBtn && curInst == TOTAL_ACC && curSeqMode == PTRN_STEP){
     pattern[ptrnBuffer].totalAcc = EncGet(pattern[ptrnBuffer].totalAcc, 1);
     pattern[ptrnBuffer].totalAcc = constrain(pattern[ptrnBuffer].totalAcc, 0, 13);
     static byte prevTotalAcc;
@@ -200,6 +204,26 @@ void EncGet()
         needLcdUpdate = TRUE;
       }
       break;
+    }
+  }
+  ////////////////////////////PATTERN EDIT : INSTRUMENT SELECT//////////////////////
+  //The knob had nothing to do on the pattern edit screen : it fell through to the BPM
+  //while the LCD read "ptr len scl ins" and showed no tempo at all. It drives the ins
+  //field now - and len, scl and the whole step LED grid follow, since all three read
+  //curInst. Same range as INST + step button, BD to TR2, so nothing new is reachable
+  //and nothing becomes unreachable.
+  //TEMPO held gives the knob back to the BPM, exactly as it already does in TRACK_WRITE
+  //- and LcdUpdate() already overlays the tempo on row 1 while that button is down, so
+  //the escape hatch shows itself.
+  //Placed last in the chain on purpose : SHUFFLE, TOTAL ACC, keyboard and config all
+  //get first claim on the notch, and what is left over is the instrument.
+  else if ((curSeqMode == PTRN_STEP || curSeqMode == PTRN_TAP) && !tempoBtn.pressed){
+    //Compared against curInst itself rather than a static copy of it, as the branches
+    //above do : one variable instead of two that can disagree.
+    byte newInst = constrain(EncGet(curInst, 1), 0, NBR_INST - 1);
+    if (newInst != curInst){
+      curInst = newInst;
+      needLcdUpdate = TRUE;
     }
   }
   else{
