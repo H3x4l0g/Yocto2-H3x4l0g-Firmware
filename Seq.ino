@@ -93,11 +93,17 @@ void SeqParameter()
      trackNeedSaved = FALSE;
      }*/
     if (tapBtn.justPressed){
-      curSeqMode = PTRN_TAP;
-      needLcdUpdate = TRUE;
-      keyboardMode = FALSE;
-      seq.configMode  = FALSE;
-      //trackNeedSaved deliberately left alone : cf the ptrnBtn handler below.
+      //Same transport rule as TRK and PATT below : tap writing is a pattern job, so it
+      //cannot be reached from a running track either. Without this the rule had a side
+      //door - Shift+TAP then PATT crossed the two families in two presses.
+      SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
+      if (!IS_TRACK_MODE(from) || !isRunning){
+        curSeqMode = PTRN_TAP;
+        needLcdUpdate = TRUE;
+        keyboardMode = FALSE;
+        seq.configMode  = FALSE;
+        //trackNeedSaved deliberately left alone : cf the ptrnBtn handler below.
+      }
     }
     if (bankBtn.justPressed){
       CopyPatternToBuffer();
@@ -128,24 +134,34 @@ void SeqParameter()
       //this did not know about each other, and each only tested its own mode.
       //The play/edit character of the mode being left is now carried across.
       SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
-      if (from == TRACK_WRITE)     curSeqMode = TRACK_PLAY;//toggle inside the family
-      else if (from == TRACK_PLAY) curSeqMode = TRACK_WRITE;
-      else curSeqMode = (from == PTRN_PLAY) ? TRACK_PLAY : TRACK_WRITE;//crossing over
-      needLcdUpdate = TRUE;
-      keyboardMode = FALSE;
-      seq.configMode  = FALSE;
+      //And crossing over is refused while the transport runs. The two families do not
+      //play the same thing - one pattern on one side, a chain of them on the other - so
+      //crossing over swapped what the sequencer was playing under your fingers, with no
+      //say in where it landed in the chain. You stop first, deliberately.
+      //The toggle inside a family stays free, running or not : it changes what the step
+      //buttons and the screen do, never what is being played.
+      if (IS_TRACK_MODE(from) || !isRunning){
+        if (from == TRACK_WRITE)     curSeqMode = TRACK_PLAY;//toggle inside the family
+        else if (from == TRACK_PLAY) curSeqMode = TRACK_WRITE;
+        else curSeqMode = (from == PTRN_PLAY) ? TRACK_PLAY : TRACK_WRITE;//crossing over
+        needLcdUpdate = TRUE;
+        keyboardMode = FALSE;
+        seq.configMode  = FALSE;
+      }
     }
     // if (backBtn.justPressed) ;//back  track postion
     //if (fwdBtn.justPressed) ;//foward track postion
     if (numBtn.pressed) ;//select Track number
     if (ptrnBtn.justPressed){
       SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;//cf trkBtn above
-      if (from == PTRN_STEP)      curSeqMode = PTRN_PLAY;//toggle inside the family
-      else if (from == PTRN_PLAY) curSeqMode = PTRN_STEP;
-      else curSeqMode = (from == TRACK_PLAY) ? PTRN_PLAY : PTRN_STEP;//crossing over
-      needLcdUpdate = TRUE;
-      keyboardMode = FALSE;
-      seq.configMode  = FALSE;
+      if (!IS_TRACK_MODE(from) || !isRunning){//transport rule : cf trkBtn above
+        if (from == PTRN_STEP)      curSeqMode = PTRN_PLAY;//toggle inside the family
+        else if (from == PTRN_PLAY) curSeqMode = PTRN_STEP;
+        else curSeqMode = (from == TRACK_PLAY) ? PTRN_PLAY : PTRN_STEP;//crossing over
+        needLcdUpdate = TRUE;
+        keyboardMode = FALSE;
+        seq.configMode  = FALSE;
+      }
       //trackNeedSaved was cleared here. It is the flag that blinks the ENTER LED and
       //gates SaveTrack(), so leaving TRACK through this button silently dropped pending
       //track edits : the LED went dark and holding ENTER saved nothing. The data was

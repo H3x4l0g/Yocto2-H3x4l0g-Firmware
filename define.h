@@ -10,7 +10,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.011"
+#define FW_VERSION  "Yocto v2.012"
 #define FW_AUTHOR   "2026 H3X4L0G"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -225,6 +225,11 @@ enum SeqMode
 {
   TRACK_PLAY, TRACK_WRITE, PTRN_PLAY, PTRN_STEP, PTRN_TAP, MUTE
 };
+//A mode belongs to one of two families, and the family decides what the transport plays :
+//a single pattern on one side, a chain of patterns on the other. MUTE is not a family of
+//its own - it overlays another mode, which prevSeqMode carries - so resolve MUTE before
+//asking this. PTRN_TAP belongs to the pattern family.
+#define IS_TRACK_MODE(m) ((m) == TRACK_PLAY || (m) == TRACK_WRITE)
 
 //////////////////////////////variable////////////////////////////////
 //Dio---------------------------------------------
