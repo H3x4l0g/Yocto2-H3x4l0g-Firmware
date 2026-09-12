@@ -9,7 +9,7 @@
 //Firmware version - shown on the LCD at boot.
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
-#define FW_VERSION  "Yocto v2.006"
+#define FW_VERSION  "Yocto v2.007"
 #define FW_AUTHOR   "2026 H3X4L0G "
 static_assert(sizeof(FW_VERSION) <= 17, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= 17, "FW_AUTHOR depasse les 16 colonnes du LCD");
