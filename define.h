@@ -100,7 +100,6 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #define BACKWARD 1
 #define PING_PONG 2
 #define RANDOM 3
-#define MAX_BANK 7 //bank A to H
 #define MAX_PTRN 128
 #define MAX_TRACK 16
 #define MAX_PTRN_TRACK 1024

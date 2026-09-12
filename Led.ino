@@ -5,6 +5,24 @@
 
 ////////////////////////Function//////////////////////
 
+//The eight bank candidates, the current one at full brightness--------------------
+//BANK held turns the step buttons into bank select, and there are only NBR_BANK = 8 of
+//them : half the row does nothing. The panel used to light a single LED, the current
+//bank - it said where you were, never what was reachable.
+//flagLedIntensity is the same temporal dither that fades low velocity steps further
+//down : what appears ONLY in the one-frame-in-nine branch reads as dim, what appears in
+//both reads at full brightness. curBank sits inside the candidate mask, so it is lit on
+//every frame while the seven others merely glow.
+unsigned int BankLeds()
+{
+  if (flagLedIntensity >= 8){
+    flagLedIntensity = 0;
+    return (1U << NBR_BANK) - 1;//the eight candidates, one frame in nine
+  }
+  flagLedIntensity++;
+  return 1U << curBank;//the current one, every frame
+}
+
 //Boot sweep : one Knight Rider bounce across the sixteen step LEDs, played while the
 //version stays on screen.
 //The LEDs are plain on/off - there is no PWM anywhere on this board - so the comet tail
@@ -144,7 +162,7 @@ void SetLeds()
     break;
   case TRACK_WRITE:
     if (bankBtn.pressed){
-      stepLeds = 1 << curBank;
+      stepLeds = BankLeds();
     }
     else if (numBtn.pressed){
       stepLeds = 1 << trk.current;
@@ -157,7 +175,7 @@ void SetLeds()
     //------------------------------
   case PTRN_PLAY:
     if (bankBtn.pressed){
-      stepLeds = 1 << curBank;
+      stepLeds = BankLeds();
     }
     else{
       if (isRunning){
@@ -225,7 +243,7 @@ void SetLeds()
     else if (!isRunning && !instBtn){
       //Display Bank number
       if (bankBtn.pressed){
-        stepLeds = 1 << curBank;
+        stepLeds = BankLeds();
       }
       //display selected pattern
       else{

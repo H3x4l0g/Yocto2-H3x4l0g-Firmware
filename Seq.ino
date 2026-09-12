@@ -354,11 +354,23 @@ void SeqParameter()
         {//Return pattern number
           if (stepsBtn.pressed){
             if (bankBtn.pressed){
-              if(FirstBitOn() >= MAX_BANK) curBank = MAX_BANK;
-              else curBank = FirstBitOn();
-              nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
-              if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-              group.length = 0;
+              //There are NBR_BANK = 8 banks for 16 step buttons, so half of them are not
+              //banks at all. What used to sit here rounded the button number DOWN to the
+              //last bank, so buttons 9 to 16 all selected bank H instead of doing
+              //nothing : the panel answered sixteen buttons and eight of them lied.
+              //The step LEDs now show the eight candidates (cf BankLeds() in Led.ino),
+              //so the gesture and the display have to agree.
+              //FirstBitOn() is also called once instead of twice : it re-reads the step
+              //buttons on each call, and the two reads could disagree.
+              //MAX_BANK is gone with this - one constant that says how many, rather than
+              //two that differ by one and get confused for each other.
+              byte bank = FirstBitOn();
+              if (bank < NBR_BANK){
+                curBank = bank;
+                nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
+                if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+                group.length = 0;
+              }
             }
             else{//pattern group edit------------------------------------------------------
               if (SecondBitOn())
@@ -557,11 +569,13 @@ void SeqParameter()
     if (stepsBtn.justRelease) doublePush = FALSE;
     if (readButtonState){
       if (bankBtn.pressed){
-        if(FirstBitOn() >= MAX_BANK) curBank = MAX_BANK;
-        else curBank = FirstBitOn();
-        nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
-        group.length = 0;//should be 0 to play the right next pattern
-        if((curPattern != nextPattern) && !isRunning) selectedPatternChanged = TRUE;
+        byte bank = FirstBitOn();//9 to 16 are not banks : cf the PTRN_STEP site above
+        if (bank < NBR_BANK){
+          curBank = bank;
+          nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
+          group.length = 0;//should be 0 to play the right next pattern
+          if((curPattern != nextPattern) && !isRunning) selectedPatternChanged = TRUE;
+        }
       }
       else{
         //Group selected
@@ -613,10 +627,12 @@ void SeqParameter()
     if (stepsBtn.justPressed){
 
       if (bankBtn.pressed){
-        if(FirstBitOn() >= MAX_BANK) curBank = MAX_BANK;
-        else curBank = FirstBitOn();
-        nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
-        if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+        byte bank = FirstBitOn();//9 to 16 are not banks : cf the PTRN_STEP site above
+        if (bank < NBR_BANK){
+          curBank = bank;
+          nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
+          if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+        }
       }
       else if(numBtn.pressed){
         trk.next = FirstBitOn();
