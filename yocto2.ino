@@ -39,6 +39,14 @@ void setup()
   InitIO();//cf Dio
   InitButtonCounter();//cf Button
 
+  //The shift registers come out of power up holding whatever the bus left in them, so
+  //the panel lights at random and the trigger outputs can sit in any state - an open
+  //trigger is enough to make the BD oscillate. Drive them to a known state before
+  //anything else. Same fix zabox applied to the NAVA, "[1.028] no random trigger pin
+  //states at startup".
+  SetDoutTrig(0);
+  SetDoutLed(0, 0, 0);
+
 #if DEBUG
   Serial.begin(115200);
   Serial.print("freeMemory()=");

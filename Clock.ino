@@ -21,10 +21,20 @@ void CountPPQN()
   if (p  % (pattern[ptrnBuffer].scale[curInst]/2) == 0) blinkFast[curInst] = LOW;
   //if (p % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq
 
-  if (p % 4 == 0) {                                
-    while (!(UCSR1A & (1 << UDRE1))) {
-    };                                            // [zabox] directly adressing the uart fixes the midi clock lag
-    UDR1 = CLOCK_CMD; //Tick
+  if (p % 4 == 0) {
+    //Writing UDR1 directly rather than through the library is [zabox]'s fix for the MIDI
+    //clock lag, and it stays. What goes is the unbounded wait that used to guard it.
+    //
+    //UDRE1 is only ever set once MIDI.begin() has enabled the UART1 transmitter, and
+    //setup() starts Timer1 in InitSeq() about 230 ms BEFORE that call - LoadTrack() and
+    //LoadPattern() sit in between, at 100 kHz over I2C. So the interrupt fires some
+    //forty times while the port is still closed. A spin here runs inside an interrupt
+    //with the flags masked : nothing can preempt it, nothing can recover it, the machine
+    //is simply dead until the power is cut.
+    //
+    //Dropping a clock byte that has nowhere to go costs nothing - the sequencer is not
+    //running yet and no one is listening. Freezing costs everything.
+    if (UCSR1A & (1 << UDRE1)) UDR1 = CLOCK_CMD;//Tick
   }
   if (seq.sync == MASTER){
     if (p % 4 == 0){
