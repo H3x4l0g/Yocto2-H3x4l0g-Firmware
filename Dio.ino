@@ -17,7 +17,46 @@ void InitIO()
   pinMode (ENC_PINB, INPUT);
   SPI.begin();
   SPI.usingInterrupt(255);
+  I2cBusRecover();//must run before Wire.begin() takes the pins over
   Wire.begin();
+  //Never wait forever on the bus either. The biggest transaction here is 130 bytes,
+  //about 12 ms at 100 kHz, so 50 ms is twenty times the "forever" this used to be and
+  //still four times any legitimate transfer. On timeout the peripheral is reset, which
+  //releases the lines.
+  Wire.setWireTimeout(50000, true);
+}
+
+//I2C bus recovery, run before Wire.begin().
+//A slave interrupted in the middle of a byte - which is literally what cutting the
+//power during a page read does - keeps driving SDA low and holds the whole bus. Nothing
+//in twi_init() can undo that : the master never gets its start condition through, and
+//the first transaction of setup() waits on a state change that will never come. Inside
+//an interrupt driven state machine with no timeout, that is a dead machine. Two power
+//cycles used to clear it because the EEPROM eventually gave up.
+//The cure is the textbook one : clock SCL by hand until the slave lets go of SDA, then
+//place a stop condition so everyone agrees the bus is idle.
+void I2cBusRecover()
+{
+  pinMode(SDA, INPUT_PULLUP);
+  pinMode(SCL, INPUT_PULLUP);
+  delayMicroseconds(10);
+  if (digitalRead(SDA) == HIGH) return;//bus already free, nothing to do
+
+  pinMode(SCL, OUTPUT);
+  for (byte i = 0; i < 9 && digitalRead(SDA) == LOW; i++){
+    digitalWrite(SCL, LOW);
+    delayMicroseconds(5);
+    digitalWrite(SCL, HIGH);
+    delayMicroseconds(5);
+  }
+  //Stop condition by hand : SDA rises while SCL is high.
+  pinMode(SDA, OUTPUT);
+  digitalWrite(SDA, LOW);
+  delayMicroseconds(5);
+  pinMode(SCL, INPUT_PULLUP);
+  delayMicroseconds(5);
+  pinMode(SDA, INPUT_PULLUP);
+  delayMicroseconds(5);
 }
 
 //Pre init IO for Test MODE

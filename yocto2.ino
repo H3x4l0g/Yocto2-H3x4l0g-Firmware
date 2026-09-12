@@ -54,6 +54,12 @@ void setup()
 #endif
 
 
+  //The HD44780 needs more than 40 ms after Vcc has reached its level before it accepts
+  //anything. LiquidCrystal::begin() waits 50 ms, but it counts from the moment it is
+  //called, not from power on - and the MCU is up and running long before a slow rail
+  //has settled. When begin() lands too early the controller ignores it and the display
+  //stays on its power up pattern, the top row all pixels on, whatever is printed after.
+  delay(100);
   lcd.begin(16, 2);
   lcd.createChar(0,font0);
   lcd.createChar(1,font1);
