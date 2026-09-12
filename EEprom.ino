@@ -89,7 +89,7 @@ void SavePattern(byte patternNbr)
   Wire.write((byte)(pattern[ptrnBuffer].globalDir));
   Wire.write((byte)(pattern[ptrnBuffer].groupPos));
   Wire.write((byte)(pattern[ptrnBuffer].groupLength));
-  Wire.write((byte)(pattern[ptrnBuffer].totalAcc));
+  Wire.write((byte)(pattern[ptrnBuffer].globalAcc));
   //103 bytes => 25 byte left ;)
 
   Wire.endTransmission();//end page transmission
@@ -199,7 +199,7 @@ void LoadPattern(byte patternNbr)
   pattern[!ptrnBuffer].globalDir = Wire.read();
   pattern[!ptrnBuffer].groupPos = Wire.read();
   pattern[!ptrnBuffer].groupLength = Wire.read();
-  pattern[!ptrnBuffer].totalAcc = Wire.read();
+  pattern[!ptrnBuffer].globalAcc = Wire.read();
   //103 bytes requested
 
     //VELOCITY-----------------------------------------------

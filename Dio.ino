@@ -130,7 +130,7 @@ void SetDoutTrig(unsigned int value)
 {
   //No analog voices doesn't have to be trigged by the shift register
   //It prevent "TICK" sound when muting
-  value &= ~((1 << TOTAL_ACC) | (1 << EXT_INST) | (1 << TR1) | (1 << TR2));
+  value &= ~((1 << GLOBAL_ACC) | (1 << EXT_INST) | (1 << TR1) | (1 << TR2));
   SPI.beginTransaction(SPIset);
   TRIG_CS_LOW;
   SPI.transfer(byte(value >> 8));

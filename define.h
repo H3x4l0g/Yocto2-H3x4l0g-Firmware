@@ -10,7 +10,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.013"
+#define FW_VERSION  "Yocto v2.014"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -131,8 +131,8 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #define MAX_BLOCK_LEN 16
 #define POSITION 0
 #define LENGTH 1
-#define MAX_TOTAL_ACC 13
-#define MIN_TOTAL_ACC 0
+#define MAX_GLOBAL_ACC 13
+#define MIN_GLOBAL_ACC 0
 #define SYNC 1
 #define FREE 0
 
@@ -215,7 +215,7 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #undef PC2
 #define PC2 11
 
-#define TOTAL_ACC 12 //
+#define GLOBAL_ACC 12 //
 #define EXT_INST 13 //unsused shift register out but used in the pattern
 #define TR1 14 //
 #define TR2 15
@@ -352,7 +352,7 @@ struct Pattern
   byte extLength;
   byte groupPos;
   byte groupLength;
-  byte totalAcc;//Total accent value
+  byte globalAcc;//Global accent value
   byte dir[NBR_INST];
   byte length[NBR_INST];
   byte scale[NBR_INST];

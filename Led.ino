@@ -73,7 +73,7 @@ void SetLeds()
   if (curSeqMode == PTRN_STEP && curInst == EXT_INST) guideLed = blinkTempo;
   bankLed = bankBtn.pressed;
 
-  if (instBtn && curInst == TOTAL_ACC) enterLed = HIGH;
+  if (instBtn && curInst == GLOBAL_ACC) enterLed = HIGH;
   else if (patternNeedSaved || trackNeedSaved || seq.setupNeedSaved) enterLed = blinkTempo;
   else enterLed = LOW;
 
@@ -87,7 +87,7 @@ void SetLeds()
 
   //------------------------------Step LEDS-------------------------------
   //Update inst selected Leds
-  // if (curInst == TRIG_OUT | curInst == EXT_INST | curInst == TOTAL_ACC) curInst = 0;
+  // if (curInst == TRIG_OUT | curInst == EXT_INST | curInst == GLOBAL_ACC) curInst = 0;
   /* else*/  instSlctLed = (1 << curInst);
 
   /*  switch (curInst){
@@ -129,8 +129,8 @@ void SetLeds()
    break;
    case TRIG_OUT:
    case EXT_INST:
-   case TOTAL_ACC:
-   instSlctLed = 0;//Clear step leds when TOTAL_ACC... selected
+   case GLOBAL_ACC:
+   instSlctLed = 0;//Clear step leds when GLOBAL_ACC... selected
    break;
    }*/
 

@@ -14,9 +14,9 @@ void LcdUpdate()
     lcd.setCursor(11,1);
     LcdPrintTempo();
   }
-  //display total  accent
+  //display global accent
   /*if (enterBtn.pressed && curSeqMode == PTRN_PLAY){
-   LcdPrintTotalAcc();
+   LcdPrintGlobalAcc();
    }*/
   if(needLcdUpdate && !tempoBtn.pressed){
     needLcdUpdate = FALSE;
@@ -78,8 +78,8 @@ void LcdUpdate()
         break;
       case PTRN_STEP:
       case PTRN_TAP:
-        if (curInst == TOTAL_ACC){
-          LcdPrintTotalAcc();
+        if (curInst == GLOBAL_ACC){
+          LcdPrintGlobalAcc();
         }
         else if (shufBtn.pressed){
           lcd.setCursor(0,0);
@@ -243,20 +243,20 @@ void LcdPrintSaved()
   lcd.print("[SAVED!]");
 }
 
-//Lcd print Total Accent
-void LcdPrintTotalAcc()
+//Lcd print Global Accent
+void LcdPrintGlobalAcc()
 {
   lcd.setCursor(0,0);
-  lcd.print("Total Acc value ");
+  lcd.print("Global Acc value");
   lcd.setCursor(0,1);
   LcdClearLine();
   lcd.setCursor(0,1);
   lcd.print("-");
   lcd.setCursor(1,1);
-  LcdPrintLine(14);
+  LcdPrintLine(MAX_GLOBAL_ACC + 1);//one cell per value, 0 included
   lcd.setCursor(15,1);
   lcd.print("+");
-  lcd.setCursor(1 + pattern[ptrnBuffer].totalAcc, 1);
+  lcd.setCursor(1 + pattern[ptrnBuffer].globalAcc, 1);
   lcd.print((char)219);
 }
 

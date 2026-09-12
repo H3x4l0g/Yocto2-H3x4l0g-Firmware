@@ -127,7 +127,7 @@ unsigned int InstValueGet(unsigned int value)
         stepBtn[a].justPressed = 1;
 
         //two button state
-        if(curInst == TOTAL_ACC || curInst == TR1 || curInst == TR2 || curInst == EXT_INST){
+        if(curInst == GLOBAL_ACC || curInst == TR1 || curInst == TR2 || curInst == EXT_INST){
           if (bitRead(value,a)) stepBtn[a].counter = 2;
           else stepBtn[a].counter = 1;
           switch (stepBtn[a].counter){

@@ -54,7 +54,7 @@ void CopyPatternToBuffer()
   bufferedPattern.groupPos = pattern[ptrnBuffer].groupPos;
   bufferedPattern.groupLength = pattern[ptrnBuffer].groupLength;
   bufferedPattern.extLength = pattern[ptrnBuffer].extLength;
-  bufferedPattern.totalAcc = pattern[ptrnBuffer].totalAcc;
+  bufferedPattern.globalAcc = pattern[ptrnBuffer].globalAcc;
 
   for ( byte j = 0; j < pattern[ptrnBuffer].extLength; j++){
     bufferedPattern.extNote[j] = pattern[ptrnBuffer].extNote[j];
@@ -84,7 +84,7 @@ void PasteBufferToPattern()
   pattern[ptrnBuffer].groupPos =  bufferedPattern.groupPos;
   pattern[ptrnBuffer].groupLength =  bufferedPattern.groupLength;
   pattern[ptrnBuffer].extLength = bufferedPattern.extLength;
-  pattern[ptrnBuffer].totalAcc = bufferedPattern.totalAcc;
+  pattern[ptrnBuffer].globalAcc = bufferedPattern.globalAcc;
 
   for ( byte j = 0; j < bufferedPattern.extLength; j++){
     pattern[ptrnBuffer].extNote[j] = bufferedPattern.extNote[j];
@@ -105,7 +105,7 @@ void InitPattern()
    pattern[ptrnBuffer].velocity[CH][stp] = instVelHigh[CH];//
    pattern[ptrnBuffer].velocity[OH][stp] = instVelHigh[OH];//
    pattern[ptrnBuffer].velocity[PC2][stp] = instVelHigh[PC2];//
-   pattern[ptrnBuffer].velocity[TOTAL_ACC][stp] = HIGH_VEL;//TOTAL_ACC
+   pattern[ptrnBuffer].velocity[GLOBAL_ACC][stp] = HIGH_VEL;//GLOBAL_ACC
    pattern[ptrnBuffer].velocity[TRIG_OUT][stp] = HIGH_VEL;//TRIG_OUT
    pattern[ptrnBuffer].velocity[EXT_INST][stp] = HIGH_VEL;//EXT_INST
    }*/

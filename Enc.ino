@@ -38,17 +38,19 @@ void EncGet()
       }
     }
   }
-  //////////////////////////////////TOTAL ACCENT////////////////////////////////////
+  //////////////////////////////////GLOBAL ACCENT////////////////////////////////////
   //Behind INST held, because the knob became the instrument selector below : ungated,
   //scrolling onto ACC trapped the knob there - the value edit ate the notch and the only
   //way out was INST + step button, which you have to know. On ACC the screen IS the
   //value (a bargraph), so the knob belongs to it once you ask for it.
-  if (instBtn && curInst == TOTAL_ACC && curSeqMode == PTRN_STEP){
-    pattern[ptrnBuffer].totalAcc = EncGet(pattern[ptrnBuffer].totalAcc, 1);
-    pattern[ptrnBuffer].totalAcc = constrain(pattern[ptrnBuffer].totalAcc, 0, 13);
-    static byte prevTotalAcc;
-    if (pattern[ptrnBuffer].totalAcc != prevTotalAcc){
-      prevTotalAcc = pattern[ptrnBuffer].totalAcc;
+  if (instBtn && curInst == GLOBAL_ACC && curSeqMode == PTRN_STEP){
+    pattern[ptrnBuffer].globalAcc = EncGet(pattern[ptrnBuffer].globalAcc, 1);
+    //MIN_GLOBAL_ACC / MAX_GLOBAL_ACC sat in define.h without a single user, the bound
+    //being written out here and a third time as the width of the bargraph. One source.
+    pattern[ptrnBuffer].globalAcc = constrain(pattern[ptrnBuffer].globalAcc, MIN_GLOBAL_ACC, MAX_GLOBAL_ACC);
+    static byte prevGlobalAcc;
+    if (pattern[ptrnBuffer].globalAcc != prevGlobalAcc){
+      prevGlobalAcc = pattern[ptrnBuffer].globalAcc;
       patternWasEdited = TRUE;
       needLcdUpdate = TRUE;
     }
@@ -215,7 +217,7 @@ void EncGet()
   //TEMPO held gives the knob back to the BPM, exactly as it already does in TRACK_WRITE
   //- and LcdUpdate() already overlays the tempo on row 1 while that button is down, so
   //the escape hatch shows itself.
-  //Placed last in the chain on purpose : SHUFFLE, TOTAL ACC, keyboard and config all
+  //Placed last in the chain on purpose : SHUFFLE, GLOBAL ACC, keyboard and config all
   //get first claim on the notch, and what is left over is the instrument.
   else if ((curSeqMode == PTRN_STEP || curSeqMode == PTRN_TAP) && !tempoBtn.pressed){
     //Compared against curInst itself rather than a static copy of it, as the branches

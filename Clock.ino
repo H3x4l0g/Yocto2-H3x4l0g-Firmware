@@ -102,7 +102,7 @@ void CountPPQN()
         }
         //Set each step value in a 16bit word depending step counter and direction of each instrument
         //Compare the current step of each instrument and store in "stepValue"
-        if ( z != TOTAL_ACC ){//&& z != TR1 && z != TR2){
+        if ( z != GLOBAL_ACC ){//&& z != TR1 && z != TR2){
           sv |= ((bitRead(pattern[ptrnBuffer].inst[z],curStep[z])) << z);
         }
 

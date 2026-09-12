@@ -12,7 +12,7 @@ void SetMux()
   for (byte a = 0; a < 4; a++){
     PORTA &= 0b00011111;//Mask to clear last 3 bits of the PORTA
     PORTA |= (muxAddr[a] << 5);//Set bits A, B and of the multiplexer
-    SetDacA(pattern[ptrnBuffer].velocity[8 + a][curStep[8 + a]] + (((bitRead(pattern[ptrnBuffer].inst[TOTAL_ACC], curStep[TOTAL_ACC])& ~(bitRead(muteInst, TOTAL_ACC)))) ? (pattern[ptrnBuffer].totalAcc * 4) : 0));
+    SetDacA(pattern[ptrnBuffer].velocity[8 + a][curStep[8 + a]] + (((bitRead(pattern[ptrnBuffer].inst[GLOBAL_ACC], curStep[GLOBAL_ACC])& ~(bitRead(muteInst, GLOBAL_ACC)))) ? (pattern[ptrnBuffer].globalAcc * 4) : 0));
     delayMicroseconds(5);
   }
   //Select First Multiplexer IC114 BD, SD, LT, MT, HT, RM, HC and  CB Accent
@@ -20,7 +20,7 @@ void SetMux()
   for (byte a = 0; a < 8; a++){
     PORTA &= 0b00011111;//Mask to clear last 3 bits of the PORTA
     PORTA |= (muxAddr[a] << 5);//Set bits A, B and of the multiplexer
-    SetDacA(pattern[ptrnBuffer].velocity[a][curStep[a]] + (((bitRead(pattern[ptrnBuffer].inst[TOTAL_ACC], curStep[TOTAL_ACC]) & ~(bitRead(muteInst, TOTAL_ACC)))) ? (pattern[ptrnBuffer].totalAcc * 4) : 0));
+    SetDacA(pattern[ptrnBuffer].velocity[a][curStep[a]] + (((bitRead(pattern[ptrnBuffer].inst[GLOBAL_ACC], curStep[GLOBAL_ACC]) & ~(bitRead(muteInst, GLOBAL_ACC)))) ? (pattern[ptrnBuffer].globalAcc * 4) : 0));
     delayMicroseconds(5);
   }
 }

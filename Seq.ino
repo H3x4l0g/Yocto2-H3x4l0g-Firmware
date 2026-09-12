@@ -221,7 +221,7 @@ void SeqParameter()
       curInstChanged = FALSE;
     }
     if (instBtn && enterBtn.justPressed){
-      curInst = TOTAL_ACC;
+      curInst = GLOBAL_ACC;
       needLcdUpdate = TRUE;
     }
     /* if (instBtn && stopBtn.justPressed){
