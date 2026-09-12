@@ -11,7 +11,13 @@ void EncGet()
   EncRead();
 
   //////////////////////////////////SHUFFLE////////////////////////////////////
-  if (shufBtn.pressed && curSeqMode == PTRN_STEP){
+  //PTRN_TAP was missing from this test while LcdUpdate() offers the shuffle screen in
+  //both editing modes - the two case labels are shared. So in TAP the screen showed a
+  //shuffle bargraph while the knob moved something else entirely : the BPM before the
+  //instrument selector existed, curInst after. A screen promising a parameter the knob
+  //does not serve.
+  boolean shufHeld = shufBtn.pressed && (curSeqMode == PTRN_STEP || curSeqMode == PTRN_TAP);
+  if (shufHeld){
     if (shiftBtn.pressed){
       pattern[ptrnBuffer].globalShuffle = EncGet(pattern[ptrnBuffer].globalShuffle, 1);
       if(pattern[ptrnBuffer].globalShuffle <= 1) pattern[ptrnBuffer].globalShuffle = 1;
@@ -39,11 +45,16 @@ void EncGet()
     }
   }
   //////////////////////////////////GLOBAL ACCENT////////////////////////////////////
+  //From here down it is ONE else if chain, SHUFFLE included. It used to be a separate if
+  //standing outside, so nothing structural stopped two branches from claiming the same
+  //detent - the only thing that did was EncGet() zeroing the notch, meaning the branch
+  //order silently decided the winner. Chained, exactly one branch owns the knob per pass
+  //and the condition says which, rather than the reader having to trace who ate what.
   //Behind INST held, because the knob became the instrument selector below : ungated,
   //scrolling onto ACC trapped the knob there - the value edit ate the notch and the only
   //way out was INST + step button, which you have to know. On ACC the screen IS the
   //value (a bargraph), so the knob belongs to it once you ask for it.
-  if (instBtn && curInst == GLOBAL_ACC && curSeqMode == PTRN_STEP){
+  else if (instBtn && curInst == GLOBAL_ACC && curSeqMode == PTRN_STEP){
     pattern[ptrnBuffer].globalAcc = EncGet(pattern[ptrnBuffer].globalAcc, 1);
     //MIN_GLOBAL_ACC / MAX_GLOBAL_ACC sat in define.h without a single user, the bound
     //being written out here and a third time as the width of the bargraph. One source.
@@ -266,8 +277,9 @@ void EncRead()
 }
 
 //Apply the pending notch to a value--------------------------------------
-//The notch is consumed here, so when several parameters are candidates in
-//the same loop (SHUFFLE + BPM for instance) only the first one moves.
+//Zeroing the notch here makes a detent single use across loop passes. It no longer
+//arbitrates between parameters : the chain in EncGet() above is exclusive, so at most
+//one branch is ever a candidate in a given pass.
 int EncGet(int value, int dif)
 {
   if (encNotch > 0) value += dif;
