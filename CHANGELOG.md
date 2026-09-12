@@ -16,9 +16,11 @@ le détail technique vit dans `TODO.md`.
 ## Modes
 
 - Démarrage sur **PATT PLAY**, plus sur l'écran d'édition.
-- TRK et PATT conservent le caractère lecture/édition en changeant de famille.
-- Passer de TRACK à PATT et retour demande l'**arrêt** du transport : les deux ne jouent
-  pas la même chose.
+- Changer de famille TRACK ↔ PATT demande l'**arrêt** du transport : les deux ne jouent
+  pas la même chose. Le passage conserve alors le caractère lecture/édition, au lieu de
+  retomber sur l'écran d'édition quoi qu'on quitte.
+- La bascule lecture ↔ édition **dans** une famille reste libre, machine en marche
+  comprise : elle ne change que ce que font les touches, jamais ce qui joue.
 - Quitter TRACK par la touche PATT ne jette plus les modifications de piste en silence.
 
 ## Lisibilité du panneau
