@@ -10,7 +10,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.014"
+#define FW_VERSION  "Yocto v2.015"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -115,14 +115,35 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #define SCALE_32 PPQN/8
 #define SCALE_16t PPQN/6
 #define SCALE_8t PPQN/3
-//Swing : the even step stays on the grid, the odd one is pushed (setting - 1) ticks
-//late. Swing ratio = (scale + k) / (2 * scale), so on the 16th grid (scale 24) :
-//  setting  1  2  3  4  5  6  7  8  9 10 11
-//  swing % 50 52 54 56 58 60 62 64 67 69 71   (exact triplet shuffle 66.67 % at 9)
-//Was 7, which capped the 16th grid at 62.5 % and could not reach triplet shuffle.
-//12 is the hard ceiling : in SCALE_32 one step is only 12 ticks, so a 12 tick delay
-//would land the odd step exactly on the next even one.
+//Swing : the even step stays on the grid, the odd one is pushed a few ticks late.
+//Swing ratio = (scale + delay) / (2 * scale).
+//The delay used to be (setting - 1) ticks whatever the resolution, so one setting meant
+//four different ratios : setting 7 gave 62.5 % on 16ths but 75 % on 32nds and 59.4 % on
+//8th triplets. A swing is a ratio, not a tick count. The table below holds the delay that
+//yields the SAME ratio on every scale, the 16th grid being the reference :
+//  setting    1     2     3     4     5     6     7     8     9    10    11
+//  target % 50.0  52.1  54.2  56.3  58.3  60.4  62.5  64.6  66.7  68.8  70.8
+//                                                          exact triplet shuffle at 9
+//Rounded to whole ticks, which is all the 96 PPQN clock can express. Worst error 2.1
+//points, on the 32nd grid where one step is 12 ticks and one tick is already 4.2 points :
+//there the eleven settings collapse onto six ratios, two settings each. Nothing to be
+//done about that short of raising PPQN.
+//The 16th row is 0..10, byte for byte what the machine did before, so no pattern written
+//on the 16th grid changes.
 #define MAX_SHUF_TYPE 11
+//Row = (scale >> 3) - 1, which maps the four legal scales onto 0..3 with one shift :
+//12 -> 0, 16 -> 1, 24 -> 2, 32 -> 3. Rows are padded to 16 so the column index is a
+//mask and the row stride a shift, no multiply in the interrupt. The padding repeats the
+//last value, so a corrupt setting degrades to maximum swing instead of reading garbage.
+const byte swingTicks[4][16] PROGMEM = {
+  { 0,  1,  1,  2,  2,  3,  3,  4,  4,  5,  5,  5,  5,  5,  5,  5},//SCALE_32  32nd
+  { 0,  1,  1,  2,  3,  3,  4,  5,  5,  6,  7,  7,  7,  7,  7,  7},//SCALE_16t 16th triplet
+  { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 10, 10, 10, 10, 10},//SCALE_16  16th
+  { 0,  1,  3,  4,  5,  7,  8,  9, 11, 12, 13, 13, 13, 13, 13, 13} //SCALE_8t  8th triplet
+};
+//Both indices are bounded : a corrupt pattern gives a wrong swing, never a read outside
+//the table. shuffle is 1 based, hence the -1.
+#define SWING_TICKS(scale, shuf) pgm_read_byte(&swingTicks[(((scale) >> 3) - 1) & 3][((shuf) - 1) & 15])
 #define DEFAULT_SHUF 1
 #define DEFAULT_LEN 16
 #define DEFAULT_SCALE 24

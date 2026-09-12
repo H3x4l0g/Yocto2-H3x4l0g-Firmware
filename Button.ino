@@ -91,7 +91,16 @@ unsigned int StepButtonGet(byte mode)
       stepBtn[a].justPressed = 0;
       stepBtn[a].curState = bitRead(data,a);
       if (stepBtn[a].curState != stepBtn[a].prevState){
-        if ((stepBtn[a].pressed == LOW) && (stepBtn[a].curState == HIGH)){
+        //The rising edge is (curState != prevState) && curState == HIGH, and prevState is
+        //maintained at the bottom of this loop. The (pressed == LOW) conjunct that used to
+        //sit here tested a field this function never writes : the only writer is the
+        //keyboard mode (key.ino:78), which needs it to pair a note off with its note on.
+        //So it read LOW forever - except after leaving the keyboard WHILE HOLDING a step
+        //button, which left that one stuck HIGH and its rising edge unreachable for good.
+        //The button then answered nowhere : step edit, TAP, pattern select. Recovered only
+        //by going back into the keyboard and pressing it again.
+        //The write that kept it in sync lived in StepBtn(), commented out further down.
+        if (stepBtn[a].curState == HIGH){
           stepBtn[a].justPressed = 1;
           stepBtn[a].counter++;//incremente step button counter
           switch (stepBtn[a].counter){
@@ -122,7 +131,7 @@ unsigned int InstValueGet(unsigned int value)
     stepBtn[a].justPressed = 0;
     stepBtn[a].curState = bitRead(reading,a);
     if (stepBtn[a].curState != stepBtn[a].prevState){
-      if ((stepBtn[a].pressed == LOW) && (stepBtn[a].curState == HIGH)){
+      if (stepBtn[a].curState == HIGH){//pressed dropped : cf StepButtonGet() above
         patternWasEdited = TRUE;
         stepBtn[a].justPressed = 1;
 

@@ -15,6 +15,12 @@ void KeyboardUpdate()
     keyboardMode = !keyboardMode;
     //stop sequencer when keyboard mode ON
     if (keyboardMode){
+      //stepBtn[].pressed belongs to this mode alone now : sole reader, sole writer, and
+      //it needs it to pair a note off with its note on. Initialised on entry rather than
+      //cleaned up on exit - the mode is left from four different places, the entry is
+      //single. A stale HIGH here would swallow the first note on and emit a note off
+      //for a note that never started.
+      for (byte a = 0; a < NBR_STEP_BTN; a++) stepBtn[a].pressed = LOW;
       InitMidiNoteOff();
       isStop = TRUE;
       isRunning = FALSE;

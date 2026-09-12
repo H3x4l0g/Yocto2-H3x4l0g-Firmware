@@ -437,7 +437,8 @@ void SeqParameter()
 
 
           if (stepBtn[a].curState != stepBtn[a].prevState){
-            if ((stepBtn[a].pressed == LOW) && (stepBtn[a].curState == HIGH)){
+            //pressed dropped from the guard : cf StepButtonGet() in Button.ino
+            if (stepBtn[a].curState == HIGH){
               static byte tempVel[16];//store temp instrument velocity
               switch (a){
               case BD_BTN:

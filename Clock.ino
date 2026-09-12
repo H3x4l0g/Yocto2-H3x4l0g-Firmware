@@ -75,7 +75,11 @@ void CountPPQN()
       //This also replaces the shuffle[MAX_SHUF_TYPE][2] table, which held nothing the
       //index did not already carry : column 0 was always 0, column 1 always minus the
       //row number.
-      int swing = (stepCount[z] & 1) ? -(int)(pattern[ptrnBuffer].shuffle[z] - 1) : 0;
+      //The delay is read from the swing table rather than taken as (setting - 1) ticks,
+      //so one setting means one ratio on all four resolutions : cf define.h.
+      int swing = (stepCount[z] & 1)
+        ? -(int)SWING_TICKS(pattern[ptrnBuffer].scale[z], pattern[ptrnBuffer].shuffle[z])
+        : 0;
 
       if (((p + swing) % pattern[ptrnBuffer].scale[z] == 0) && stepChanged[z])
       {//Each Step
