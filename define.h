@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.030"
+#define FW_VERSION  "Yocto v2.031"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -440,12 +440,30 @@ unsigned int tempInst[NBR_INST]={
 unsigned int muteInst = 0;
 byte muteOut[NBR_STEP_BTN]=  { 
   BD, SD, LT, MT, HT,RM, HC, CB, CY, OH, CH, PC2};
-//Velocity table match with original TR909
+//Les deux niveaux de la touche de pas, instrument par instrument----------------------
+//Une touche de pas a trois etats : eteint, demi, plein. Ces deux tables disent quelle
+//velocite chaque etat tamponne dans le pattern, POUR CHAQUE VOIX separement - le Yocto
+//n'a qu'un DAC, mais douze condensateurs de maintien, donc une tension propre par
+//instrument, reecrite a chaque pas. Cf Mux.ino.
+//
+//LE PLEIN EST 80 ET NON 127, et ce n'est pas arbitraire : l'accent global ajoute
+//globalAcc * 4 par dessus, soit 52 au plus. 80 + 52 = 132, ecrete a 127 par SetDacA.
+//Monter instVelHigh ecreterait donc l'accent global, en silence.
+//
+//PC2 portait un demi a 20 : 0,64 V contre 2,58 V au
+//plein, un ecart de 1 a 4 quand les huit autres voix sont a 1 a 2 et les charleys a
+//1 a 1,3. Trop brutal a l'oreille sur cette machine, ramene a 40 comme les autres.
+//
+//ATTENTION SI ON BAISSE UN SEUIL : Led.ino compare a instVelLow pour afficher un pas en
+//demi ou en plein. Descendre le seuil SOUS une velocite deja enregistree ferait basculer
+//d'anciens pas en plein a l'ecran. Monter est sans risque.
+//Et ces tables ne sont qu'un tampon pose A LA SAISIE : les patterns deja enregistres
+//gardent la velocite qu'ils portent, il faut repasser sur les pas pour les remettre.
 //BD, SD, LT, MT, HT, RM, HC, CB, CY, OH, CH, PC2
 byte instVelHigh[NBR_INST]={
   80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80};
 byte instVelLow[NBR_INST]={
-  40, 40, 40, 40, 40, 40, 40, 40, 60, 60, 60, 20, 40, 40, 40, 40};
+  40, 40, 40, 40, 40, 40, 40, 40, 60, 60, 60, 40, 40, 40, 40, 40};
 
 //Track----------------------------------------------
 typedef struct Track Track;
