@@ -91,7 +91,17 @@ pinMode(28, INPUT);           // set pin to input
 digitalWrite(28, HIGH);       // turn on pullup resistors
 }
 
-//Scan DIN shift register with debounce time-------------------------------
+//Lire les registres a decalage des boutons--------------------------------------------
+//Le nom d'origine disait "with debounce time", ce qui n'est pas ce que le code fait.
+//DEBOUNCE_TIME ne fait que limiter la FREQUENCE de rafraichissement de dinSr - il ne
+//separe pas deux echantillons de 5 ms. Les deux lectures qu'on compare pour valider un
+//etat sont separees d'UNE iteration de boucle principale, quelques centaines de
+//microsecondes, pas de 5 ms. Et le second jeu de lectures SPI a lieu a CHAQUE tour de
+//boucle, hors de la temporisation.
+//Ca fonctionne - aucun rebond signale en jeu - mais ce n'est pas un anti-rebond
+//temporise, et compter dessus comme tel serait une erreur. Si un jour un bouton se met a
+//doubler, c'est ici qu'il faut regarder, et la vraie reponse serait de comparer deux
+//echantillons REELLEMENT espaces.
 void ScanDin()
 {
   if ((millis() - debounceTimer) > DEBOUNCE_TIME)
@@ -148,28 +158,60 @@ void SetDoutLed(unsigned int stepLed, unsigned int configLed, byte menuLed)
 }
 
 //Set Dout Trig------------------------------------------------------------
-void SetDoutTrig(unsigned int value)
+//Le registre a decalage des trigs n'a pas de lecture : on ne peut qu'ecrire les seize
+//bits d'un coup. Sans miroir logiciel, "armer un instrument de plus" est impossible -
+//on ne peut qu'ecraser les quinze autres.
+//C'est exactement ce que faisait MidiTrigOn() : SetDoutTrig(1 << inst) pendant une
+//impulsion du sequenceur remplacait son masque par le sien et TRONQUAIT le
+//declenchement en cours. Meme famille que la course TRIG-1.
+//Le miroir est partage entre l'interruption Timer1 (le sequenceur), l'interruption
+//Timer2 (la fin d'impulsion) et la boucle principale (le MIDI), et une ecriture 16 bits
+//n'est pas atomique sur AVR : d'ou le SREG sauve et restaure autour de chaque acces.
+static void WriteDoutTrig(unsigned int value)
 {
-  //No analog voices doesn't have to be trigged by the shift register
-  //It prevent "TICK" sound when muting
-  value &= ~((1 << GLOBAL_ACC) | (1 << EXT_INST) | (1 << TR1) | (1 << TR2));
   SPI.beginTransaction(SPIset);
   TRIG_CS_LOW;
   SPI.transfer(byte(value >> 8));
   SPI.transfer(byte(value));
   TRIG_CS_HIGH;
-  SPI.endTransaction(); 
+  SPI.endTransaction();
+}
+
+//Remplace : le masque du sequenceur, c'est "les instruments de CE pas".
+//No analog voices doesn't have to be trigged by the shift register, it prevent "TICK"
+//sound when muting - d'ou DOUT_TRIG_MASK.
+void SetDoutTrig(unsigned int value)
+{
+  value &= DOUT_TRIG_MASK;
+  byte sreg = SREG;
+  cli();
+  doutTrigState = value;
+  WriteDoutTrig(value);
+  SREG = sreg;
+}
+
+//Ajoute sans effacer : une note MIDI s'arme EN PLUS de ce qui joue deja.
+//Consequence assumee : Timer2 relache tout d'un coup, donc une note arrivant au milieu
+//d'une impulsion du sequenceur ALLONGE cette impulsion jusqu'a sa propre echeance au
+//lieu de la tronquer. Les voix se declenchent sur le front montant - un etat haut plus
+//long ne s'entend pas, un front coupe si.
+void AddDoutTrig(unsigned int value)
+{
+  byte sreg = SREG;
+  cli();
+  doutTrigState |= (value & DOUT_TRIG_MASK);
+  WriteDoutTrig(doutTrigState);
+  SREG = sreg;
 }
 
 //Reset Dout Trig---------------------------------------------------------
 void ResetDoutTrig()
 {
-  SPI.beginTransaction(SPIset);
-  TRIG_CS_LOW;
-  SPI.transfer(0);
-  SPI.transfer(0);
-  TRIG_CS_HIGH;
-  SPI.endTransaction();
+  byte sreg = SREG;
+  cli();
+  doutTrigState = 0;
+  WriteDoutTrig(0);
+  SREG = sreg;
 }
 
 //Set Dac voltage---------------------------------------------------------

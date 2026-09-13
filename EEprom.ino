@@ -181,8 +181,7 @@ void LoadPattern(byte patternNbr)
   unsigned long adress = (unsigned long)(PTRN_OFFSET + patternNbr * PTRN_SIZE);
   WireBeginTX(adress); 
   Wire.endTransmission();
-  byte hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-  Wire.requestFrom(hrdwAddress ,MAX_PAGE_SIZE); //request a 128 bytes page
+  WireRequestFrom(adress, MAX_PAGE_SIZE);
   //TRIG-----------------------------------------------
   for(int i =0; i<NBR_INST;i++){
     //Le C++ ne garantit pas l'ordre d'evaluation de deux Wire.read() dans la meme
@@ -216,8 +215,7 @@ void LoadPattern(byte patternNbr)
     //Serial.println(adress);
     WireBeginTX(adress);
     Wire.endTransmission();
-    hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-    Wire.requestFrom(hrdwAddress,MAX_PAGE_SIZE); //request of  128 bytes
+    WireRequestFrom(adress, MAX_PAGE_SIZE);
     for (byte i = 0; i < 8; i++){//loop as many instrument for a page
       for (byte j = 0; j < NBR_STEP; j++){
         pattern[!ptrnBuffer].velocity[i + (nbrPage * 8)][j] = (Wire.read() & 0xFF);
@@ -232,8 +230,7 @@ void LoadPattern(byte patternNbr)
    adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_VEL_OFFSET);
    WireBeginTX(adress);
    Wire.endTransmission();
-   hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-   Wire.requestFrom(hrdwAddress,MAX_PAGE_SIZE); //request of  128 bytes
+   WireRequestFrom(adress, MAX_PAGE_SIZE);
    for (byte i = 0; i < 8; i++){//loop as many instrument for a page
    for (byte j = 0; j < NBR_STEP; j++){
    pattern[!ptrnBuffer].probality[i + (4*nbrPage)][j] = (Wire.read() & 0xFF);
@@ -246,8 +243,7 @@ void LoadPattern(byte patternNbr)
    adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_PROB_OFFSET);
    WireBeginTX(adress);
    Wire.endTransmission();
-   hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-   Wire.requestFrom(hrdwAddress,MAX_PAGE_SIZE); //request of  128 bytes
+   WireRequestFrom(adress, MAX_PAGE_SIZE);
    for (byte i = 0; i < 8; i++){//loop as many instrument for a page
    for (byte j = 0; j < NBR_STEP; j++){
    pattern[!ptrnBuffer].uTiming[i + (4*nbrPage)][j] = (Wire.read() & 0xFF);
@@ -260,8 +256,7 @@ void LoadPattern(byte patternNbr)
    adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_uTIMING_OFFSET);
    WireBeginTX(adress);
    Wire.endTransmission();
-   hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-   Wire.requestFrom(hrdwAddress,MAX_PAGE_SIZE); //request of  128 bytes
+   WireRequestFrom(adress, MAX_PAGE_SIZE);
    for (byte i = 0; i < 8; i++){//loop as many instrument for a page
    for (byte j = 0; j < NBR_STEP; j++){
    pattern[!ptrnBuffer].retrig[i + (4*nbrPage)][j] = (Wire.read() & 0xFF);
@@ -275,8 +270,7 @@ void LoadPattern(byte patternNbr)
   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + PTRN_RETRIG_OFFSET);
   WireBeginTX(adress);
   Wire.endTransmission();
-  hrdwAddress = HRDW_ADDRESS + (adress >> 16);//same hardcoded chip bug as LoadPatternGroup
-  Wire.requestFrom(hrdwAddress, MAX_PAGE_SIZE); //request of  128 bytes
+  WireRequestFrom(adress, MAX_PAGE_SIZE);
 
   for (byte j = 0; j < MAX_PAGE_SIZE; j++){
     pattern[!ptrnBuffer].extNote[j] = Wire.read();
@@ -316,8 +310,7 @@ void LoadTrack(byte trackNbr)
     adress = (unsigned long)(TRACK_OFFSET + (trackNbr * TRACK_SIZE) + (MAX_PAGE_SIZE * nbrPage));
     WireBeginTX(adress);
     Wire.endTransmission();
-    byte hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-    Wire.requestFrom(hrdwAddress,MAX_PAGE_SIZE); //request of  128 bytes
+    WireRequestFrom(adress, MAX_PAGE_SIZE);
     for (byte i = 0; i < MAX_PAGE_SIZE; i++){//loop as many instrument for a page
       track[trkBuffer].patternNbr[i + (MAX_PAGE_SIZE * nbrPage)] = (Wire.read() & 0xFF);
     }
@@ -348,8 +341,7 @@ void LoadSeqSetup()
   unsigned long adress = (unsigned long)(OFFSET_SETUP);
   WireBeginTX(adress); 
   Wire.endTransmission();
-  byte hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-  Wire.requestFrom(hrdwAddress,SETUP_SIZE); //
+  WireRequestFrom(adress, SETUP_SIZE);
   seq.sync = (Wire.read() & 0xFF);
   seq.sync = constrain(seq.sync, 0, 1);
   seq.defaultBpm = (Wire.read() & 0xFF);
@@ -409,8 +401,7 @@ byte LoadPatternGroup(byte patternNum, byte type)
   //The chip address carries bits 16 and up, so it has to follow the address. Reading
   //from a hardcoded HRDW_ADDRESS returned another chip's data past pattern 51, and the
   //caller in Seq.ino feeds that straight into ClearPatternGroup().
-  byte hrdwAddress = HRDW_ADDRESS + (adress >> 16);
-  Wire.requestFrom(hrdwAddress, (byte)1);
+  WireRequestFrom(adress, (byte)1);
   byte data = (Wire.read() & 0xFF);
   return data;
 }
@@ -577,6 +568,21 @@ void DebugEEprom(){
 //==================================================================================================
 //Wire begin Function to set address on the I2C bus
 //==================================================================================================
+//Ouvrir une lecture a une adresse EEPROM----------------------------------------------
+//Le pendant de WireBeginTX() : l'adresse d'un octet dans les EEPROM tient sur 18 bits, et
+//les bits 16 et au-dela designent la PUCE - HRDW_ADDRESS + (adress >> 16) - tandis que
+//les 16 bits bas sont l'adresse interne envoyee par WireBeginTX().
+//Ce calcul etait recopie a NEUF endroits, et deux l'avaient oublie : une lecture partait
+//sur un HRDW_ADDRESS fige et rendait les donnees d'une autre puce au-dela du pattern 51.
+//L'un des deux alimentait ClearPatternGroup(), donc une lecture fausse effacait des
+//chaines ailleurs. Meme raisonnement que les douze copies du recalage piste-pattern :
+//une regle ecrite une fois ne peut plus etre oubliee a un site.
+void WireRequestFrom(unsigned long address, byte count)
+{
+  byte hardwareAddress = HRDW_ADDRESS + (address >> 16);
+  Wire.requestFrom(hardwareAddress, count);
+}
+
 void WireBeginTX(unsigned long address)
 {
   byte hardwareAddress;

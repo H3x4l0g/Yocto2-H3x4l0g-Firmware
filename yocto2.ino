@@ -8,7 +8,7 @@
 #include <LiquidCrystal.h>
 #include <WireN.h>
 #include "define.h"
-#include "string.h"
+#include "lcdstrings.h"
 #include <MIDI.h>
 #include <EEPROM.h>
 
@@ -152,7 +152,14 @@ void setup()
 void loop()
 {  
   InitMidiRealTime();
-  MIDI.read();
+  //Vider la file MIDI en un seul passage. MIDI.read() ne rend qu'UN message par appel :
+  //un appel par tour de boucle etalait un accord de trois futs sur trois tours. Les
+  //declenchements s'accumulent dans midiTrigPending et partent ensemble juste apres.
+  //Borne a 16 messages pour qu'un flux dense ne puisse pas retenir la boucle : le
+  //reliquat sera traite au tour suivant.
+  byte midiMsg = 0;
+  while (MIDI.read() && ++midiMsg < 16);
+  MidiTrigFlush();
   ButtonGet(); 
   EncGet();  
   SetLeds(); 

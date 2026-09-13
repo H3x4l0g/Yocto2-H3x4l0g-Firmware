@@ -10,7 +10,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.027"
+#define FW_VERSION  "Yocto v2.029"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -483,12 +483,13 @@ const int8_t knobDir[] = {
   0, 1, -1, 0 };
 
 //Mux------------------------------------------------
-//Les trois sources de MuxSweep() : le pattern qui joue, le mode test de voix, une note
-//MIDI recue. Des #define plutot qu'une enum, pour ne pas dependre de l'ordre dans lequel
-//l'IDE genere les prototypes des .ino.
+//Les deux sources de MuxSweep() : le pattern qui joue et le mode test de voix. Des
+//#define plutot qu'une enum, pour ne pas dependre de l'ordre dans lequel l'IDE genere
+//les prototypes des .ino.
+//(Une troisieme source, MUX_MIDI, a existe : une note MIDI reposait les douze velocites.
+//Elle n'ecrit plus que la sienne, cf SetMuxTrigOne.)
 #define MUX_PATTERN 0
 #define MUX_TEST    1
-#define MUX_MIDI    2
 
 byte muxAddr[8]={
   B111, B11, B101, B1, B110, B10, B100, B0};// Due to the  A, B, C pin on PORTA sequence
@@ -517,8 +518,13 @@ boolean midiStop;
 boolean midiContinue;
 boolean instWasMidiTrigged[NBR_INST] ={
   FALSE};
-byte midiVelocity[NBR_INST]={
-  100};
+//Miroir du registre a decalage des trigs, et les quatre bits qui n'y vont pas : pas de
+//voix analogique derriere, et les ecrire produisait un "tick" au mute.
+volatile unsigned int doutTrigState = 0;
+#define DOUT_TRIG_MASK ((unsigned int)~((1 << GLOBAL_ACC) | (1 << EXT_INST) | (1 << TR1) | (1 << TR2)))
+//Les instruments qu'une salve de notes MIDI a armes et qui attendent d'etre declenches
+//ensemble, en fin de vidange de la file MIDI.
+unsigned int midiTrigPending = 0;
 
 //Din synchro----------------------------------------
 boolean dinStartState = LOW;

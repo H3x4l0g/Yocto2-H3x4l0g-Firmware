@@ -34,6 +34,24 @@ void StartTrigPulse()
   TCCR2B = _BV(CS22) | _BV(CS20);   //start, prescaler 128
 }
 
+//Armer l'impulsion sans relancer celle qui court deja---------------------------------
+//Le declenchement MIDI s'AJOUTE a ce qui est arme (AddDoutTrig). S'il relancait le
+//compte a chaque note, un flux plus serre que 2 ms tiendrait le registre haut
+//indefiniment - et comme les voix se declenchent sur le FRONT montant, un bit qui ne
+//redescend jamais fait taire les notes SUIVANTES du meme instrument. Le note-off remet
+//instWasMidiTrigged a FALSE, mais le bit serait deja a 1 : pas de nouveau front, pas de
+//son.
+//On laisse donc courir l'echeance en cours. Une note arrivant a 1,9 ms n'a que 0,1 ms
+//d'etat haut, ce qui suffit : elle a eu son front, et c'est tout ce que la voix regarde.
+//Le sequenceur, lui, garde un StartTrigPulse() inconditionnel - il REMPLACE le masque,
+//donc ses voix ont besoin d'un front neuf et d'une impulsion pleine.
+//TCCR2B non nul = Timer2 en marche ; l'interruption de fin le remet a zero.
+void StartTrigPulseIfIdle()
+{
+  if (TCCR2B) return;
+  StartTrigPulse();
+}
+
 ISR(TIMER2_COMPA_vect)
 {
   TCCR2B = 0;                       //one shot : stop the timer

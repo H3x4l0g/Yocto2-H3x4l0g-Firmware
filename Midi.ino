@@ -253,15 +253,39 @@ void HandleNoteOff(byte channel, byte pitch, byte velocity)
 
 
 //MidiTrigOn insturment
+//Declencher une voix analogique depuis une note MIDI recue----------------------------
+//Trois defauts tenaient dans ces cinq lignes :
+//  1. SetMuxTrigMidi() balayait les douze adresses du multiplexeur pour poser UNE
+//     velocite. SetMuxTrigOne() n'ecrit que la bonne.
+//  2. delayMicroseconds(1000) tenait l'impulsion par attente active DANS la boucle
+//     principale. Timer2 la porte, comme pour le sequenceur depuis la correction de
+//     TRIG-1 : on arme, on rend la main, l'interruption relache.
+//  3. SetDoutTrig(1 << inst) REMPLACAIT le masque : une note arrivant pendant
+//     l'impulsion du sequenceur tronquait son declenchement. On accumule desormais.
+//
+//Et le declenchement lui-meme est differe : MIDI.read() ne rend qu'UN message par
+//appel, donc BD + SD + CY sur le meme pas arrivaient en trois messages traites a trois
+//tours de boucle d'ecart. Les bits s'empilent ici, la boucle vide la file puis appelle
+//MidiTrigFlush() une fois - un accord MIDI redevient aussi simultane qu'un pas du
+//sequenceur, qui a toujours ecrit son masque complet en une fois.
 void MidiTrigOn(byte inst, byte velocity)
 {
   if (instWasMidiTrigged[inst] == FALSE){
-    SetMuxTrigMidi(inst, velocity);
-    SetDoutTrig(1 << inst );
-    delayMicroseconds(1000);
-    SetDoutTrig(0);
+    SetMuxTrigOne(inst, velocity);
+    midiTrigPending |= (1 << inst);
     instWasMidiTrigged[inst] = TRUE;
   }
+}
+
+//Declencher d'un coup tout ce que la salve a arme-------------------------------------
+//Appele par la boucle principale une fois la file MIDI videe. Rien a faire si rien
+//n'attend : le cas courant est celui-la, et il ne coute qu'un test.
+void MidiTrigFlush()
+{
+  if (!midiTrigPending) return;
+  AddDoutTrig(midiTrigPending);
+  midiTrigPending = 0;
+  StartTrigPulseIfIdle();//Timer2 relache les sorties ; cf le commentaire de la fonction
 }
 
 //MidiTrigOff insturment

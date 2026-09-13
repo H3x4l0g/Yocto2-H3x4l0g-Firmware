@@ -3,7 +3,7 @@
 //                  LCD update
 //-------------------------------------------------
 
-#include "string.h"
+#include "lcdstrings.h"
 
 /////////////////////Function//////////////////////
 //Initialise IO PORT and libraries
