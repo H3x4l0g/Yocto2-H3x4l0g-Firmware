@@ -693,14 +693,31 @@ void SeqParameter()
         needLcdUpdate = TRUE;
       }
       //delete the pattern at the current position
-      if (backBtn.justPressed && trk.pos < track[trkBuffer].length){
+      //Vider une piste depuis la fin demandait une pression gaspillee a chaque
+      //suppression. Deux causes qui se cumulaient, signalees en jouant :
+      //  1. ENTER laisse le curseur sur l'emplacement d'AJOUT, celui qui suit la derniere
+      //     position remplie. Il n'y a rien a y supprimer, donc la touche ne faisait rien.
+      //  2. Apres une suppression, le curseur retombait sur le NOUVEL emplacement
+      //     d'ajout, et la suppression suivante ne trouvait rien non plus.
+      //Trois regles individuellement justes - ENTER avance, supprimer refuse le vide,
+      //supprimer ramene au vide - qui se rencontraient mal. Le curseur reste desormais
+      //sur une position reelle avant comme apres, donc SHIFT+BACK repete vide la piste
+      //depuis la fin, une pression par position.
+      //Au milieu de la piste rien ne change : supprimer en position 2 d'une piste de 8
+      //laissait deja le curseur sur une position remplie.
+      if (backBtn.justPressed && track[trkBuffer].length){
+        //Sur l'emplacement d'ajout, reculer d'abord : "supprimer ici" n'a de sens que sur
+        //une position reelle. C'est exactement le BACK que la main faisait avant.
+        if (trk.pos >= track[trkBuffer].length) trk.pos = track[trkBuffer].length - 1;
         //Every index is unsigned here : the loop can never walk below
         //patternNbr[0], just under which the two length bytes live (cf SaveTrack)
         for (unsigned int a = trk.pos; a < track[trkBuffer].length - 1; a++){
           track[trkBuffer].patternNbr[a] = track[trkBuffer].patternNbr[a + 1];
         }
         track[trkBuffer].length--;//decremente length by 1 due to deleted pattern
-        if (trk.pos > track[trkBuffer].length) trk.pos = track[trkBuffer].length;
+        //Et rester sur une position reelle apres coup, plutot que de retomber sur le vide.
+        if (!track[trkBuffer].length) trk.pos = 0;
+        else if (trk.pos >= track[trkBuffer].length) trk.pos = track[trkBuffer].length - 1;
         TrackPosToPattern();
         trackNeedSaved = TRUE;
         needLcdUpdate = TRUE;

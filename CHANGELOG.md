@@ -1,7 +1,7 @@
 # Yocto v2 — changelog
 
 De la **v2.003beta** d'e-licktronic — dernière version publiée, projet retiré du commerce
-en 2017 — à la **v2.021**. Seul ce qui change le comportement de la machine est listé ;
+en 2017 — à la **v2.026**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -58,6 +58,10 @@ le détail technique vit dans `TODO.md`.
 - **La banque suit le pattern.** Arriver sur D13 par une piste affichait `A61`, éclairait
   la LED de banque A, et la touche de pas 3 renvoyait en A3. L'écran, la LED et la touche
   disent maintenant la même chose.
+- **Les marches au changement de pattern à haut tempo ont fondu.** Le chargement depuis
+  l'EEPROM bloquait 115 ms et commençait *à* la barre : au-delà de 230 BPM les premiers
+  pas du nouveau pattern se rejouaient. Le bus tourne désormais à sa vitesse nominale et
+  le chargement prend 30 ms — de près de deux pas de retard à un demi.
 
 ## Pistes
 
@@ -72,11 +76,23 @@ le détail technique vit dans `TODO.md`.
   jusqu'à ce qu'on bouge.
 - La position se compte à partir de **1** en lecture comme en édition. La première mesure
   s'appelait 0 d'un côté et 1 de l'autre.
+- **Plus de trou au bout de la piste.** Sur une piste de 8, avancer jusqu'à la position 12
+  puis ENTER portait la longueur à 12 et laissait les positions 9 à 11 pleines de ce qui
+  traînait en mémoire. FWD et la molette s'arrêtent maintenant à l'emplacement d'ajout,
+  celui où `SHIFT+NUM` emmène déjà.
+- **Vider une piste depuis la fin ne demande plus une pression sur deux.** Le curseur
+  retombait après chaque suppression sur l'emplacement d'ajout, où il n'y a rien à
+  supprimer ; il fallait un BACK entre chaque. Quatre pressions vident désormais une piste
+  de quatre. En contrepartie, ENTER juste après une suppression **écrase** la dernière
+  position au lieu d'ajouter à la suite — `SHIFT+NUM` ramène à l'emplacement d'ajout.
 
 ## Instrument externe
 
 - La pile de notes ne se tronque plus. Revenir à la note 3 d'une pile de vingt et en
   rejouer une la coupait à 4.
+- **Plus de note restée en l'air.** BACK et FWD font sonner chaque note en parcourant la
+  pile ; maintenir l'un puis appuyer sur l'autre coupait la mauvaise note, et la première
+  tenait indéfiniment.
 
 ## Synchro et sorties
 
@@ -93,6 +109,9 @@ le détail technique vit dans `TODO.md`.
 - Plus de LED ni de sorties trigger aléatoires à la mise sous tension.
 - L'encodeur lisait un créneau à 16 MHz sur son canal B depuis toujours : l'horloge
   système sortait sur cette broche. C'était le tout premier symptôme du projet.
+- L'interruption d'horloge faisait trente-six divisions par tick, sur un processeur qui
+  n'en sait pas faire. Elle en fait **zéro**. Le temps rendu à la boucle principale se
+  voit sur tout ce qui répond au geste.
 
 ---
 
