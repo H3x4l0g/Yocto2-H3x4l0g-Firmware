@@ -209,9 +209,23 @@ void CountPPQN() {
       globalStepCount++;
     }
 
-    //Set Metronome value to be trigged
+    //Le metronome, sans toucher a la donnee musicale-----------------------------------
+    //Il sonne sur le rimshot. Sa velocite est calculee ici et rendue par MuxValue() a la
+    //volee. Metronome() tamponnait 127 et 30 DANS pattern[].velocity[RM][0/4/8/12] en
+    //entrant, puis HIGH_VEL en sortant - sans jamais relever ce qu'il ecrasait. Un
+    //rimshot a demi sur un temps revenait donc a plein apres un aller-retour sur GUIDE,
+    //en silence, patternWasEdited n'etant meme pas pose. Et ces valeurs restaient dans le
+    //tableau : elles deteignaient sur les frappes RM hors metronome des que RM avait sa
+    //propre longueur, curStep[RM] ne suivant plus globalStepCount.
+    //Le -1 est celui d'origine, globalStepCount vient d'etre incremente. Le test de borne
+    //evite un decalage negatif au tout premier tick, ou il vaut encore -1.
+    metronomeVel = 0;
     if (gsMod == 0) {
-      sv |= (bitRead(metronome, (globalStepCount - 1)) << RM);
+      byte metroStep = globalStepCount - 1;
+      if (metroStep < NBR_STEP && bitRead(metronome, metroStep)) {
+        sv |= (1 << RM);
+        metronomeVel = (metroStep == 0) ? MET_VEL_FIRST : MET_VEL_OTHER;
+      }
     }
 
     //Add Mute value to StepValue
@@ -273,19 +287,9 @@ void CountPPQN() {
   ppqn = p;
 }  // END COUNT FUNCTION
 
-//
+//Le metronome : un masque de pas, rien de plus-----------------------------------------
+//Il n'ecrit plus rien dans le pattern. Les quatre temps sont le masque 0x1111, et la
+//velocite est posee par CountPPQN() dans metronomeVel puis rendue par MuxValue().
 void Metronome(boolean state) {
-  if (state) {
-    metronome = 0x1111;  //trig RM every time
-    pattern[ptrnBuffer].velocity[RM][0] = 127;
-    pattern[ptrnBuffer].velocity[RM][4] = 30;
-    pattern[ptrnBuffer].velocity[RM][8] = 30;
-    pattern[ptrnBuffer].velocity[RM][12] = 30;
-  } else {
-    metronome = 0;
-    pattern[ptrnBuffer].velocity[RM][0] = HIGH_VEL;
-    pattern[ptrnBuffer].velocity[RM][4] = HIGH_VEL;
-    pattern[ptrnBuffer].velocity[RM][8] = HIGH_VEL;
-    pattern[ptrnBuffer].velocity[RM][12] = HIGH_VEL;
-  }
+  metronome = state ? 0x1111 : 0;  //RM sur les quatre temps
 }

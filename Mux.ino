@@ -74,8 +74,14 @@ static byte MuxValue(byte src, byte inst)
              && !bitRead(muteInst, GLOBAL_ACC);
   //127 au plus pour la velocite, 13 * 4 = 52 au plus pour l'accent : 179, pas de
   //debordement d'octet. SetDacA ecrete de toute facon a 127.
-  return pattern[ptrnBuffer].velocity[inst][curStep[inst]]
-       + (acc ? (pattern[ptrnBuffer].globalAcc * 4) : 0);
+  //Le metronome sonne sur le rimshot sans rien ecrire dans le pattern : le tick pose sa
+  //velocite dans metronomeVel, rendue ici a la place de celle du pas. Hors des temps ou
+  //il bat, metronomeVel vaut 0 et RM garde la velocite programmee. L'accent global
+  //s'ajoute dans les deux cas, comme avant - les valeurs du metronome vivaient dans le
+  //tableau et le subissaient deja.
+  byte vel = (inst == RM && metronomeVel) ? metronomeVel
+                                          : pattern[ptrnBuffer].velocity[inst][curStep[inst]];
+  return vel + (acc ? (pattern[ptrnBuffer].globalAcc * 4) : 0);
 }
 
 //Le balayage commun aux trois---------------------------------------------------------

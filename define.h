@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.031"
+#define FW_VERSION  "Yocto v2.032"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -115,6 +115,11 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #define MID_VEL 40 //velocity 0 to 127
 #define HIGH_VEL 80
 #define MAX_VEL 127 
+//Le metronome sonne sur le rimshot : premier temps accentue, les trois autres en
+//retrait. Ces deux valeurs etaient tamponnees DANS pattern[].velocity[RM][], cf
+//Metronome() et le commentaire de CountPPQN().
+#define MET_VEL_FIRST 127
+#define MET_VEL_OTHER 30
 #define MAX_SEQ_DIR 3
 #define FORWARD 0
 #define BACKWARD 1
@@ -366,7 +371,6 @@ volatile byte ppqn = 0;
 volatile byte curStep[NBR_INST] = {
   0};//current played step of each instrument
 volatile int globalStepCount = -1;
-volatile byte metronomeStepCount = -1;
 volatile int stepCount[NBR_INST] = {
   -1};//counter of each instrument
 volatile byte tapStepCount;//this counter is used to get a better tap response
@@ -388,7 +392,10 @@ byte curPattern = 0;// 0 to 255
 byte nextPattern;
 boolean changeDir[NBR_INST]; //use to PING PONG change dir
 volatile boolean endMeasure;
-unsigned int metronome;//value of metronome trig
+unsigned int metronome;//masque des pas ou le metronome bat, 0 quand il est coupe
+//Velocite du metronome pour le pas en cours, 0 s'il ne bat pas dessus. Posee par le
+//tick, lue par MuxValue() : c'est ce qui remplace l'ecriture dans le pattern.
+volatile byte metronomeVel = 0;
 
 //Pattern-------------------------------------------
 typedef struct Pattern Pattern;
