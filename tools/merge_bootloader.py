@@ -60,6 +60,14 @@ hi = [k for k in b if k >= BOOT]
 last = max(k for k in hi if b[k] != 0xFF)
 boot = {k: b[k] for k in hi if k <= last}
 merged = dict(a); merged.update(boot)
+# La version affichee au boot est la seule chose qui dise, plus tard, ce qu'il y a
+# vraiment dans la puce. Le 12/09/2026 un bump de FW_VERSION a ete perdu et la machine a
+# tourne plusieurs jours en annoncant une version de retard : on l'imprime ici, pour que
+# le chiffre passe sous les yeux juste avant l'ecriture.
+import re as _re
+_blob = bytes(a[k] for k in sorted(a))
+_vers = sorted(set(_re.findall(rb"Yocto v[0-9.]+", _blob)))
+print(f"  version     : {(b' / '.join(_vers) or b'AUCUNE TROUVEE').decode():>6}")
 print(f"  application : {len(a):6} o   0x{min(a):04X}-0x{max(a):04X}")
 print(f"  bootloader  : {len(boot):6} o   0x{min(boot):05X}-0x{max(boot):05X}  (conserve tel quel)")
 print(f"  fusionne    : {len(merged):6} o")

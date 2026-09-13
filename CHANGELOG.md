@@ -1,17 +1,19 @@
 # Yocto v2 — changelog
 
 De la **v2.003beta** d'e-licktronic — dernière version publiée, projet retiré du commerce
-en 2017 — à la **v2.017**. Seul ce qui change le comportement de la machine est listé ;
+en 2017 — à la **v2.018**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
 
 - Un cran de la molette avance d'un pas. Il en comptait **quatre**.
-- En PATT EDIT la molette choisit l'**instrument** : le nom, la longueur, la scale et la
-  grille de pas suivent. Elle était sur le tempo, qui n'est même pas affiché là.
-- TEMPO maintenu rend la main au tempo, depuis n'importe quel écran d'édition.
+- Sur les écrans d'édition de pattern, la molette nue ne touche plus au **tempo** — qui
+  n'y est même pas affiché. On ne le déplace plus en croyant régler autre chose.
+- TEMPO maintenu reste le chemin vers le tempo, et en affiche la valeur pendant qu'on
+  tourne, depuis n'importe quel écran d'édition.
 - SHUFFLE maintenu règle le shuffle en PATT TAP aussi. Il y bougeait le tempo en silence.
-- La valeur de Global Accent — ex « Total Accent » — se règle avec INST maintenu.
+- Le « Total Accent » s'appelle **Global Accent** : tous les paramètres qui portent sur
+  le pattern entier sont des « global » dans cette machine.
 
 ## Modes
 

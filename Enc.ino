@@ -45,16 +45,16 @@ void EncGet()
     }
   }
   //////////////////////////////////GLOBAL ACCENT////////////////////////////////////
-  //From here down it is ONE else if chain, SHUFFLE included. It used to be a separate if
-  //standing outside, so nothing structural stopped two branches from claiming the same
-  //detent - the only thing that did was EncGet() zeroing the notch, meaning the branch
-  //order silently decided the winner. Chained, exactly one branch owns the knob per pass
-  //and the condition says which, rather than the reader having to trace who ate what.
-  //Behind INST held, because the knob became the instrument selector below : ungated,
-  //scrolling onto ACC trapped the knob there - the value edit ate the notch and the only
-  //way out was INST + step button, which you have to know. On ACC the screen IS the
-  //value (a bargraph), so the knob belongs to it once you ask for it.
-  else if (instBtn && curInst == GLOBAL_ACC && curSeqMode == PTRN_STEP){
+  //A partir d'ici et jusqu'au bout, c'est UNE seule chaine else if, SHUFFLE compris.
+  //SHUFFLE etait un if separe pose a cote : rien de structurel n'empechait deux branches
+  //de reclamer le meme cran, la seule chose qui les separait etait EncGet() remettant le
+  //cran a zero - autrement dit l'ordre des branches arbitrait en silence. Chainees,
+  //exactement une branche possede la molette par passe, et c'est la condition qui le dit.
+  //
+  //Molette nue, comme depuis toujours. Elle est passee derriere INST maintenu en v2.013,
+  //quand elle est devenue selecteur d'instrument - pour eviter qu'arriver sur ACC en
+  //tournant ne la piege sur la valeur. Le selecteur est parti, le geste revient.
+  else if (curInst == GLOBAL_ACC && curSeqMode == PTRN_STEP){
     pattern[ptrnBuffer].globalAcc = EncGet(pattern[ptrnBuffer].globalAcc, 1);
     //MIN_GLOBAL_ACC / MAX_GLOBAL_ACC sat in define.h without a single user, the bound
     //being written out here and a third time as the width of the bargraph. One source.
@@ -219,25 +219,22 @@ void EncGet()
       break;
     }
   }
-  ////////////////////////////PATTERN EDIT : INSTRUMENT SELECT//////////////////////
-  //The knob had nothing to do on the pattern edit screen : it fell through to the BPM
-  //while the LCD read "ptr len scl ins" and showed no tempo at all. It drives the ins
-  //field now - and len, scl and the whole step LED grid follow, since all three read
-  //curInst. Same range as INST + step button, BD to TR2, so nothing new is reachable
-  //and nothing becomes unreachable.
-  //TEMPO held gives the knob back to the BPM, exactly as it already does in TRACK_WRITE
-  //- and LcdUpdate() already overlays the tempo on row 1 while that button is down, so
-  //the escape hatch shows itself.
-  //Placed last in the chain on purpose : SHUFFLE, GLOBAL ACC, keyboard and config all
-  //get first claim on the notch, and what is left over is the instrument.
+  ////////////////////////PATT EDIT ET PATT TAP : LA MOLETTE EST INERTE/////////////
+  //Elle tombait sur le BPM, qui n'est meme pas affiche sur ces ecrans : on reglait le
+  //tempo en croyant regler autre chose. Elle ne fait plus rien ici.
+  //Les deux modes ensemble parce que c'est le meme ecran - LcdUpdate() les sert sur des
+  //etiquettes de case collees - et qu'une molette inerte d'un cote et vive de l'autre
+  //serait une incoherence de plus a retenir.
+  //Elle a brievement choisi l'instrument (v2.013 a v2.017). Retire : le seul moyen de
+  //l'empecher de se piner sur le slot ACC etait de deplacer la valeur du Global Accent
+  //derriere INST maintenu, et ce geste-la est dans les doigts depuis des annees.
+  //Le cran est consomme quand meme. Sans ca il reste en attente et part sur le BPM des
+  //qu'on change d'ecran : un tour de molette en edition se retrouverait applique au tempo
+  //bien plus tard, sans rien pour faire le lien.
+  //TEMPO maintenu reste le chemin vers le tempo, et LcdUpdate() en affiche la valeur
+  //pendant que la touche est tenue.
   else if ((curSeqMode == PTRN_STEP || curSeqMode == PTRN_TAP) && !tempoBtn.pressed){
-    //Compared against curInst itself rather than a static copy of it, as the branches
-    //above do : one variable instead of two that can disagree.
-    byte newInst = constrain(EncGet(curInst, 1), 0, NBR_INST - 1);
-    if (newInst != curInst){
-      curInst = newInst;
-      needLcdUpdate = TRUE;
-    }
+    encNotch = 0;
   }
   else{
     seq.bpm = EncGet(seq.bpm,1);
