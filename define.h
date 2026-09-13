@@ -453,9 +453,17 @@ byte muteOut[NBR_STEP_BTN]=  {
 //n'a qu'un DAC, mais douze condensateurs de maintien, donc une tension propre par
 //instrument, reecrite a chaque pas. Cf Mux.ino.
 //
-//LE PLEIN EST 80 ET NON 127, et ce n'est pas arbitraire : l'accent global ajoute
-//globalAcc * 4 par dessus, soit 52 au plus. 80 + 52 = 132, ecrete a 127 par SetDacA.
-//Monter instVelHigh ecreterait donc l'accent global, en silence.
+//LE PLEIN EST 80 ET NON 127 parce que l'accent global vient PAR DESSUS : il ajoute
+//globalAcc * 4, soit 52 au plus (globalAcc va de 0 a 13, borne dans Enc.ino). Il y a donc
+//quatre niveaux par pas et non deux - demi, plein, demi + accent, plein + accent - et les
+//deux derniers ne sont pas stockes, ils se calculent dans MuxValue().
+//
+//Le 80 vient de la table 909, pas d'un calcul de marge, et ce n'est pas tout a fait la
+//bonne marge : 80 + 52 = 132, que SetDacA ecrete a 127. Les deux derniers crans d'accent
+//sur quatorze perdent donc jusqu'a 5 unites, 161 mV sur 4,09 V, et seulement sur un pas
+//plein. Le chiffre exact serait 75 - mais il coute 161 mV sur TOUS les pas pleins pour
+//rattraper deux crans : le remede serait pire. Monter instVelHigh aggrave l'ecretage
+//d'autant, le baisser mange le niveau du pas plein.
 //
 //PC2 portait un demi a 20 : 0,64 V contre 2,58 V au
 //plein, un ecart de 1 a 4 quand les huit autres voix sont a 1 a 2 et les charleys a
