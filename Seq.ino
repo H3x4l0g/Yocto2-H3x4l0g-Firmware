@@ -797,6 +797,18 @@ void SeqParameter()
     patternNeedSaved = FALSE;
     LoadPattern(nextPattern);
     curPattern = nextPattern;
+    //curBank est a la fois la banque affichee et celle qui sert a la selection au pas
+    //(nextPattern = touche + curBank * NBR_PATTERN). Elle n'etait ecrite que par le geste
+    //BANK, donc elle restait en arriere des que le pattern changeait par un autre chemin :
+    //une position de piste, une chaine, un bouton de pas. Arriver sur D13 depuis TRACK
+    //EDIT puis passer en PATT EDIT affichait "A61" - la lettre venait d'un curBank reste
+    //a 0, et le numero valait 60 - 0 + 1.
+    //Les ecrans de TRACK ne tombaient pas dedans parce qu'ils derivent la banque du
+    //pattern au lieu de la lire. Ici on recale la source, une seule fois, a l'unique
+    //endroit du firmware ou curPattern est ecrit - donc l'affichage ET la selection au
+    //pas repartent du meme etat. Appuyer sur la touche 3 en etant sur D13 donne D3, plus
+    //A3.
+    curBank = curPattern / NBR_PATTERN;
     nextPatternReady = TRUE;
   }
 
