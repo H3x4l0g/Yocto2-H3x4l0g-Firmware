@@ -81,8 +81,7 @@ void EncGet()
       static unsigned int prevTrkPos;
       if (trk.pos != prevTrkPos){
         prevTrkPos = trk.pos;
-        nextPattern = track[trkBuffer].patternNbr[trk.pos];
-        if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+        TrackPosToPattern();
         needLcdUpdate = TRUE;
         break;
       case 1:// track pattern

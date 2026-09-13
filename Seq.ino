@@ -154,8 +154,7 @@ void SeqParameter()
         //FWD, CLEAR, la molette, l'insertion, ENTER, le changement de piste. Il manquait
         //celui de l'entree dans le mode, le seul ou trk.pos ne bouge pas mais devient
         //soudain ce qui compte.
-        nextPattern = track[trkBuffer].patternNbr[trk.pos];
-        if (curPattern != nextPattern) selectedPatternChanged = TRUE;
+        TrackPosToPattern();
         needLcdUpdate = TRUE;
         keyboardMode = FALSE;
         seq.configMode  = FALSE;
@@ -660,8 +659,7 @@ void SeqParameter()
     //SHIFT + BACK is the "delete" shortcut : it must not move the position here
     if (backBtn.justPressed && !shiftBtn.pressed){
       if (trk.pos) trk.pos--;//trk.pos is unsigned, never let it wrap under 0
-      nextPattern = track[trkBuffer].patternNbr[trk.pos];
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+      TrackPosToPattern();
       needLcdUpdate = TRUE;
     }
     //incremente track position
@@ -677,15 +675,13 @@ void SeqParameter()
       //gestes disent maintenant la meme chose.
       if (trk.pos > track[trkBuffer].length) trk.pos = track[trkBuffer].length;
       if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;//garde-fou si la piste est corrompue
-      nextPattern = track[trkBuffer].patternNbr[trk.pos];
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+      TrackPosToPattern();
       needLcdUpdate = TRUE;
     }
     //go to first measure
     if (clearBtn.justPressed){
       trk.pos = 0;
-      nextPattern = track[trkBuffer].patternNbr[trk.pos];
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+      TrackPosToPattern();
       needLcdUpdate = TRUE;
     }
     if(shiftBtn.pressed){
@@ -693,8 +689,7 @@ void SeqParameter()
       if (numBtn.pressed){
         trk.pos = track[trkBuffer].length;
         if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;
-        nextPattern = track[trkBuffer].patternNbr[trk.pos];
-        if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+        TrackPosToPattern();
         needLcdUpdate = TRUE;
       }
       //delete the pattern at the current position
@@ -706,8 +701,7 @@ void SeqParameter()
         }
         track[trkBuffer].length--;//decremente length by 1 due to deleted pattern
         if (trk.pos > track[trkBuffer].length) trk.pos = track[trkBuffer].length;
-        nextPattern = track[trkBuffer].patternNbr[trk.pos];
-        if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+        TrackPosToPattern();
         trackNeedSaved = TRUE;
         needLcdUpdate = TRUE;
       }
@@ -719,8 +713,7 @@ void SeqParameter()
         }
         track[trkBuffer].patternNbr[trk.pos] = curPattern;
         track[trkBuffer].length++;//incremente length by 1 due to inserted pattern
-        nextPattern = track[trkBuffer].patternNbr[trk.pos];
-        if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+        TrackPosToPattern();
         trackNeedSaved = TRUE;
         needLcdUpdate = TRUE;
       }
@@ -731,8 +724,7 @@ void SeqParameter()
       track[trkBuffer].patternNbr[trk.pos] = curPattern;
       trk.pos++;
       if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;
-      nextPattern = track[trkBuffer].patternNbr[trk.pos];
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+      TrackPosToPattern();
       //Le manuel dit, pour ENTER en TRACK EDIT : "store current to the position and
       //increase Track position". Rien sur la longueur - et len est justement un des
       //quatre champs qu'on edite soi-meme a la molette (pos, ptr, len, num), donc
@@ -753,8 +745,7 @@ void SeqParameter()
     //go to first measure
     if (clearBtn.justPressed){
       trk.pos = 0;
-      nextPattern = track[trkBuffer].patternNbr[trk.pos];
-      if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+      TrackPosToPattern();
       needLcdUpdate = TRUE;
     }
     if(readButtonState){
@@ -773,8 +764,7 @@ void SeqParameter()
     trackNeedSaved = FALSE;
     LoadTrack(trk.next);
     trk.current = trk.next;
-    nextPattern = track[trkBuffer].patternNbr[trk.pos];
-    if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+    TrackPosToPattern();
     //trkBuffer = !trkBuffer;
   }
   if (trackNeedSaved && enterBtn.hold)

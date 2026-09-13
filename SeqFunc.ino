@@ -270,6 +270,22 @@ void PatternChainUpdate(SeqMode playMode)
   if (curPattern != nextPattern) selectedPatternChanged = TRUE;
 }
 
+//Aligne le pattern courant sur ce que la piste contient a la position courante---------
+//Ces deux lignes etaient ecrites DOUZE fois : BACK, FWD, CLEAR en edition, CLEAR en
+//lecture, la molette, l'insertion, la suppression, "aller a la derniere mesure", ENTER,
+//l'entree dans le mode, le changement de piste, et l'avancement en lecture.
+//La copie de l'entree dans le mode a ete ajoutee le 13/09/2026 parce qu'elle MANQUAIT :
+//TRACK EDIT affichait apres un cycle d'allumage le pattern charge au boot au lieu de
+//celui de la piste. Une logique dupliquee dont une copie s'oublie, c'est exactement le
+//schema qui avait produit les bugs de chainage. Une fonction, et le compilateur garantit
+//qu'aucun site ne diverge - et qu'il n'y aura pas de treizieme copie manquante.
+//needLcdUpdate reste chez l'appelant : tous les sites n'en veulent pas.
+void TrackPosToPattern()
+{
+  nextPattern = track[trkBuffer].patternNbr[trk.pos];
+  if (curPattern != nextPattern) selectedPatternChanged = TRUE;
+}
+
 //Advance the track by one measure------------------------------------------------
 void TrackPlayUpdate()
 {
@@ -278,8 +294,7 @@ void TrackPlayUpdate()
 
   trk.pos++;
   if (trk.pos >= track[trkBuffer].length) trk.pos = 0;
-  nextPattern = track[trkBuffer].patternNbr[trk.pos];
-  if (curPattern != nextPattern) selectedPatternChanged = TRUE;
+  TrackPosToPattern();
   needLcdUpdate = TRUE;
 }
 
