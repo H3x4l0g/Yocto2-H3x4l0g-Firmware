@@ -1,7 +1,38 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                 Encoder function
-//-------------------------------------------------
+//======================================================================================
+//
+//   E N C . I N O                              une molette, dix significations
+//
+//   Tourner la molette ne veut rien dire en soi : ce fichier decide ce que ca veut dire
+//   MAINTENANT, selon ce qui est maintenu et le mode en cours. EncRead() lit les deux
+//   canaux et valide un cran ; EncGet() distribue ce cran a un seul destinataire.
+//
+//--------------------------------------------------------------------------------------
+//   LA CHAINE, DANS L'ORDRE - ET L'ORDRE EST LA PRIORITE DES GESTES
+//
+//   SHUFFLE maintenu           -> le shuffle
+//   sinon, Global Accent visee -> la valeur d'accent global, molette nue
+//   sinon, TRACK WRITE         -> les champs de la piste
+//   sinon, mode clavier        -> la pile de notes externes
+//   sinon, mode config         -> le parametre affiche
+//   sinon, ecran d'edition     -> inerte, volontairement
+//   sinon                      -> le tempo
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. C'EST UNE CHAINE EXCLUSIVE. Deplacer un maillon change la priorite d'un geste du
+//      panneau, donc ce que la main trouve sous ses doigts. Ca ne se fait pas en
+//      passant.
+//
+//   2. L'INERTIE SUR LES ECRANS D'EDITION EST UN CHOIX. La molette n'y touche PAS au
+//      tempo, qui n'y est meme pas affiche : on ne le deplace plus en croyant regler
+//      autre chose. TEMPO maintenu reste le chemin vers le tempo, depuis n'importe ou.
+//
+//   3. UN CRAN = UN PAS. Le decodage accumule les transitions du cycle de Gray et ne
+//      valide qu'au retour sur l'etat de repos. La table d'origine comptait les quatre
+//      transitions : la molette avancait de quatre.
+//
+//======================================================================================
 
 ////////////////////////Function//////////////////////
 

@@ -1,7 +1,28 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//             Timer Configuration
-//-------------------------------------------------
+//======================================================================================
+//
+//   T I M E R . I N O                          qui bat, et qui relache
+//
+//   Deux compteurs materiels, deux metiers. Timer1 bat la mesure : c'est lui qui
+//   declenche CountPPQN() 96 fois par noire. Timer2 ne sert qu'a une chose, relacher
+//   les sorties de trig 2 ms apres les avoir armees.
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1, et ce n'est pas un detail : en
+//      synchro esclave Timer1 est ARRETE, CountPPQN() etant appele par l'horloge MIDI
+//      entrante. Une comparaison OCR1B ne se declencherait jamais et les trigs
+//      resteraient colles en l'air.
+//
+//   2. StartTrigPulseIfIdle() NE RELANCE PAS UNE IMPULSION EN COURS. Les voix partent
+//      sur le FRONT montant : un bit qui ne redescend jamais fait taire les notes
+//      suivantes du meme instrument. Un flux MIDI serre relancerait le compte sans fin.
+//
+//   3. TimerSetFrequency() FAIT UNE SEULE DIVISION, en 32 bits. L'ancienne en faisait
+//      deux en 16 bits et tronquait deux fois : 7 des 221 tempos etaient justes, avec
+//      jusqu'a 0,54 BPM d'ecart - 0,75 s de derive en quatre minutes.
+//
+//======================================================================================
 
 void TimerStart()
 {

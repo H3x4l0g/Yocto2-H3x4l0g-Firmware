@@ -1,7 +1,21 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//              Sequencer Led
-//-------------------------------------------------
+//======================================================================================
+//
+//   L E D . I N O                              tout ce que le panneau montre
+//
+//   Une seule fonction compte : SetLeds(), appelee a chaque tour de boucle. Elle
+//   reconstruit l'etat des seize LED de pas, des LED de mode et des LED de menu a
+//   partir du mode courant, du pattern qui joue et des boutons maintenus.
+//   Si l'ecran ment, c'est ici - ou dans le drapeau qu'on a oublie de poser.
+//
+//--------------------------------------------------------------------------------------
+//   A SAVOIR
+//
+//   Les LED n'ont pas de gradateur : la demi-intensite est obtenue en eteignant la LED
+//   une trame sur neuf (flagLedIntensity). C'est ce qui distingue un pas a demi-velocite
+//   d'un pas plein, et c'est aussi ce qui fait briller la banque courante parmi les
+//   huit quand on maintient BANK.
+//
+//======================================================================================
 
 ////////////////////////Function//////////////////////
 

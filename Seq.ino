@@ -1,7 +1,41 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                 SEQ Parameter
-//-------------------------------------------------
+//======================================================================================
+//
+//   S E Q . I N O                              ce que font les touches, partout
+//
+//   Le plus gros fichier du depot, et une seule fonction : SeqParameter(). Elle decide
+//   de tout ce qu'un bouton declenche - sauf le clavier, qui vit dans key.ino. Neuf
+//   cents lignes, mais une charpente simple qu'il faut avoir en tete avant d'entrer.
+//
+//--------------------------------------------------------------------------------------
+//   LA CHARPENTE
+//
+//   if (shiftBtn.pressed)  ... les gestes a deux touches : TAP, copie, direction
+//   else                   ... les gestes nus : TRK, PATT, decalage, GUIDE, MUTE
+//     puis, par mode       ... PTRN_STEP / PTRN_TAP / TRACK_WRITE / TRACK_PLAY ...
+//   et en fin de fonction  ... la bascule de buffer, les drapeaux, les sauvegardes
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. LA COUPURE SHIFT EST LA STRUCTURE, pas un detail de mise en page. Un geste place
+//      du mauvais cote ne se declenchera jamais - c'est ce qui a tenu le changement de
+//      direction enferme en PATT EDIT pendant des annees.
+//
+//   2. MUTE N'EST PAS UN MODE, c'est une surcouche des touches de pas. D'ou l'idiome
+//      "SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode" partout ou un
+//      geste doit continuer de marcher pendant un mute. L'oublier, c'est faire
+//      disparaitre le geste des qu'on coupe une voix.
+//
+//   3. CHANGER DE FAMILLE TRACK <-> PATT DEMANDE L'ARRET DU TRANSPORT. Les deux ne
+//      jouent pas la meme chose. La regle est portee par IS_TRACK_MODE() et se teste
+//      sur "from", jamais sur curSeqMode brut.
+//
+//   4. LES DRAPEAUX SONT LA MEMOIRE DE CE QUI N'EST PAS ENCORE SAUVE.
+//      patternWasEdited et trackNeedSaved allument la LED ENTER et autorisent
+//      l'ecriture. Modifier une donnee sans poser son drapeau, c'est un travail perdu
+//      en silence au prochain chargement - deux bugs de ce type ont ete corriges ici.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 void SeqParameter()

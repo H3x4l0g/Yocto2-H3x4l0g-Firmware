@@ -1,7 +1,26 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                  main program
-//-------------------------------------------------
+//======================================================================================
+//
+//   Y O C T O 2 . I N O                        le point d'entree
+//
+//   setup() reveille la machine dans le bon ordre - et l'ordre compte : les registres a
+//   decalage sortent de la mise sous tension avec n'importe quoi dedans, un trig ouvert
+//   suffisant a faire osciller la grosse caisse. loop() ne fait ensuite qu'appeler les
+//   neuf etages dans l'ordre, indefiniment.
+//
+//--------------------------------------------------------------------------------------
+//   LA BOUCLE, DANS L'ORDRE
+//
+//   MIDI.read() en rafale   vider la file d'un coup, puis MidiTrigFlush()
+//   ButtonGet()             les cinq octets de boutons -> des gestes
+//   EncGet()                un cran de molette -> un destinataire
+//   SetLeds()               reconstruire le panneau
+//   SeqConfiguration()      le mode config
+//   SeqParameter()          tout le reste des touches
+//   KeyboardUpdate()        le mode clavier
+//   LcdUpdate()             seulement si needLcdUpdate
+//   SetTrigTime()           relacher les sorties de trig echues
+//
+//======================================================================================
 
 /////////////////////Include/////////////////////
 #include <SPI.h>

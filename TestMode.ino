@@ -1,7 +1,13 @@
- //-------------------------------------------------
-//                  Yocto v2.x
-//                  Test Mode
-//-------------------------------------------------
+//======================================================================================
+//
+//   T E S T M O D E . I N O                    les deux modes d'usine
+//
+//   Ni l'un ni l'autre ne s'atteint par le panneau : ce sont deux broches a tirer a la
+//   masse au demarrage. PA3 lance le test des voix, PA4 celui de l'interface - chaque
+//   LED s'allume a son tour, puis chaque bouton presse allume la sienne.
+//   C'est le juge de paix quand un bouton ne repond plus : il dit si le firmware le voit.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 

@@ -1,7 +1,27 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                    define
-//-------------------------------------------------
+//======================================================================================
+//
+//   D E F I N E . H                            le vocabulaire de toute la machine
+//
+//   Les constantes, les types, les tables en PROGMEM - et TOUTES les variables
+//   globales. Numeros d'instruments, masques de boutons, structures Pattern et Track,
+//   table de swing, version du firmware.
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. CE N'EST PAS UN VRAI EN-TETE. Il DEFINIT des variables, il ne les declare pas.
+//      Il n'est inclus qu'une fois, depuis yocto2.ino, et le garde #ifndef ne protege
+//      que de la double lecture - pas d'une seconde unite de compilation.
+//
+//   2. FW_VERSION SE BUMPE AVANT CHAQUE ECRITURE DANS LA PUCE. C'est le seul moyen de
+//      savoir ce que la machine contient. Un build a deja tourne en annoncant une
+//      version de retard, parce qu'un script s'etait arrete avant cette ligne.
+//
+//   3. TOUCHER A UNE TAILLE DE STRUCTURE OU A UN OFFSET EEPROM DECALE TOUT CE QUI EST
+//      DEJA ENREGISTRE. Les patterns et les pistes vivent dans les EEPROM externes et
+//      survivent aux mises a jour - a condition que la disposition ne bouge pas.
+//
+//======================================================================================
 
 #ifndef define_h
 #define define_h

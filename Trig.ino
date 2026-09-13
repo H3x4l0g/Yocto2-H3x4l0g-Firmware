@@ -1,7 +1,11 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                 Trig.c
-//-------------------------------------------------
+//======================================================================================
+//
+//   T R I G . I N O                            la sortie de declenchement TRIG-1
+//
+//   Trente lignes, un seul role : rendre les sorties de trig au repos quand leur duree
+//   est ecoulee. Appelee a chaque tour de boucle principale.
+//
+//======================================================================================
 
 ////////////////////////Function//////////////////////
 

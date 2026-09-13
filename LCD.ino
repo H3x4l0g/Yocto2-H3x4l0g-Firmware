@@ -1,7 +1,20 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                  LCD update
-//-------------------------------------------------
+//======================================================================================
+//
+//   L C D . I N O                              les deux lignes de seize signes
+//
+//   LcdUpdate() redessine l'ecran quand needLcdUpdate a ete pose - jamais autrement,
+//   un rafraichissement permanent couterait trop cher a la boucle. Le reste du fichier
+//   n'est que de petites fonctions d'impression : un tempo, une gamme, une etiquette
+//   prise en PROGMEM.
+//
+//--------------------------------------------------------------------------------------
+//   A SAVOIR
+//
+//   Seize colonnes, pas dix-sept. Les chaines trop longues ne debordent pas : elles
+//   repassent en debut de ligne et effacent le champ d'avant. Pour la version du
+//   firmware, un static_assert dans define.h attrape le depassement a la compilation.
+//
+//======================================================================================
 
 #include "lcdstrings.h"
 

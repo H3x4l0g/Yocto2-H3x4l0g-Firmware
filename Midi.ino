@@ -1,7 +1,35 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//              Midi Function
-//-------------------------------------------------
+//======================================================================================
+//
+//   M I D I . I N O                            ce qui entre et ce qui sort
+//
+//   Deux sens qui n'ont rien a voir. A l'ENTREE, des notes qui declenchent les voix
+//   analogiques et une horloge qui peut asservir toute la machine. A la SORTIE, la
+//   piste EXT, l'ecoute au clavier, et l'horloge quand le Yocto est maitre.
+//   Aucune voix analogique n'est recopiee vers la sortie : ce n'est pas un oubli.
+//
+//--------------------------------------------------------------------------------------
+//   ENTRE PAR      MIDI.read(), vide par la boucle principale
+//                  les callbacks HandleNoteOn/Off, HandleClock/Start/Stop/Continue
+//
+//   SORT VERS      SetMuxTrigOne() + AddDoutTrig()   les voix, sur note recue
+//                  CountPPQN()                       l'horloge, en synchro esclave
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. LE THRU LOGICIEL EST COUPE VOLONTAIREMENT. La bibliotheque renvoie par defaut
+//      vers la SORTIE tout ce qui arrive a l'entree, horloge comprise : un appareil
+//      chaine derriere recevait 48 impulsions par noire au lieu de 24.
+//
+//   2. MidiTrigOn() N'ARME PAS, IL ACCUMULE. Les declenchements s'empilent dans
+//      midiTrigPending et partent ensemble au MidiTrigFlush() de la boucle. Sans ca,
+//      un accord de trois futs s'etalait sur trois tours de boucle.
+//
+//   3. HandleClock() TIRE SES QUATRE SOUS-TICKS D'UN COUP, et c'est un defaut connu :
+//      les retards de swing, qui se comptent en ticks de 96 ppqn, s'ecrasent alors au
+//      1/24 de noire. En esclave, plusieurs crans de shuffle sonnent pareil.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 

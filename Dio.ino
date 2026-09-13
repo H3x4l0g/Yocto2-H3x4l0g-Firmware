@@ -1,7 +1,34 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                  Dio utility
-//-------------------------------------------------
+//======================================================================================
+//
+//   D I O . I N O                              les entrees-sorties, au ras du silicium
+//
+//   Rien ici ne sait ce qu'est un pattern. Ce fichier ne connait que des bus : le SPI
+//   qui porte les boutons a l'entree et les LED, les trigs et le DAC a la sortie, et le
+//   I2C des deux EEPROM. Tout le reste de la machine passe par ces quelques fonctions.
+//
+//--------------------------------------------------------------------------------------
+//   SORT VERS      treize registres a decalage sur le meme bus SPI - c'est pourquoi le
+//                  panneau s'illumine quand on programme la puce par l'ICSP
+//
+//   POSSEDE        dinSr[]  doutTrigState  le miroir du registre de trigs
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. SPI.usingInterrupt(255) COUPE TOUTES LES INTERRUPTIONS a chaque transaction.
+//      255 ne correspond a aucun vecteur, la bibliotheque tombe donc dans son cas par
+//      defaut et fait un noInterrupts() global. C'est VOULU : SetDoutTrig() et SetMux()
+//      sont appeles depuis l'interruption Timer1.
+//
+//   2. LE REGISTRE DE TRIGS NE SE LIT PAS. On ne peut qu'ecrire les seize bits d'un
+//      coup, d'ou le miroir logiciel. SetDoutTrig() remplace, AddDoutTrig() ajoute -
+//      confondre les deux, c'est tronquer le declenchement d'un pas.
+//
+//   3. LE "DEBOUNCE" DE ScanDin() N'EN EST PAS UN. DEBOUNCE_TIME ne limite que la
+//      frequence de rafraichissement ; les deux echantillons compares sont separes
+//      d'une iteration de boucle, pas de 5 ms. Ca marche, mais ne compte pas dessus.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 //Initialise IO PORT and libraries

@@ -1,7 +1,33 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                  Dio utility
-//-------------------------------------------------
+//======================================================================================
+//
+//   M U X . I N O                              la tension de chaque coup de fut
+//
+//   Le Yocto n'a qu'UN convertisseur numerique-analogique pour douze voix. Ce fichier
+//   le promene : deux multiplexeurs, douze adresses, douze condensateurs qui retiennent
+//   chacun la tension d'accentuation de son instrument jusqu'au balayage suivant.
+//   C'est ici que "velocite" devient "volts".
+//
+//--------------------------------------------------------------------------------------
+//   APPELE PAR     SetMux()          l'interruption d'horloge, a chaque pas
+//                  SetMuxTrigOne()   une note MIDI recue, pour son seul instrument
+//                  SetMuxTest()      le mode test de voix
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. PORTA NE PORTE PAS QUE LE MULTIPLEXEUR. Ses bits 5 a 7 sont l'adresse ; ses bits
+//      0 a 3 sont DIN_START, DIN_CLK, TR1 et TR2, ecrits par l'interruption Timer1.
+//      D'ou MuxAddr() : une seule ecriture, interruptions fermees autour. En deux
+//      lectures-modifications-ecritures, une impulsion tombant au milieu se perdait.
+//
+//   2. SetMux() TOURNE DANS L'INTERRUPTION. Jamais de sei() aveugle ici : on sauve et
+//      on restaure SREG, sinon on rouvre l'interruption en plein milieu d'elle-meme.
+//
+//   3. LES delayMicroseconds(5) ET (15) NE SONT PAS DU REMPLISSAGE. Ce sont les temps
+//      de charge des condensateurs d'echantillonnage et de stabilisation du
+//      multiplexeur. Les raccourcir, c'est poser une tension fausse sur une voix.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 

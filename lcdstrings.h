@@ -1,8 +1,13 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                  LCD String
-// Strings to be stored as Program (not in RAM, but in Flash)
-//-------------------------------------------------
+//======================================================================================
+//
+//   L C D S T R I N G S . H                    les libelles, ranges en flash
+//
+//   Toutes les chaines affichees, en PROGMEM : elles ne coutent donc rien en RAM, mais
+//   se lisent avec LcdPrintLabel() et non par un simple lcd.print().
+//   Le fichier s'appelait string.h, ce qui est le nom d'un en-tete standard du C :
+//   n'importe quelle bibliotheque faisant #include <string.h> pouvait tomber ici.
+//
+//======================================================================================
 
 #ifndef string_h
 #define string_h

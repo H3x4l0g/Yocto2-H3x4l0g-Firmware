@@ -1,7 +1,24 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                 SEQ Functions
-//-------------------------------------------------
+//======================================================================================
+//
+//   S E Q F U N C . I N O                      les operations sur un pattern
+//
+//   Ce que Seq.ino declenche, ce fichier l'execute : copier, coller, decaler, changer
+//   de direction, avancer une chaine, recaler la piste, basculer le buffer de pattern.
+//   Des verbes, pas des gestes - aucune touche n'est lue ici.
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. SwitchPatternBuffer() NE PEUT PAS ALLER DANS L'INTERRUPTION. Elle envoie du MIDI
+//      et reconstruit des champs : c'est ce qui interdit de precharger le pattern
+//      suivant depuis le tick.
+//
+//   2. TrackPosToPattern() EST L'UNIQUE RECALAGE piste -> pattern. Ces deux lignes
+//      etaient ecrites DOUZE fois, et une copie manquait : TRACK EDIT affichait apres
+//      un cycle d'allumage le pattern charge au boot au lieu de celui de la piste.
+//      Ne pas en faire une treizieme copie.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 //Initialyse the sequencer before to run

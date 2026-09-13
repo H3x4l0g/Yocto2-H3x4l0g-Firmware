@@ -1,6 +1,32 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                   
+//======================================================================================
+//
+//   E E P R O M . I N O                        la memoire, et sa carte
+//
+//   Deux 24M02 sur le meme bus I2C, 512 ko en tout. C'est ici que vivent les 128
+//   patterns, les pistes et le setup - et c'est pour ca qu'une mise a jour du firmware
+//   ne touche jamais a ce que tu as enregistre.
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   1. LA CARTE CI-DESSOUS PORTE TOUT CE QUI EST DEJA ENREGISTRE. Changer une taille ou
+//      un offset decale les 128 patterns d'un coup. Les zones probabilite, micro-timing
+//      et retrig sont reservees et comptees dans PTRN_SIZE alors que rien ne les ecrit :
+//      c'est volontaire, les retirer casserait toutes les sauvegardes existantes.
+//
+//   2. L'ADRESSE DE LA PUCE SUIT L'ADRESSE DE L'OCTET. Les bits 16 et au-dela designent
+//      le boitier : HRDW_ADDRESS + (adress >> 16). Ce calcul etait recopie a neuf
+//      endroits et deux l'avaient oublie - une lecture rendait alors les donnees de
+//      l'autre puce au-dela du pattern 51. D'ou WireBeginTX() et WireRequestFrom(),
+//      qui sont les deux seules portes d'entree.
+//
+//   3. SavePattern() BLOQUE PLUSIEURS DIZAINES DE MILLISECONDES, neuf pages a ecrire
+//      avec leur temporisation. Les MIDI.read() qui la parsement sont la pour que la
+//      synchro esclave ne decroche pas pendant ce temps - ce ne sont pas des restes.
+//
+//--------------------------------------------------------------------------------------
+//   LA CARTE
+//
 // The Drum sequencer has two 24M02 I2C EEPROM
 // Each EEPROM is 4 x 65535 bytes so in total 2 x 4 x 65535 = 524280 bytes (512kB)
 // A pattern is composed to:
@@ -33,7 +59,7 @@
 //  -OFFSET_SETUP = TRACK_OFFSET + (TRACK_SIZE * MAX_TRACK) = 73728;
 //  -SETUP_SIZE = 64 bytes  only 4 bytes used NOW...
 //
-//-------------------------------------------------
+//======================================================================================
 
 #define PTRN_SIZE          (PTRN_TRIG_SIZE + PTRN_SETUP_SIZE + PTRN_VEL_SIZE + PTRN_PROB_SIZE + PTRN_uTIMING_SIZE + PTRN_RETRIG_SIZE + PTRN_EXT_SIZE) //1280 bytes
 #define PTRN_OFFSET        (unsigned long)(0)

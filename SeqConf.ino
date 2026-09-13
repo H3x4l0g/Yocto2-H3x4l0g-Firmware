@@ -1,7 +1,13 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                 SEQ configuration
-//-------------------------------------------------
+//======================================================================================
+//
+//   S E Q C O N F . I N O                      les reglages de la machine
+//
+//   Le mode config, atteint par SHIFT + GUIDE : canaux MIDI, tempo par defaut, source
+//   de synchro, synchronisation des changements de pattern. Trois pages, parcourues a
+//   la molette. Ces valeurs vivent dans la structure seq et sont enregistrees a part
+//   des patterns, dans la zone de setup de l'EEPROM.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 void SeqConfiguration()

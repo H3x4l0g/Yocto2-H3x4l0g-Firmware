@@ -1,7 +1,19 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                 keyboard mode
-//-------------------------------------------------
+//======================================================================================
+//
+//   K E Y . I N O                              les seize touches en clavier
+//
+//   Dans ce mode les touches de pas ne sont plus des pas mais des notes, et BACK / FWD
+//   parcourent la pile de notes de l'instrument externe en la faisant sonner.
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER
+//
+//   Toute note envoyee doit etre relachee, et avec SA valeur. Le note-off relisait la
+//   note a l'index COURANT au moment du lacher : maintenir BACK puis appuyer sur FWD
+//   coupait donc une autre note, et celle de BACK sonnait indefiniment. La note est
+//   desormais memorisee a l'appui et relue telle quelle.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 void KeyboardUpdate()

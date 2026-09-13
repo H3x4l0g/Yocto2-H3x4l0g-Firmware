@@ -1,7 +1,42 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//                  BPM
-//-------------------------------------------------
+//======================================================================================
+//
+//   C L O C K . I N O                          le coeur temporel du Yocto
+//
+//   Ce fichier possede le TEMPS. Timer1 bat a 96 ppqn, son interruption appelle
+//   CountPPQN(), et c'est la - et nulle part ailleurs - que chaque pas de chaque
+//   instrument decide s'il part. Tout le reste de la machine ne fait que preparer
+//   ce qui sera joue ici.
+//
+//--------------------------------------------------------------------------------------
+//   ENTRE PAR      ISR(TIMER1_COMPA_vect) -> CountPPQN()      96 fois par noire
+//                  HandleClock() (Midi.ino) en synchro esclave, 4 appels d'affilee
+//
+//   SORT VERS      SetMux() puis SetDoutTrig() + StartTrigPulse()   les voix analogiques
+//                  MidiSendNoteOn() / InitMidiNoteOff()             la piste EXT
+//                  UDR1 en direct                                   l'horloge MIDI
+//                  SwitchPatternBuffer()                            la bascule de pattern
+//
+//   TIENT A JOUR   ppqn  stepCount[]  curStep[]  stepChanged[]  globalStepCount
+//                  endMeasure  trackPosNeedIncremante  blinkTempo  blinkFast[]
+//
+//--------------------------------------------------------------------------------------
+//   AVANT D'Y TOUCHER, TROIS CHOSES
+//
+//   1. TOUT ICI TOURNE DANS UNE INTERRUPTION. Pas d'attente active, pas d'appel qui
+//      bloque, et surtout pas de division : le 1284P n'a pas de diviseur materiel et
+//      une division 16 bits coute 230 cycles. Le budget est un tick, soit 5208 us a
+//      120 BPM mais seulement 2500 us a 250.
+//
+//   2. L'AVANCEMENT DU PAS ET SON DECLENCHEMENT SONT DECOUPLES. Le pas avance quand
+//      mod == 0 ; il PART quand mod == d. C'est ce decalage qui rend le swing possible,
+//      et c'est la meme porte par ou passerait un micro-timing par pas.
+//
+//   3. LE CACHE DE MODULOS, en tete de boucle, n'est pas une optimisation gratuite.
+//      Il y avait 36 divisions par tick ici. Il y en a zero : 5024 cycles ramenes a 84.
+//      Les identites qui le permettent sont demontrees en commentaire sur place - les
+//      defaire remettrait l'interruption a genoux au-dessus de 200 BPM.
+//
+//======================================================================================
 
 /////////////////////Function//////////////////////
 //Un pas au hasard, sans division-------------------------------------------------------
@@ -20,8 +55,7 @@
 //regression - et pour un sequenceur ca a meme un avantage, la meme session rejoue pareil.
 static unsigned int rngState = 0xACE1;
 
-byte RandomStep(byte maxStep)
-{
+byte RandomStep(byte maxStep) {
   rngState ^= rngState << 7;
   rngState ^= rngState >> 9;
   rngState ^= rngState << 8;
@@ -30,19 +64,18 @@ byte RandomStep(byte maxStep)
 }
 
 //Timer interrupt
-ISR(TIMER1_COMPA_vect) { 
-  CountPPQN(); 
+ISR(TIMER1_COMPA_vect) {
+  CountPPQN();
 }
 
 //Tick proceed each pulse
-void CountPPQN()
-{
+void CountPPQN() {
   //p is volatile and was re-read from SRAM on each of its ~40 uses below.
   //One read here, one write back at the end.
   byte p = ppqn;
 
-  if (p % (PPQN/2) == 0) blinkTempo = !blinkTempo;
-  if (p  % (pattern[ptrnBuffer].scale[curInst]/2) == 0) blinkFast[curInst] = LOW;
+  if (p % (PPQN / 2) == 0) blinkTempo = !blinkTempo;
+  if (p % (pattern[ptrnBuffer].scale[curInst] / 2) == 0) blinkFast[curInst] = LOW;
   //if (p % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq
 
   if (p % 4 == 0) {
@@ -58,21 +91,19 @@ void CountPPQN()
     //
     //Dropping a clock byte that has nowhere to go costs nothing - the sequencer is not
     //running yet and no one is listening. Freezing costs everything.
-    if (UCSR1A & (1 << UDRE1)) UDR1 = CLOCK_CMD;//Tick
+    if (UCSR1A & (1 << UDRE1)) UDR1 = CLOCK_CMD;  //Tick
   }
-  if (seq.sync == MASTER){
-    if (p % 4 == 0){
+  if (seq.sync == MASTER) {
+    if (p % 4 == 0) {
       DIN_CLK_HIGH;
       dinClkState = HIGH;
-    }
-    else if (p % 4 == 2) {
+    } else if (p % 4 == 2) {
       DIN_CLK_LOW;
       dinClkState = LOW;
-    }    
+    }
   }
 
-  if (isRunning)
-  {
+  if (isRunning) {
     //p % scale ne depend que de p et de la scale, et il n'y a que QUATRE scales possibles.
     //C'etait recalcule pour chacun des seize instruments, deux fois chacun, plus quatre
     //fois hors de la boucle : 36 divisions par tick, dont seize sur 16 bits.
@@ -90,27 +121,27 @@ void CountPPQN()
     //reciproque, une dizaine de cycles.
     byte m24 = (byte)(p % (byte)SCALE_16);
     byte modBySc[4];
-    modBySc[SCALE_ROW(SCALE_16)]  = m24;                                        //24
-    modBySc[SCALE_ROW(SCALE_32)]  = (m24 >= SCALE_32) ? m24 - SCALE_32 : m24;   //12
-    modBySc[SCALE_ROW(SCALE_16t)] = p & (SCALE_16t - 1);                        //16
-    modBySc[SCALE_ROW(SCALE_8t)]  = p & (SCALE_8t - 1);                         //32
+    modBySc[SCALE_ROW(SCALE_16)] = m24;                                       //24
+    modBySc[SCALE_ROW(SCALE_32)] = (m24 >= SCALE_32) ? m24 - SCALE_32 : m24;  //12
+    modBySc[SCALE_ROW(SCALE_16t)] = p & (SCALE_16t - 1);                      //16
+    modBySc[SCALE_ROW(SCALE_8t)] = p & (SCALE_8t - 1);                        //32
 
-    byte gs    = pattern[ptrnBuffer].globalScale;
+    byte gs = pattern[ptrnBuffer].globalScale;
     byte gsMod = modBySc[SCALE_ROW(gs)];
 
-    if (gsMod == (gs/2)) tapStepCount++;
+    if (gsMod == (gs / 2)) tapStepCount++;
 
     if (tapStepCount > pattern[ptrnBuffer].globalLength) tapStepCount = 0;
 
-      //stepValue is volatile and read by Led.ino, but it was also accumulated with
-      //|= inside the 16 instrument loop - one SRAM round trip per iteration.
-      //Built in a local, published once.
-      unsigned int sv = 0;
+    //stepValue is volatile and read by Led.ino, but it was also accumulated with
+    //|= inside the 16 instrument loop - one SRAM round trip per iteration.
+    //Built in a local, published once.
+    unsigned int sv = 0;
 
-    for (byte z = 0; z < NBR_INST; z++){
-      byte sc  = pattern[ptrnBuffer].scale[z];
+    for (byte z = 0; z < NBR_INST; z++) {
+      byte sc = pattern[ptrnBuffer].scale[z];
       byte mod = modBySc[SCALE_ROW(sc)];
-      if (mod == 0) stepChanged[z] = TRUE;//Step changed ?
+      if (mod == 0) stepChanged[z] = TRUE;  //Step changed ?
 
       //-----------------------------------------------------------------------------
       //Here is everything happen each step
@@ -137,36 +168,35 @@ void CountPPQN()
       //moins 1 et le retard au plus 13, donc p - retard >= -12, alors que le premier
       //multiple negatif vaut -12 pour scale 12 - inatteignable, le retard y est borne a 5.
       byte d = (stepCount[z] & 1)
-        ? SWING_TICKS(sc, pattern[ptrnBuffer].shuffle[z])
-        : 0;
+                 ? SWING_TICKS(sc, pattern[ptrnBuffer].shuffle[z])
+                 : 0;
 
-      if (mod == d && stepChanged[z])
-      {//Each Step
-        stepChanged[z] = FALSE;//flag that we already trig this step
-        blinkFast[z] = HIGH;// TO BE REMOVED OUT OF THIS FOR LOOP
+      if (mod == d && stepChanged[z]) {  //Each Step
+        stepChanged[z] = FALSE;          //flag that we already trig this step
+        blinkFast[z] = HIGH;             // TO BE REMOVED OUT OF THIS FOR LOOP
 
         //sequencer direction for each instruments-----------
-        switch (pattern[ptrnBuffer].dir[z]){
-        case FORWARD:
-          curStep[z] = stepCount[z];
-          break;
-        case BACKWARD:
-          curStep[z] = pattern[ptrnBuffer].length[z] - stepCount[z];
-          break;
-        case PING_PONG:
-          if (curStep[z] == pattern[ptrnBuffer].length[z] && changeDir[z] == 1) changeDir[z] = 0;
-          else if (curStep[z] == 0 && changeDir[z] == 0)  changeDir[z] = 1;
-          if (changeDir[z]) curStep[z] = stepCount[z];
-          else curStep[z] = pattern[ptrnBuffer].length[z] - stepCount[z];
-          break;
-        case RANDOM:
-          curStep[z] = RandomStep(pattern[ptrnBuffer].length[z]);
-          break;
+        switch (pattern[ptrnBuffer].dir[z]) {
+          case FORWARD:
+            curStep[z] = stepCount[z];
+            break;
+          case BACKWARD:
+            curStep[z] = pattern[ptrnBuffer].length[z] - stepCount[z];
+            break;
+          case PING_PONG:
+            if (curStep[z] == pattern[ptrnBuffer].length[z] && changeDir[z] == 1) changeDir[z] = 0;
+            else if (curStep[z] == 0 && changeDir[z] == 0) changeDir[z] = 1;
+            if (changeDir[z]) curStep[z] = stepCount[z];
+            else curStep[z] = pattern[ptrnBuffer].length[z] - stepCount[z];
+            break;
+          case RANDOM:
+            curStep[z] = RandomStep(pattern[ptrnBuffer].length[z]);
+            break;
         }
         //Set each step value in a 16bit word depending step counter and direction of each instrument
         //Compare the current step of each instrument and store in "stepValue"
-        if ( z != GLOBAL_ACC ){//&& z != TR1 && z != TR2){
-          sv |= ((bitRead(pattern[ptrnBuffer].inst[z],curStep[z])) << z);
+        if (z != GLOBAL_ACC) {  //&& z != TR1 && z != TR2){
+          sv |= ((bitRead(pattern[ptrnBuffer].inst[z], curStep[z])) << z);
         }
 
         //Set the multiplexer for velocity out just before Trig
@@ -175,58 +205,58 @@ void CountPPQN()
     }
 
     //incremente global step count according the longer instrument length
-    if (modBySc[SCALE_ROW(pattern[ptrnBuffer].scale[longerInstLength])] == 0){
+    if (modBySc[SCALE_ROW(pattern[ptrnBuffer].scale[longerInstLength])] == 0) {
       globalStepCount++;
     }
 
     //Set Metronome value to be trigged
-    if (gsMod == 0){
-      sv |= (bitRead(metronome,(globalStepCount-1)) << RM);
+    if (gsMod == 0) {
+      sv |= (bitRead(metronome, (globalStepCount - 1)) << RM);
     }
 
     //Add Mute value to StepValue
     sv &= ~muteInst;
-    stepValue = sv;//published for Led.ino
+    stepValue = sv;  //published for Led.ino
 
     //Is there something to trig ?
     if (sv) {
-      if (bitRead(sv, TR1)){
-        TR1_LOW;//Trigout pulse 
+      if (bitRead(sv, TR1)) {
+        TR1_LOW;  //Trigout pulse
         trig1State = HIGH;
       }
-      if (bitRead(sv, TR2)){
-        TR2_HIGH;//Trigout pulse 
+      if (bitRead(sv, TR2)) {
+        TR2_HIGH;  //Trigout pulse
         trig2State = HIGH;
       }
       SetMux();
       //Trig according mute value
       SetDoutTrig(sv);
-      StartTrigPulse();//Timer2 releases the outputs 2 ms later
+      StartTrigPulse();  //Timer2 releases the outputs 2 ms later
 
       //Trig external instrument-------------------------------------
-      if (bitRead(sv, EXT_INST))//pattern[ptrnBuffer].inst[EXT_INST], curStep[EXT_INST]))
+      if (bitRead(sv, EXT_INST))  //pattern[ptrnBuffer].inst[EXT_INST], curStep[EXT_INST]))
       {
         InitMidiNoteOff();
         MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], HIGH_VEL);
         midiNoteOnActive = TRUE;
-        noteIndexCpt++;//incremente external inst note index
+        noteIndexCpt++;  //incremente external inst note index
       }
-      if (noteIndexCpt > pattern[ptrnBuffer].extLength){
+      if (noteIndexCpt > pattern[ptrnBuffer].extLength) {
         noteIndexCpt = 0;
       }
-    }//END IF STEP VALUE
+    }  //END IF STEP VALUE
 
-    for (byte z = 0; z < NBR_INST; z++){
+    for (byte z = 0; z < NBR_INST; z++) {
       //  stepChanged[z] = FALSE;//flag that we already trig this step
       //  stepCount[z]++;
-      if (stepCount[z] > pattern[ptrnBuffer].length[z]){
+      if (stepCount[z] > pattern[ptrnBuffer].length[z]) {
         stepCount[z] = 0;
       }
       //}
     }
 
 
-    if (globalStepCount > pattern[ptrnBuffer].globalLength){// && (p % 24 == pattern[ptrnBuffer].scale - 1))
+    if (globalStepCount > pattern[ptrnBuffer].globalLength) {  // && (p % 24 == pattern[ptrnBuffer].scale - 1))
       endMeasure = TRUE;
       trackPosNeedIncremante = TRUE;
       globalStepCount = 0;
@@ -234,26 +264,24 @@ void CountPPQN()
       //cleared nextPatternReady first. Single copy in SwitchPatternBuffer() now,
       //which also stops the interrupt writing ptrnBuffer behind the main loop.
     }
-    if (gsMod == 4 && globalStepCount == 0){ 
+    if (gsMod == 4 && globalStepCount == 0) {
       endMeasure = FALSE;
     }
   }
 
   if (++p > PPQN) p = 1;
   ppqn = p;
-}// END COUNT FUNCTION
+}  // END COUNT FUNCTION
 
 //
-void Metronome(boolean state)
-{
-  if (state){
-    metronome = 0x1111;//trig RM every time
+void Metronome(boolean state) {
+  if (state) {
+    metronome = 0x1111;  //trig RM every time
     pattern[ptrnBuffer].velocity[RM][0] = 127;
     pattern[ptrnBuffer].velocity[RM][4] = 30;
     pattern[ptrnBuffer].velocity[RM][8] = 30;
     pattern[ptrnBuffer].velocity[RM][12] = 30;
-  }
-  else{
+  } else {
     metronome = 0;
     pattern[ptrnBuffer].velocity[RM][0] = HIGH_VEL;
     pattern[ptrnBuffer].velocity[RM][4] = HIGH_VEL;
@@ -261,43 +289,3 @@ void Metronome(boolean state)
     pattern[ptrnBuffer].velocity[RM][12] = HIGH_VEL;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

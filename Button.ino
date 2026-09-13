@@ -1,7 +1,13 @@
-//-------------------------------------------------
-//                  Yocto v2.x
-//              Sequencer Button
-//-------------------------------------------------
+//======================================================================================
+//
+//   B U T T O N . I N O                        d'un etat de bus a un geste
+//
+//   Les boutons arrivent en cinq octets bruts sur le SPI. Ce fichier les transforme en
+//   quelque chose d'utilisable : appuye, relache, vient d'etre appuye, maintenu depuis
+//   deux secondes. Il tient aussi les seize touches de pas et leur compteur de velocite
+//   a trois etats - eteint, demi, plein - qui fait l'edition de pattern.
+//
+//======================================================================================
 
 ////////////////////////Function//////////////////////
 

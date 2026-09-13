@@ -1,7 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée, projet retiré du commerce
-en 2017 — à la **v2.030**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.030**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -140,7 +139,7 @@ le détail technique vit dans `TODO.md`.
 - L'encodeur lisait un créneau à 16 MHz sur son canal B depuis toujours : l'horloge
   système sortait sur cette broche. C'était le tout premier symptôme du projet.
 - L'interruption d'horloge faisait trente-six divisions par tick, sur un processeur qui
-  n'en sait pas faire. Elle en fait **zéro**. Le temps rendu à la boucle principale se
+  ne sait pas faire. Elle en fait **zéro**. Le temps rendu à la boucle principale se
   voit sur tout ce qui répond au geste.
 
 ---
