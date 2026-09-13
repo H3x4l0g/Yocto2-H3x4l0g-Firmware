@@ -712,7 +712,14 @@ void SeqParameter()
       if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;
       nextPattern = track[trkBuffer].patternNbr[trk.pos];
       if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-      track[trkBuffer].length = trk.pos;
+      //Le manuel dit, pour ENTER en TRACK EDIT : "store current to the position and
+      //increase Track position". Rien sur la longueur - et len est justement un des
+      //quatre champs qu'on edite soi-meme a la molette (pos, ptr, len, num), donc
+      //raccourcir une piste est une action deliberee, pas un effet de bord.
+      //Assignee sans condition, elle ramenait la piste a la position courante : reecrire
+      //en position 4 d'une piste de 20 la coupait a 4, et les seize suivantes partaient
+      //en EEPROM comme ca au premier ENTER maintenu. Elle ne fait plus que s'etendre.
+      if (trk.pos > track[trkBuffer].length) track[trkBuffer].length = trk.pos;
       trackNeedSaved = TRUE;
       needLcdUpdate = TRUE;
     }

@@ -74,7 +74,12 @@ void KeyboardUpdate()
             noteIndex++;
             patternWasEdited = TRUE;
             if(noteIndex > MAX_EXT_INST_NOTE) noteIndex = MAX_EXT_INST_NOTE;
-            pattern[ptrnBuffer].extLength = noteIndex - 1;
+            //Meme defaut, meme forme, meme correctif que la longueur de piste : le
+            //manuel dit "Store played note in the sequence, send Midi note On and
+            //Increase note index", rien sur la longueur, et len est un des quatre champs
+            //edites a la molette (idx, not, len, oct). Revenir a la note 3 d'une pile de
+            //vingt et en rejouer une la coupait a 4.
+            if (noteIndex - 1 > pattern[ptrnBuffer].extLength) pattern[ptrnBuffer].extLength = noteIndex - 1;
             if(pattern[ptrnBuffer].extLength > MAX_EXT_INST_NOTE)pattern[ptrnBuffer].extLength = 0;
             needLcdUpdate = TRUE;
           }  
