@@ -19,10 +19,26 @@ void InitIO()
   SPI.usingInterrupt(255);
   I2cBusRecover();//must run before Wire.begin() takes the pins over
   Wire.begin();
-  //Never wait forever on the bus either. The biggest transaction here is 130 bytes,
-  //about 12 ms at 100 kHz, so 50 ms is twenty times the "forever" this used to be and
-  //still four times any legitimate transfer. On timeout the peripheral is reset, which
-  //releases the lines.
+  //Le bus tournait a 100 kHz, la valeur par defaut de la bibliotheque. Un pattern fait
+  //1280 octets, chacun coutant 9 bits sur le bus avec son acquittement : 115 ms de boucle
+  //principale bloquee a chaque chargement, plus l'adressage des pages.
+  //Ce n'est pas qu'un confort d'affichage. Le changement de pattern d'une chaine est
+  //declenche A la barre de mesure, et SwitchPatternBuffer() ne remet les compteurs de pas
+  //a zero qu'APRES le chargement : les premiers pas de la mesure sont donc joues par
+  //l'ancien pattern avant que le nouveau ne prenne la main. 118 ms font 1,8 pas a 230 BPM,
+  //et ca s'entend comme une marche - les deux premiers pas joues deux fois.
+  //A 400 kHz : ~30 ms, soit 0,46 pas, sous le seuil.
+  //Les deux M24M02 sont specifiees a 400 kHz sur toute leur plage d'alimentation, et les
+  //tirages du bus (R78, R79) sont des 4,7 kohms. La limite pour tenir les 300 ns de front
+  //montant est Rp = 300ns / (0,85 x Cbus), soit environ 7 kohms a 50 pF : il y a de la
+  //marge. Se verifie au scope sur SCL.
+  //Le vrai correctif reste le prechargement avant la barre : celui-ci ne
+  //fait que raccourcir la fenetre.
+  Wire.setClock(400000);
+  //Ne jamais attendre indefiniment sur le bus non plus. La plus grosse transaction fait
+  //130 octets, soit environ 3 ms a 400 kHz : 50 ms reste plus de quinze fois n'importe
+  //quel transfert legitime, et l'infini que c'etait avant n'a pas sa place ici. Au dela
+  //du delai, le peripherique est reinitialise, ce qui relache les lignes.
   Wire.setWireTimeout(50000, true);
 }
 
