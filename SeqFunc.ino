@@ -96,7 +96,16 @@ void InitPattern()
 {
   if (!group.priority){
     group.length = pattern[ptrnBuffer].groupLength;
-    group.firstPattern = curPattern - pattern[ptrnBuffer].groupPos;
+    //groupPos est la place du pattern courant DANS sa chaine, donc une chaine qui
+    //commence a curPattern - groupPos. En arithmetique byte, groupPos > curPattern
+    //rebouclait vers 255 : nextPattern depassait alors 127 et LoadPattern() allait lire
+    //dans la zone des pistes (TRACK_OFFSET), produisant un pattern de bruit. Lecture
+    //seule, donc rien n'etait detruit - mais c'etait audible.
+    //Cas atteignable : LoadPatternGroup() sait corrompre groupPos. Un groupPos plus
+    //grand que le numero du pattern est de toute facon incoherent ; on retombe alors
+    //sur "la chaine commence ici", qui est la lecture la plus proche du contenu.
+    byte gPos = pattern[ptrnBuffer].groupPos;
+    group.firstPattern = (gPos <= curPattern) ? curPattern - gPos : curPattern;
   }
   UpdateLongerInst();//the loaded pattern decides which instrument spans the measure
   /////////////////////COULD BE REMOVED/////////////////////////////
@@ -260,7 +269,15 @@ void PatternChainUpdate(SeqMode playMode)
 
   if (group.length){
     if (group.pos > group.length) group.pos = 0;
-    nextPattern = group.firstPattern + group.pos;
+    //Seconde barriere : meme avec un firstPattern sain, firstPattern + pos peut sortir
+    //de la zone des patterns si la longueur de chaine lue en EEPROM est aberrante.
+    //On reboucle sur le debut de la chaine plutot que d'aller lire ailleurs.
+    unsigned int cand = (unsigned int)group.firstPattern + group.pos;
+    if (cand >= MAX_PTRN){
+      group.pos = 0;
+      cand = group.firstPattern;
+    }
+    nextPattern = (byte)cand;
     group.pos++;
     needLcdUpdate = TRUE;
   }

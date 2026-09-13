@@ -129,7 +129,9 @@ void EncGet()
       case 1://external instrument note
         if(instBtn) pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 12);
         else pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 1);
-        pattern[ptrnBuffer].extNote[noteIndex] = constrain(pattern[ptrnBuffer].extNote[noteIndex], 0, 127);
+        //115 et non 127 : au-dela, note + 12 depasse 127 a l'envoi et reboucle dans
+        //l'octave du bas. Cf MAX_EXT_NOTE dans define.h.
+        pattern[ptrnBuffer].extNote[noteIndex] = constrain(pattern[ptrnBuffer].extNote[noteIndex], 0, MAX_EXT_NOTE);
         static unsigned int prevExtNote;
         if (pattern[ptrnBuffer].extNote[noteIndex] != prevExtNote){
           prevExtNote = pattern[ptrnBuffer].extNote[noteIndex];

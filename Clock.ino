@@ -4,6 +4,31 @@
 //-------------------------------------------------
 
 /////////////////////Function//////////////////////
+//Un pas au hasard, sans division-------------------------------------------------------
+//La direction RANDOM appelait random(0, length+1) DANS l'interruption d'horloge.
+//random() de l'Arduino passe par une multiplication 32 bits puis __divmodsi4 - une
+//division 32 bits logicielle - pour ramener le tirage dans l'intervalle : plusieurs
+//centaines de cycles, a chaque pas, pour chaque instrument en RANDOM.
+//
+//Ici un xorshift 16 bits : trois decalages et trois XOR. La mise a l'echelle se fait en
+//multipliant l'octet de poids faible par (maxStep + 1) et en gardant le poids fort -
+//mul est une instruction du coeur AVR, deux cycles. Le biais vaut au plus 1/256 sur un
+//intervalle de 16 valeurs, ce qui ne s'entend pas sur un tirage de pas.
+//
+//L'etat initial est fixe, comme l'etait celui de random() sans randomSeed() : la suite
+//est identique d'un allumage a l'autre. C'etait deja le cas, ce n'est pas une
+//regression - et pour un sequenceur ca a meme un avantage, la meme session rejoue pareil.
+static unsigned int rngState = 0xACE1;
+
+byte RandomStep(byte maxStep)
+{
+  rngState ^= rngState << 7;
+  rngState ^= rngState >> 9;
+  rngState ^= rngState << 8;
+  //maxStep + 1 vaut au plus NBR_STEP = 16, l'octet au plus 255 : 4080, ca tient.
+  return (byte)((((unsigned int)(rngState & 0xFF)) * ((unsigned int)maxStep + 1)) >> 8);
+}
+
 //Timer interrupt
 ISR(TIMER1_COMPA_vect) { 
   CountPPQN(); 
@@ -135,7 +160,7 @@ void CountPPQN()
           else curStep[z] = pattern[ptrnBuffer].length[z] - stepCount[z];
           break;
         case RANDOM:
-          curStep[z] = random(0, pattern[ptrnBuffer].length[z]+1);
+          curStep[z] = RandomStep(pattern[ptrnBuffer].length[z]);
           break;
         }
         //Set each step value in a 16bit word depending step counter and direction of each instrument

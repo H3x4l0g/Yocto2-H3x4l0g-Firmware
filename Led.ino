@@ -230,9 +230,14 @@ void SetLeds()
       }
       //this function is to fade low velocity leds
       if(flagLedIntensity >= 8){
+        //Parenthese telle que le compilateur la lisait deja : H | (L ^ tete de lecture).
+        //La ligne soeur juste en dessous et l'intention suggeraient (H | L) ^ tete, ce
+        //qui inverserait la tete de lecture sur TOUS les pas, y compris ceux allumes a
+        //pleine intensite.
+        //JUGE A L'OEIL LE 13/09/2026 en edition de pas : la tete passe visiblement sur
+        //les pas allumes. Le comportement actuel est donc garde, et ce n'est plus une
+        //dette - c'est un choix. Ne pas "corriger" sans regarder l'ecran d'abord.
         stepLeds = stepLedsHigh | (stepLedsLow ^ (blinkFast[curInst] << curStep[curInst]));
-        //Parenthesised exactly as the compiler read it. The sibling line below and the
-        //intent suggest (High | Low) ^ playhead instead : cf TODO.md, to judge by eye.
         flagLedIntensity = 0;
       }
       else{

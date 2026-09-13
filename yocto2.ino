@@ -110,6 +110,19 @@ void setup()
   SetDoutTrig(0);
 
   MIDI.begin();//opens Serial1 at 31250 baud
+  //Le thru LOGICIEL de la bibliotheque, a ne pas confondre avec le jack THRU cable en
+  //dur - celui-la fait son travail et n'est pas concerne.
+  //serialMIDI.h pose thruActivated = true par defaut, et MIDI.hpp renvoie vers la SORTIE
+  //tout ce qui arrive a l'entree : Clock, Start, Stop et Continue sont explicitement
+  //dans la liste. En synchro esclave, OUT portait donc l'horloge fabriquee par
+  //CountPPQN() ET celle recue, soit 48 ppqn au lieu de 24 pour tout appareil chaine
+  //derriere. La NAVA coupe le thru pour cette raison exacte ("fixes double real time
+  //messages on midi out").
+  //Ce qu'on perd : les notes entrantes ne sont plus recopiees vers OUT. La sortie ne
+  //porte de toute facon que la piste EXT et l'ecoute au clavier - aucune voix analogique
+  //n'y est envoyee - donc faire transiter un clavier a travers la machine etait la seule
+  //usage de cette recopie.
+  MIDI.turnThruOff();
   MIDI.setHandleNoteOn(HandleNoteOn);
   MIDI.setHandleNoteOff(HandleNoteOff);
   MIDI.setInputChannel(seq.RXchannel);

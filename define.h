@@ -10,7 +10,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.026"
+#define FW_VERSION  "Yocto v2.027"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -169,6 +169,14 @@ const byte swingTicks[4][16] PROGMEM = {
 #define MAX_OCT 8
 #define DEFAULT_OCT 3 //corresponding to +0
 #define MAX_EXT_INST_NOTE 99
+//Borne haute de la note externe. MidiSendNoteOn/Off envoie note + 12 : c'est ce decalage
+//qui fait que l'ecran et le recepteur disent le meme nom - extNote 0 s'affiche C0 et part
+//en MIDI 12, qui EST un C0 dans la convention ou 60 est le do central. Mais au-dela de
+//115 la somme depasse 127 et la bibliotheque masque par & 0x7F : les douze dernieres
+//valeurs repartaient dans l'octave du bas, une octave sous ce que l'ecran annoncait.
+//La molette s'arrete donc a 115. Le clavier, lui, ne peut pas y arriver : a + 12*keybOct
+//plafonne a 15 + 12*7 = 99.
+#define MAX_EXT_NOTE 115
 
 //trig out  and din synchro
 #define TR1_HIGH PORTA |= 1 << 2
@@ -475,6 +483,13 @@ const int8_t knobDir[] = {
   0, 1, -1, 0 };
 
 //Mux------------------------------------------------
+//Les trois sources de MuxSweep() : le pattern qui joue, le mode test de voix, une note
+//MIDI recue. Des #define plutot qu'une enum, pour ne pas dependre de l'ordre dans lequel
+//l'IDE genere les prototypes des .ino.
+#define MUX_PATTERN 0
+#define MUX_TEST    1
+#define MUX_MIDI    2
+
 byte muxAddr[8]={
   B111, B11, B101, B1, B110, B10, B100, B0};// Due to the  A, B, C pin on PORTA sequence
 byte muxInst[12]={

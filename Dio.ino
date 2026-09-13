@@ -16,6 +16,12 @@ void InitIO()
   pinMode (ENC_PINA, INPUT);
   pinMode (ENC_PINB, INPUT);
   SPI.begin();
+  //255 ne correspond a aucun vecteur d'interruption : la bibliotheque tombe dans son
+  //cas par defaut et pose interruptMode = 2, ou beginTransaction() fait un
+  //noInterrupts() GLOBAL rendu par endTransaction(). C'est volontaire et c'est le bon
+  //choix ici - SetDoutTrig() et SetMux() sont appeles depuis l'interruption Timer1,
+  //donc une transaction SPI de la boucle principale doit etre protegee d'elles.
+  //Mais ca ne se lit nulle part dans l'appel : d'ou ce commentaire.
   SPI.usingInterrupt(255);
   I2cBusRecover();//must run before Wire.begin() takes the pins over
   Wire.begin();

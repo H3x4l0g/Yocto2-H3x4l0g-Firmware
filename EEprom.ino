@@ -185,7 +185,15 @@ void LoadPattern(byte patternNbr)
   Wire.requestFrom(hrdwAddress ,MAX_PAGE_SIZE); //request a 128 bytes page
   //TRIG-----------------------------------------------
   for(int i =0; i<NBR_INST;i++){
-    pattern[!ptrnBuffer].inst[i] = (unsigned long)((Wire.read() & 0xFF) | (( Wire.read() << 8) & 0xFF00));
+    //Le C++ ne garantit pas l'ordre d'evaluation de deux Wire.read() dans la meme
+    //expression. avr-gcc 7.3 lit bien l'octet faible en premier a -O0, -O1, -O2, -O3 et
+    //-Os - verifie - donc aucun degat aujourd'hui. Mais rien ne l'y oblige, et si l'ordre
+    //s'inversait TOUS les patterns se chargeraient avec les octets de trig permutes :
+    //un pattern sur deux jouerait autre chose que ce qu'il contient. Deux lignes
+    //separees coutent zero octet et suppriment le risque.
+    byte instLow  = Wire.read();
+    byte instHigh = Wire.read();
+    pattern[!ptrnBuffer].inst[i] = ((unsigned int)instHigh << 8) | instLow;
     pattern[!ptrnBuffer].length[i]  = Wire.read();
     pattern[!ptrnBuffer].scale[i]  = Wire.read();
     pattern[!ptrnBuffer].shuffle[i]  = Wire.read();

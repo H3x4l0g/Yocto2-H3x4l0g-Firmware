@@ -40,7 +40,10 @@ void KeyboardUpdate()
     }
     if (lastStepBtn.justPressed){
       keybOct--;
-      if (keybOct < 0 || keybOct > MAX_OCT - 1) keybOct = 0;
+      //keybOct est un byte : "< 0" ne peut pas etre vrai. Le decompte sous zero
+      //reboucle vers 255, et c'est la borne HAUTE qui le rattrapait - correct, mais par
+      //accident. Ecrit ici comme il fonctionne.
+      if (keybOct > MAX_OCT - 1) keybOct = 0;
       needLcdUpdate = TRUE;
     }
     //BACK et FWD ecoutent la pile en la parcourant. Le note-off relisait
@@ -51,7 +54,9 @@ void KeyboardUpdate()
     static byte backNote, fwdNote;
     if (backBtn.justPressed){
       noteIndex--;
-      if( noteIndex < 0 || noteIndex > MAX_EXT_INST_NOTE - 1) noteIndex = 0;
+      //Meme chose : noteIndex est un byte, le reboucle vers 255 est rattrape par la
+      //borne haute.
+      if (noteIndex > MAX_EXT_INST_NOTE - 1) noteIndex = 0;
       backNote = pattern[ptrnBuffer].extNote[noteIndex];
       MidiSendNoteOn(seq.TXchannel, backNote, HIGH_VEL);
       needLcdUpdate = TRUE;
