@@ -73,7 +73,11 @@ void EncGet()
     case 0://track position
       if(instBtn) trk.pos = EncGet(trk.pos, 10);
       else trk.pos = EncGet(trk.pos, 1);
-      trk.pos = constrain(trk.pos, 0, MAX_TRACK_POS);
+      //Meme borne que FWD dans Seq.ino, et pour la meme raison : sans elle la molette
+      //creusait exactement le meme trou, ce qui aurait rendu l'autre correctif inutile.
+      //track[].length est le premier emplacement libre, celui ou l'on ajoute.
+      trk.pos = constrain(trk.pos, 0, (int)track[trkBuffer].length);
+      trk.pos = constrain(trk.pos, 0, MAX_TRACK_POS);//garde-fou si la piste est corrompue
       static unsigned int prevTrkPos;
       if (trk.pos != prevTrkPos){
         prevTrkPos = trk.pos;

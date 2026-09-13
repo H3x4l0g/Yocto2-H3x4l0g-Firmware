@@ -667,7 +667,16 @@ void SeqParameter()
     //incremente track position
     if (fwdBtn.justPressed && !shiftBtn.pressed){
       trk.pos++;
-      if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;
+      //La position s'arrete au premier emplacement vide, pas a 999. Sans cette borne on
+      //pouvait aller en position 12 d'une piste de 8 et y faire ENTER : la longueur
+      //passait a 12 et les positions 9 a 11 gardaient ce qui trainait en memoire. Un trou,
+      //la ou la troncature corrigee le 13/09 coupait.
+      //La borne est track[].length et non length - 1 : les positions remplies vont de 0 a
+      //length - 1, donc length est le premier emplacement libre, celui ou l'on ajoute.
+      //C'est exactement la ou SHIFT + NUM emmene, "go to the last measure" : les deux
+      //gestes disent maintenant la meme chose.
+      if (trk.pos > track[trkBuffer].length) trk.pos = track[trkBuffer].length;
+      if (trk.pos > MAX_TRACK_POS) trk.pos = MAX_TRACK_POS;//garde-fou si la piste est corrompue
       nextPattern = track[trkBuffer].patternNbr[trk.pos];
       if(curPattern != nextPattern) selectedPatternChanged = TRUE;
       needLcdUpdate = TRUE;

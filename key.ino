@@ -43,21 +43,29 @@ void KeyboardUpdate()
       if (keybOct < 0 || keybOct > MAX_OCT - 1) keybOct = 0;
       needLcdUpdate = TRUE;
     }
+    //BACK et FWD ecoutent la pile en la parcourant. Le note-off relisait
+    //extNote[noteIndex] AU RELACHEMENT, donc changer d'index entre l'appui et le lacher -
+    //maintenir BACK puis appuyer sur FWD - envoyait le note-off sur une autre note, et
+    //celle de BACK sonnait indefiniment. La note envoyee est memorisee a l'appui et
+    //relue telle quelle au lacher : une note-on, une note-off, toujours la meme.
+    static byte backNote, fwdNote;
     if (backBtn.justPressed){
       noteIndex--;
       if( noteIndex < 0 || noteIndex > MAX_EXT_INST_NOTE - 1) noteIndex = 0;
-      MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndex], HIGH_VEL);
+      backNote = pattern[ptrnBuffer].extNote[noteIndex];
+      MidiSendNoteOn(seq.TXchannel, backNote, HIGH_VEL);
       needLcdUpdate = TRUE;
     }
-    if (backBtn.justRelease)MidiSendNoteOff(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndex]);
+    if (backBtn.justRelease)MidiSendNoteOff(seq.TXchannel, backNote);
 
     if (fwdBtn.justPressed){
       noteIndex++;
       if( noteIndex >= MAX_EXT_INST_NOTE ) noteIndex = MAX_EXT_INST_NOTE;
-      MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndex], HIGH_VEL);
+      fwdNote = pattern[ptrnBuffer].extNote[noteIndex];
+      MidiSendNoteOn(seq.TXchannel, fwdNote, HIGH_VEL);
       needLcdUpdate = TRUE;
     }
-    if (fwdBtn.justRelease)MidiSendNoteOff(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndex]);
+    if (fwdBtn.justRelease)MidiSendNoteOff(seq.TXchannel, fwdNote);
 
     if(clearBtn.justPressed){
       noteIndex = 0;
