@@ -1,7 +1,7 @@
 # Yocto v2 — changelog
 
 De la **v2.003beta** d'e-licktronic — dernière version publiée, projet retiré du commerce
-en 2017 — à la **v2.018**. Seul ce qui change le comportement de la machine est listé ;
+en 2017 — à la **v2.021**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -55,12 +55,28 @@ le détail technique vit dans `TODO.md`.
 - Basculer édition ↔ lecture ne répète ni ne saute un pattern.
 - MUTE ne gèle plus l'avancement de la chaîne.
 - Le pattern courant n'est plus rejoué quand il se trouve être le premier de la chaîne.
+- **La banque suit le pattern.** Arriver sur D13 par une piste affichait `A61`, éclairait
+  la LED de banque A, et la touche de pas 3 renvoyait en A3. L'écran, la LED et la touche
+  disent maintenant la même chose.
 
 ## Pistes
 
 - La longueur ne se corrompt plus à 999.
 - BACK et FWD avancent d'un pas, plus de deux.
 - L'insertion fonctionne sur une piste vide.
+- **ENTER ne tronque plus la piste.** Réécrire un pattern en position 4 d'une piste de 20
+  la ramenait à 4 mesures. La longueur ne fait plus que s'étendre ; la raccourcir reste
+  possible, délibérément, à la molette sur le champ `len`.
+- Après un cycle d'allumage, TRACK EDIT affiche **le pattern que la piste contient**, et
+  non celui chargé au démarrage. Les données n'étaient pas perdues, l'écran mentait
+  jusqu'à ce qu'on bouge.
+- La position se compte à partir de **1** en lecture comme en édition. La première mesure
+  s'appelait 0 d'un côté et 1 de l'autre.
+
+## Instrument externe
+
+- La pile de notes ne se tronque plus. Revenir à la note 3 d'une pile de vingt et en
+  rejouer une la coupait à 4.
 
 ## Synchro et sorties
 
