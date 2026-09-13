@@ -15,9 +15,6 @@ void LcdUpdate()
     LcdPrintTempo();
   }
   //display global accent
-  /*if (enterBtn.pressed && curSeqMode == PTRN_PLAY){
-   LcdPrintGlobalAcc();
-   }*/
   if(needLcdUpdate && !tempoBtn.pressed){
     needLcdUpdate = FALSE;
     if (seq.configMode)
@@ -128,17 +125,6 @@ void LcdUpdate()
           LcdPrintLabel(selectInstString, curInst);
         }
         break;
-        /* case PTRN_TAP:
-         lcd.setCursor(0,0);
-         lcd.print(" Ptrn Tap edit  ");
-         lcd.setCursor(0,1);
-         LcdClearLine(); 
-         lcd.setCursor(2,1);
-         lcd.print(char(curBank+65));
-         lcd.print(curPattern - (curBank*NBR_PATTERN));
-         lcd.setCursor(9,1);
-         LcdPrintTempo();  
-         break;*/
       case TRACK_WRITE:
         lcd.setCursor(0,0);
         lcd.print("pos ptr len num ");

@@ -65,11 +65,9 @@ void SetLeds()
   lastStepLed = lastStepBtn.pressed ;
   if (isRunning){
     menuLed = LED_PLAY | shiftLed<<1 | instLed<<2 | clearLed<<3 | shufLed<<4 | lastStepLed<<5 | scaleLed<<6 ;
-    //stepLeds = pattern[ptrnBuffer].inst[curInst] ^ (blinkFast << curStep-1);
   }
   else{
     menuLed = (LED_PLAY*blinkTempo) | LED_STOP | shiftLed<<1 | instLed<<2 | clearLed<<3 | shufLed<<4 | lastStepLed<<5 | scaleLed<<6;
-    //stepLeds = pattern[ptrnBuffer].inst[curInst] ^ (blinkTempo << curStep);
   }
 
   //------------------------------Config LEDS-------------------------------
@@ -105,52 +103,8 @@ void SetLeds()
 
   //------------------------------Step LEDS-------------------------------
   //Update inst selected Leds
-  // if (curInst == TRIG_OUT | curInst == EXT_INST | curInst == GLOBAL_ACC) curInst = 0;
-  /* else*/  instSlctLed = (1 << curInst);
+  instSlctLed = (1 << curInst);
 
-  /*  switch (curInst){
-   case BD:
-   instSlctLed = 0x01;
-   break;
-   case SD:
-   instSlctLed = 0x02;
-   break;
-   case LT:
-   instSlctLed = 0x04;
-   break;
-   case MT:
-   instSlctLed = 0x08;
-   break;
-   case HT:
-   instSlctLed = 0x10;
-   break;
-   case RM:
-   instSlctLed = 0x20;
-   break;
-   case HC:
-   instSlctLed = 0x40;
-   break;
-   case CB:
-   instSlctLed = 0x80;
-   break;
-   case CY:
-   instSlctLed = 0x8000;
-   break;
-   case OH:
-   instSlctLed = 0x4000;
-   break;
-   case CH:
-   instSlctLed = 0x3000;
-   break;
-   case PC2:
-   instSlctLed = 0x3000;
-   break;
-   case TRIG_OUT:
-   case EXT_INST:
-   case GLOBAL_ACC:
-   instSlctLed = 0;//Clear step leds when GLOBAL_ACC... selected
-   break;
-   }*/
 
   //Update step Leds depends sequencer Mode
   switch (curSeqMode){
@@ -191,9 +145,7 @@ void SetLeds()
         }
       }
       else if (!isRunning){
-        // if (group.length){
         temp = 0;
-        //Serial.println(group.length);
         for (int a = 0; a <= group.length; a++){
           bitSet(temp,(group.firstPattern % NBR_PATTERN) + a);
         }
@@ -254,7 +206,6 @@ void SetLeds()
       else{
         // if (group.length)
         temp = 0;
-        // Serial.println(group.length);
         for (int a = 0; a <= group.length; a++){
           bitSet(temp,(group.firstPattern % NBR_PATTERN) + a);
         }
@@ -268,7 +219,6 @@ void SetLeds()
     //------------------------------
   case MUTE:
     stepLeds = muteInst ^ stepValue;
-    //if (encBtn.pressed) muteLeds = 0;
     break;
   }
   //Send OUTPUTS now !

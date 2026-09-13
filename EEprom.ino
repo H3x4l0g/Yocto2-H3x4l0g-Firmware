@@ -43,6 +43,12 @@
 #define PTRN_SETUP_OFFSET  (PTRN_TRIG_OFFSET + PTRN_SETUP_SIZE)
 #define PTRN_VEL_SIZE      (unsigned long)(256)
 #define PTRN_VEL_OFFSET    (PTRN_SETUP_OFFSET + PTRN_VEL_SIZE)
+//Probabilite, micro-timing et retrig : trois champs de Pattern (define.h) et trois zones
+//reservees ici, mais RIEN ne les ecrit ni ne les relit - les boucles de sauvegarde et de
+//chargement etaient en commentaire depuis l'amont, et ont ete retirees le 13/09/2026.
+//Les tailles restent dans PTRN_SIZE : les changer decalerait tous les patterns deja
+//enregistres. La place est donc reservee pour le jour ou ces fonctions existeront.
+//A noter : PTRN_RETRIG_OFFSET sert deja a stocker extNote, cf LoadPattern().
 #define PTRN_PROB_SIZE     (unsigned long)(256)
 #define PTRN_PROB_OFFSET   (PTRN_VEL_OFFSET + PTRN_PROB_SIZE)
 #define PTRN_uTIMING_SIZE  (unsigned long)(256)
@@ -68,7 +74,6 @@ void SavePattern(byte patternNbr)
 {
   unsigned long adress = (unsigned long)(PTRN_OFFSET + patternNbr * PTRN_SIZE);
   WireBeginTX(adress); 
-  // Serial.println(adress);
   //TRIG-----------------------------------------------
   for (byte i = 0; i < NBR_INST; i++){ 
     byte lowbyte =  (pattern[ptrnBuffer].inst[i] & 0xFF);
@@ -114,49 +119,6 @@ void SavePattern(byte patternNbr)
   }//2 * 128 bytes = 256 bytes
 
   //======================================NOT USED YET=============================================
-  /*
-  //PROBALITY-----------------------------------------------
-   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
-   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_VEL_OFFSET);
-   //Serial.println(adress);
-   WireBeginTX(adress);
-   for (byte i = 0; i < 8; i++){//loop as many instrument for a page
-   for (byte j = 0; j < NBR_STEP; j++){
-   Wire.write((byte)(pattern[ptrnBuffer].probality[i + (4*nbrPage)][j] & 0xFF)); 
-   }
-   }
-   Wire.endTransmission();//end of 64 bytes transfer
-   delay(DELAY_WR);//delay between each write page
-   }//2 * 128 bytes = 256 bytes
-   
-   //uTIMING-----------------------------------------------
-   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
-   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_PROB_OFFSET);
-   //Serial.println(adress);
-   WireBeginTX(adress);
-   for (byte i = 0; i < 8; i++){//loop as many instrument for a page
-   for (byte j = 0; j < NBR_STEP; j++){
-   Wire.write((byte)(pattern[ptrnBuffer].uTiming[i + (4*nbrPage)][j] & 0xFF)); 
-   }
-   }
-   Wire.endTransmission();//end of 64 bytes transfer
-   delay(DELAY_WR);//delay between each write page
-   }//2 * 128 bytes = 256 bytes
-   
-   //RETRIG-----------------------------------------------
-   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
-   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_uTIMING_OFFSET);
-   //Serial.println(adress);
-   WireBeginTX(adress);
-   for (byte i = 0; i < 8; i++){//loop as many instrument for a page
-   for (byte j = 0; j < NBR_STEP; j++){
-   Wire.write((byte)(pattern[ptrnBuffer].retrig[i + (4*nbrPage)][j] & 0xFF)); 
-   }
-   }
-   Wire.endTransmission();//end of 64 bytes transfer
-   delay(DELAY_WR);//delay between each write page
-   }//2 * 128 bytes = 256 bytes
-   */
   //========================================================================================================
 
   //EXT INST-----------------------------------------------
@@ -212,7 +174,6 @@ void LoadPattern(byte patternNbr)
     //VELOCITY-----------------------------------------------
   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
     adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_SETUP_OFFSET);
-    //Serial.println(adress);
     WireBeginTX(adress);
     Wire.endTransmission();
     WireRequestFrom(adress, MAX_PAGE_SIZE);
@@ -224,46 +185,6 @@ void LoadPattern(byte patternNbr)
   }
 
   //======================================NOT USED YET=============================================
-  /*
-  //PROBALITY-----------------------------------------------
-   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
-   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_VEL_OFFSET);
-   WireBeginTX(adress);
-   Wire.endTransmission();
-   WireRequestFrom(adress, MAX_PAGE_SIZE);
-   for (byte i = 0; i < 8; i++){//loop as many instrument for a page
-   for (byte j = 0; j < NBR_STEP; j++){
-   pattern[!ptrnBuffer].probality[i + (4*nbrPage)][j] = (Wire.read() & 0xFF);
-   }
-   }
-   }
-   
-   //uTIMING-----------------------------------------------
-   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
-   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_PROB_OFFSET);
-   WireBeginTX(adress);
-   Wire.endTransmission();
-   WireRequestFrom(adress, MAX_PAGE_SIZE);
-   for (byte i = 0; i < 8; i++){//loop as many instrument for a page
-   for (byte j = 0; j < NBR_STEP; j++){
-   pattern[!ptrnBuffer].uTiming[i + (4*nbrPage)][j] = (Wire.read() & 0xFF);
-   }
-   }
-   }
-   
-   //RETRIG-----------------------------------------------
-   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
-   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_uTIMING_OFFSET);
-   WireBeginTX(adress);
-   Wire.endTransmission();
-   WireRequestFrom(adress, MAX_PAGE_SIZE);
-   for (byte i = 0; i < 8; i++){//loop as many instrument for a page
-   for (byte j = 0; j < NBR_STEP; j++){
-   pattern[!ptrnBuffer].retrig[i + (4*nbrPage)][j] = (Wire.read() & 0xFF);
-   }
-   }
-   }
-   */
   //======================================================================================================
 
   //EXT INST-----------------------------------------------
@@ -363,12 +284,6 @@ void SavePatternGroup(byte firstPattern, byte length)
     if (firstPattern + a >= MAX_PTRN) break;
     unsigned long adress = (unsigned long)(PTRN_OFFSET + ((firstPattern + a) * PTRN_SIZE) + OFFSET_GROUP);
     WireBeginTX(adress);
-    /* Serial.print("adresse=");
-     Serial.println(adress);
-     Serial.print("groupPos=");
-     Serial.println(a);
-     Serial.print("groupLeght=");
-     Serial.println(length);*/
     Wire.write((byte)(a)); //pattern[ptrnBuffer].groupPos
     Wire.write((byte)(length));//pattern[ptrnBuffer].groupLength
     Wire.endTransmission();//end page transmission
@@ -419,7 +334,6 @@ void InitEEprom()
   {
     unsigned long adress = (unsigned long)(PTRN_OFFSET + nbrPattern * PTRN_SIZE);
     WireBeginTX(adress); 
-    // Serial.println(adress);
     //TRIG-----------------------------------------------
     for (byte i = 0; i < NBR_INST; i++){  
       Wire.write((byte)(0));//(pattern[ptrnBuffer].inst[i] & 0xFF);
@@ -448,7 +362,6 @@ void InitEEprom()
     //VELOCITY-----------------------------------------------
     for(int nbrPage = 0; nbrPage < 2; nbrPage++){
       adress = (unsigned long)(PTRN_OFFSET + (nbrPattern * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_SETUP_OFFSET);
-      //Serial.println(adress);
       WireBeginTX(adress);
       for (byte i = 0; i < 8; i++){//loop as many instrument for a page
         for (byte j = 0; j < NBR_STEP; j++){
@@ -462,7 +375,6 @@ void InitEEprom()
     //PROBALITY-----------------------------------------------
     for(int nbrPage = 0; nbrPage < 2; nbrPage++){
       adress = (unsigned long)(PTRN_OFFSET + (nbrPattern * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_VEL_OFFSET);
-      //Serial.println(adress);
       WireBeginTX(adress);
       for (byte i = 0; i < 8; i++){//loop as many instrument for a page
         for (byte j = 0; j < NBR_STEP; j++){
@@ -476,7 +388,6 @@ void InitEEprom()
     //uTIMING-----------------------------------------------
     for(int nbrPage = 0; nbrPage < 2; nbrPage++){
       adress = (unsigned long)(PTRN_OFFSET + (nbrPattern * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_PROB_OFFSET);
-      //Serial.println(adress);
       WireBeginTX(adress);
       for (byte i = 0; i < 8; i++){//loop as many instrument for a page
         for (byte j = 0; j < NBR_STEP; j++){
@@ -490,7 +401,6 @@ void InitEEprom()
     //RETRIG-----------------------------------------------
     for(int nbrPage = 0; nbrPage < 2; nbrPage++){
       adress = (unsigned long)(PTRN_OFFSET + (nbrPattern * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_uTIMING_OFFSET);
-      //Serial.println(adress);
       WireBeginTX(adress);
       for (byte i = 0; i < 8; i++){//loop as many instrument for a page
         for (byte j = 0; j < NBR_STEP; j++){
@@ -503,7 +413,6 @@ void InitEEprom()
 
     //EXT INST-----------------------------------------------
     adress = (unsigned long)(PTRN_OFFSET + (nbrPattern * PTRN_SIZE) + PTRN_RETRIG_OFFSET);
-    //Serial.println(adress);
     WireBeginTX(adress);
     for (byte j = 0; j < MAX_PAGE_SIZE; j++){
       Wire.write((byte)(0));
@@ -554,10 +463,6 @@ void InitEEprom()
   Wire.endTransmission();//end page transmission
   delay(DELAY_WR);//delay between each write page
 
-  /*  //Set the 3 last byte of the internal Atmega1284P EEprom to 0, 1, 2 value to NEVER init EEPROM again
-   EEPROM.write(4093, 0);
-   EEPROM.write(4094, 1);
-   EEPROM.write(4095, 2);*/
 
 }
 

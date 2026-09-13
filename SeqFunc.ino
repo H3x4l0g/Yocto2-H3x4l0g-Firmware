@@ -108,17 +108,6 @@ void InitPattern()
     group.firstPattern = (gPos <= curPattern) ? curPattern - gPos : curPattern;
   }
   UpdateLongerInst();//the loaded pattern decides which instrument spans the measure
-  /////////////////////COULD BE REMOVED/////////////////////////////
-  //Init Ride, Crash velocity to HIGH_VEL
-  /*for (int stp = 0; stp < NBR_STEP; stp++){
-   pattern[ptrnBuffer].velocity[CH][stp] = instVelHigh[CH];//
-   pattern[ptrnBuffer].velocity[OH][stp] = instVelHigh[OH];//
-   pattern[ptrnBuffer].velocity[PC2][stp] = instVelHigh[PC2];//
-   pattern[ptrnBuffer].velocity[GLOBAL_ACC][stp] = HIGH_VEL;//GLOBAL_ACC
-   pattern[ptrnBuffer].velocity[TRIG_OUT][stp] = HIGH_VEL;//TRIG_OUT
-   pattern[ptrnBuffer].velocity[EXT_INST][stp] = HIGH_VEL;//EXT_INST
-   }*/
-  ////////////////////////////////////////////////////////////////////
   switch (pattern[ptrnBuffer].scale[curInst]){
   case  SCALE_16:
     scaleBtn.counter = 0;

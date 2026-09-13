@@ -175,7 +175,6 @@ unsigned int InstValueGet(unsigned int value)
             stepBtn[a].counter = 0;
             bitClear (value, a);
             pattern[ptrnBuffer].velocity[curInst][a] = instVelLow[curInst];
-            //pattern[ptrnBuffer].velocity[curInst][a] = 200;
             break;
           }
         }
@@ -191,7 +190,6 @@ unsigned int InstValueGet(unsigned int value)
 void MuteButtonGet()
 {
   unsigned int data = (dinSr[1] <<8) | dinSr[0];
-  //static unsigned int value;
   for (byte a = 0; a < NBR_STEP_BTN; a++){
     muteStepBtn[a].justPressed = 0;
     muteStepBtn[a].curState = bitRead(data,a);
@@ -263,27 +261,6 @@ byte SecondBitOn()
 
 //return value of first just pressed step button 
 //MODE => JUSTPRESSED or JUSTRELEASE
-/*byte StepBtn(byte mode)
- {
- unsigned int reading = (dinSr[1] <<8) | dinSr[0];
- for (byte a = 0; a < NBR_STEP_BTN; a++){//a = step button number
- stepBtn[a].justPressed = 0;
- stepBtn[a].justRelease = 0;
- stepBtn[a].curState = bitRead(reading,a);
- if (stepBtn[a].curState != stepBtn[a].prevState){
- if (stepBtn[a].pressed == LOW && stepBtn[a].curState == HIGH){
- stepBtn[a].justPressed = 1;
- if (mode == JUSTPRESSED) return a;
- }
- if (stepBtn[a].pressed == HIGH && stepBtn[a].curState == LOW){
- stepBtn[a].justRelease = 1;
- if (mode == JUSTRELEASE) return a;
- }
- stepBtn[a].pressed = stepBtn[a].curState;
- }
- stepBtn[a].prevState = stepBtn[a].curState;
- }
- }*/
 
 //Init buttons counter----------------------------------------------------
 void InitButtonCounter()

@@ -105,7 +105,6 @@ void setup()
   LoadPattern(0);
   ptrnBuffer = !ptrnBuffer;
   InitPattern();
-  //SetHHPattern();
   InstToStepWord();
   SetDoutTrig(0);
 

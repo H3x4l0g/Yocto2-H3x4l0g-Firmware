@@ -217,7 +217,6 @@ void CountPPQN()
     }//END IF STEP VALUE
 
     for (byte z = 0; z < NBR_INST; z++){
-      // if(stepChanged[z]){
       //  stepChanged[z] = FALSE;//flag that we already trig this step
       //  stepCount[z]++;
       if (stepCount[z] > pattern[ptrnBuffer].length[z]){
@@ -226,12 +225,6 @@ void CountPPQN()
       //}
     }
 
-    /* //init each instrument step counter
-     for (byte z = 0; z < NBR_INST; z++){
-     if (stepCount[z] > pattern[ptrnBuffer].length[z]){
-     stepCount[z] = 0;
-     }
-     }*/
 
     if (globalStepCount > pattern[ptrnBuffer].globalLength){// && (p % 24 == pattern[ptrnBuffer].scale - 1))
       endMeasure = TRUE;

@@ -7,14 +7,6 @@
 void SeqParameter()
 {  
 
- /* if(lastStepBtn.justPressed){
-    //Serial.println(nextPattern);
-    for (byte a = 0; a < 16; a++){
-      //Serial.print(a);
-      // Serial.print(" :");
-      // Serial.println(nextPattern);
-    }
-  }*/
   readButtonState = StepButtonGet(MOMENTARY);
   //can not access config when isRunning
   if (isRunning && seq.configMode){
@@ -95,19 +87,6 @@ void SeqParameter()
       SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
       if (from == PTRN_STEP || from == PTRN_PLAY) ChangePatternDirection();
     }
-    /*if (trkBtn.justPressed){
-     needLcdUpdate = TRUE;
-     curSeqMode = TRACK_WRITE;
-     keyboardMode = FALSE;
-     seq.configMode  = FALSE;
-     }*/
-    /* if (ptrnBtn.justPressed) {
-     needLcdUpdate = TRUE;
-     if (curSeqMode == PTRN_STEP) curSeqMode = PTRN_PLAY;
-     else curSeqMode = PTRN_STEP;
-     seq.configMode  = FALSE;
-     trackNeedSaved = FALSE;
-     }*/
     if (tapBtn.justPressed){
       //Same transport rule as TRK and PATT below : tap writing is a pattern job, so it
       //cannot be reached from a running track either. Without this the rule had a side
@@ -208,7 +187,6 @@ void SeqParameter()
         break;
       }
     }
-    //if (bankBtn && readButtonState) curBank = FirstBitOn();
     if (muteBtn.justPressed){
       muteBtn.counter++;
       switch (muteBtn.counter){
@@ -251,15 +229,10 @@ void SeqParameter()
       curInst = GLOBAL_ACC;
       needLcdUpdate = TRUE;
     }
-    /* if (instBtn && stopBtn.justPressed){
-     curInst = TRIG_OUT;
-     needLcdUpdate = TRUE;
-     }*/
     if (shiftBtn.pressed && guideBtn.justPressed){
       curInst = EXT_INST;
       needLcdUpdate = TRUE;
     }
-    //Serial.println(curInst);
 
     //-------------------Clear Button------------------------------
     if (clearBtn.pressed && !keyboardMode && curSeqMode != PTRN_TAP && isRunning){
@@ -280,22 +253,8 @@ void SeqParameter()
       }
       ////////////////////////////////////////////////////////////////////////
       //init all intrument velocity ||   PEUT ETRE SUPPRIMER, A TESTER !!!  ||
-      /* for (int b = 0; b < NBR_STEP; b++){
-       pattern[ptrnBuffer].velocity[BD][b] = instVelLow[BD];
-       pattern[ptrnBuffer].velocity[SD][b] = instVelLow[SD];
-       pattern[ptrnBuffer].velocity[LT][b] = instVelLow[LT];
-       pattern[ptrnBuffer].velocity[MT][b] = instVelLow[MT];
-       pattern[ptrnBuffer].velocity[HT][b] = instVelLow[HT];
-       pattern[ptrnBuffer].velocity[RM][b] = instVelLow[RM];
-       pattern[ptrnBuffer].velocity[HC][b] = instVelLow[HC];
-       pattern[ptrnBuffer].velocity[CB][b] = instVelLow[CB];
-       pattern[ptrnBuffer].velocity[CY][b] = instVelLow[CY];
-       }*/
       ////////////////////////////////////////////////////////////////////////
 
-      //pattern[ptrnBuffer].globalShuffle = DEFAULT_SHUF;
-      //pattern[ptrnBuffer].globalLength = NBR_STEP - 1;
-      //pattern[ptrnBuffer].globalScale = SCALE_16;
       keybOct = DEFAULT_OCT;
       patternWasEdited = TRUE;
       needLcdUpdate = TRUE;
@@ -365,7 +324,6 @@ void SeqParameter()
       }
       needLcdUpdate = TRUE;
       patternWasEdited = TRUE;
-      //Serial.println(pattern[ptrnBuffer].globalLength);
     }
     //-------------------Steps buttons------------------------------
     /////////////////////////////STEP EDIT///////////////////////////
@@ -810,7 +768,6 @@ void SeqParameter()
 
   if (selectedPatternChanged)
   {
-    //Serial.println("changed!!");
     selectedPatternChanged = FALSE;
     needLcdUpdate = TRUE;//selected pattern changed so we need to update display
     patternNeedSaved = FALSE;
@@ -836,10 +793,8 @@ void SeqParameter()
   if (patternWasEdited)
   {//update Pattern
     patternWasEdited = FALSE;
-    //SetHHPattern();
     InstToStepWord();
     patternNeedSaved = TRUE;
-    // Serial.println("patternupdated");
   }
 
   if (patternNeedSaved && enterBtn.justPressed && !instBtn)

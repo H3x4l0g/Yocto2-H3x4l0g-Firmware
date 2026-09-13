@@ -366,7 +366,6 @@ byte curInst = BD;//0 is BD trig out shift register
 byte curBank = 0;//0 to 7 banks
 byte curPattern = 0;// 0 to 255
 byte nextPattern;
-//byte seqDirMode;
 boolean changeDir[NBR_INST]; //use to PING PONG change dir
 volatile boolean endMeasure;
 unsigned int metronome;//value of metronome trig
@@ -394,7 +393,6 @@ struct Pattern
   byte length[NBR_INST];
   byte scale[NBR_INST];
   byte shuffle[NBR_INST];
-  //byte bank;
 };
 Pattern pattern[2];//current pattern and next pattern in the buffer
 Pattern bufferedPattern;//to copy paste pattern

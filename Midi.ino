@@ -27,17 +27,11 @@ void InitMidiNoteOff()
 void MidiSendNoteOff (byte channel, byte value)
 {
   MIDI.sendNoteOff(value + 12, 0, channel);
-  /* MidiSend(channel + 0x80);
-   MidiSend(value);
-   MidiSend(0x00);*/
 }
 //Send note ON
 void MidiSendNoteOn (byte channel, byte value, byte velocity)
 {
   MIDI.sendNoteOn(value + 12, velocity, channel);
-  /* MidiSend(channel + 0x90);
-   MidiSend(value);
-   MidiSend(velocity);*/
 }
 
 //Handle clock
@@ -187,7 +181,6 @@ void HandleNoteOn(byte channel, byte pitch, byte velocity)
       case 54:
       case 53:
         MidiTrigOn(PC2, velocity);
-        //Serial.println(velocity);
         break;
       case 60:
         TR1_LOW;
