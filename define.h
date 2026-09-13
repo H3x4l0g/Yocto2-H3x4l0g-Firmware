@@ -10,7 +10,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.023"
+#define FW_VERSION  "Yocto v2.024"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -110,10 +110,14 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #define MAX_BPM 250
 #define DEFAULT_BPM 120
 #define PPQN 96
-#define SCALE_16 PPQN/4
-#define SCALE_32 PPQN/8
-#define SCALE_16t PPQN/6
-#define SCALE_8t PPQN/3
+//Parenthesees : sans les parentheses, "p % SCALE_32" se lit "(p % 96) / 8". Le piege ne
+//s'etait jamais declenche parce que ces macros ne servaient qu'a initialiser la table des
+//scales et comme etiquettes de case, ou la precedence ne change rien. Il se declenche des
+//qu'on ecrit une expression avec.
+#define SCALE_16 (PPQN/4)
+#define SCALE_32 (PPQN/8)
+#define SCALE_16t (PPQN/6)
+#define SCALE_8t (PPQN/3)
 //Swing : the even step stays on the grid, the odd one is pushed a few ticks late.
 //Swing ratio = (scale + delay) / (2 * scale).
 //The delay used to be (setting - 1) ticks whatever the resolution, so one setting meant
@@ -140,9 +144,14 @@ const byte swingTicks[4][16] PROGMEM = {
   { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 10, 10, 10, 10, 10},//SCALE_16  16th
   { 0,  1,  3,  4,  5,  7,  8,  9, 11, 12, 13, 13, 13, 13, 13, 13} //SCALE_8t  8th triplet
 };
-//Both indices are bounded : a corrupt pattern gives a wrong swing, never a read outside
-//the table. shuffle is 1 based, hence the -1.
-#define SWING_TICKS(scale, shuf) pgm_read_byte(&swingTicks[(((scale) >> 3) - 1) & 3][((shuf) - 1) & 15])
+//Le rang d'une scale : (scale >> 3) - 1 envoie les quatre scales legales sur 0..3 d'un
+//seul decalage - 12 vers 0, 16 vers 1, 24 vers 2, 32 vers 3. Le masque borne le resultat
+//si un pattern corrompu donne autre chose. Defini une fois, utilise par la table de swing
+//et par le cache des modulos de Clock.ino : les deux indexent de la meme facon.
+#define SCALE_ROW(scale) ((((scale) >> 3) - 1) & 3)
+//Les deux index sont bornes : un pattern corrompu donne un mauvais swing, jamais une
+//lecture hors table. shuffle est base 1, d'ou le -1.
+#define SWING_TICKS(scale, shuf) pgm_read_byte(&swingTicks[SCALE_ROW(scale)][((shuf) - 1) & 15])
 #define DEFAULT_SHUF 1
 #define DEFAULT_LEN 16
 #define DEFAULT_SCALE 24

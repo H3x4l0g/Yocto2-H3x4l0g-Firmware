@@ -48,7 +48,32 @@ void CountPPQN()
 
   if (isRunning)
   {
-    if (p % pattern[ptrnBuffer].globalScale == (pattern[ptrnBuffer].globalScale/2)) tapStepCount++;
+    //p % scale ne depend que de p et de la scale, et il n'y a que QUATRE scales possibles.
+    //C'etait recalcule pour chacun des seize instruments, deux fois chacun, plus quatre
+    //fois hors de la boucle : 36 divisions par tick, dont seize sur 16 bits.
+    //Calcule ici une fois par tick, avec des diviseurs constants a la compilation - le
+    //compilateur les traduit en multiplication par reciproque au lieu d'appeler
+    //__udivmodqi4. Indexe par SCALE_ROW(), le meme rang que la table de swing.
+    //Effet de bord bienvenu : une scale corrompue a zero faisait une division par zero,
+    //ce qui n'est plus possible.
+    //Ecrit en une seule vraie division, et pas quatre :
+    //  16 et 32 sont des puissances de deux, donc de simples masques ;
+    //  12 se deduit de 24 par une comparaison, puisque p % 24 est deja inferieur a 24 ;
+    //  reste 24, la seule qui divise vraiment.
+    //Les operandes sont gardes en octets : ecrit tel quel, "p % 24" promeut en entier et
+    //sort __divmodhi4, 230 cycles. En octets, avr-gcc emet une multiplication par
+    //reciproque, une dizaine de cycles.
+    byte m24 = (byte)(p % (byte)SCALE_16);
+    byte modBySc[4];
+    modBySc[SCALE_ROW(SCALE_16)]  = m24;                                        //24
+    modBySc[SCALE_ROW(SCALE_32)]  = (m24 >= SCALE_32) ? m24 - SCALE_32 : m24;   //12
+    modBySc[SCALE_ROW(SCALE_16t)] = p & (SCALE_16t - 1);                        //16
+    modBySc[SCALE_ROW(SCALE_8t)]  = p & (SCALE_8t - 1);                         //32
+
+    byte gs    = pattern[ptrnBuffer].globalScale;
+    byte gsMod = modBySc[SCALE_ROW(gs)];
+
+    if (gsMod == (gs/2)) tapStepCount++;
 
     if (tapStepCount > pattern[ptrnBuffer].globalLength) tapStepCount = 0;
 
@@ -58,7 +83,9 @@ void CountPPQN()
       unsigned int sv = 0;
 
     for (byte z = 0; z < NBR_INST; z++){
-      if (p % pattern[ptrnBuffer].scale[z] == 0) stepChanged[z] = TRUE;//Step changed ?
+      byte sc  = pattern[ptrnBuffer].scale[z];
+      byte mod = modBySc[SCALE_ROW(sc)];
+      if (mod == 0) stepChanged[z] = TRUE;//Step changed ?
 
       //-----------------------------------------------------------------------------
       //Here is everything happen each step
@@ -75,13 +102,20 @@ void CountPPQN()
       //This also replaces the shuffle[MAX_SHUF_TYPE][2] table, which held nothing the
       //index did not already carry : column 0 was always 0, column 1 always minus the
       //row number.
-      //The delay is read from the swing table rather than taken as (setting - 1) ticks,
-      //so one setting means one ratio on all four resolutions : cf define.h.
-      int swing = (stepCount[z] & 1)
-        ? -(int)SWING_TICKS(pattern[ptrnBuffer].scale[z], pattern[ptrnBuffer].shuffle[z])
+      //Le retard vient de la table de swing plutot que de (reglage - 1) ticks, pour qu'un
+      //cran veuille dire un ratio sur les quatre resolutions : cf define.h.
+      //Le test etait "(p - retard) % scale == 0", une division SUR 16 BITS parce que la
+      //soustraction promeut en int : 230 cycles, seize fois par tick. C'est la meme chose
+      //que "p % scale == retard", qui ne coute qu'une comparaison sur le modulo deja en
+      //main. L'equivalence tient parce que la table garantit retard < scale, et parce que
+      //p - retard ne peut jamais tomber sur un multiple negatif de scale : p vaut au
+      //moins 1 et le retard au plus 13, donc p - retard >= -12, alors que le premier
+      //multiple negatif vaut -12 pour scale 12 - inatteignable, le retard y est borne a 5.
+      byte d = (stepCount[z] & 1)
+        ? SWING_TICKS(sc, pattern[ptrnBuffer].shuffle[z])
         : 0;
 
-      if (((p + swing) % pattern[ptrnBuffer].scale[z] == 0) && stepChanged[z])
+      if (mod == d && stepChanged[z])
       {//Each Step
         stepChanged[z] = FALSE;//flag that we already trig this step
         blinkFast[z] = HIGH;// TO BE REMOVED OUT OF THIS FOR LOOP
@@ -116,12 +150,12 @@ void CountPPQN()
     }
 
     //incremente global step count according the longer instrument length
-    if (p % pattern[ptrnBuffer].scale[longerInstLength] == 0){
+    if (modBySc[SCALE_ROW(pattern[ptrnBuffer].scale[longerInstLength])] == 0){
       globalStepCount++;
     }
 
     //Set Metronome value to be trigged
-    if (p % pattern[ptrnBuffer].globalScale == 0){
+    if (gsMod == 0){
       sv |= (bitRead(metronome,(globalStepCount-1)) << RM);
     }
 
@@ -182,7 +216,7 @@ void CountPPQN()
       //cleared nextPatternReady first. Single copy in SwitchPatternBuffer() now,
       //which also stops the interrupt writing ptrnBuffer behind the main loop.
     }
-    if (p % pattern[ptrnBuffer].globalScale == 4 && globalStepCount == 0){ 
+    if (gsMod == 4 && globalStepCount == 0){ 
       endMeasure = FALSE;
     }
   }
