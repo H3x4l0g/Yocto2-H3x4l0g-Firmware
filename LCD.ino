@@ -163,7 +163,10 @@ void LcdUpdate()
         LcdClearLine(); 
         lcd.setCursor(0,1);
         lcd.print("pos:");
-        lcd.print(trk.pos);
+        //Le +1 manquait ici : la meme variable etait affichee en base 0 en lecture et en
+        //base 1 en edition, donc la premiere mesure s'appelait 0 d'un cote et 1 de
+        //l'autre. Base 1 partout - une piste commence a la mesure 1.
+        lcd.print(trk.pos + 1);
         lcd.setCursor(8,1);
         lcd.print("ptrn:");
         lcd.print((char)((curPattern / 16) + 65));

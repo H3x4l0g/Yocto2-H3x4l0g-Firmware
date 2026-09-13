@@ -144,6 +144,18 @@ void SeqParameter()
         if (from == TRACK_WRITE)     curSeqMode = TRACK_PLAY;//toggle inside the family
         else if (from == TRACK_PLAY) curSeqMode = TRACK_WRITE;
         else curSeqMode = (from == PTRN_PLAY) ? TRACK_PLAY : TRACK_WRITE;//crossing over
+        //En arrivant dans la famille TRACK, le pattern courant doit devenir celui que la
+        //piste contient a la position courante. Sans ce recalage, apres un cycle
+        //d'allumage, TRACK EDIT affichait le pattern charge au boot - A1 - la ou la piste
+        //contient autre chose, et il fallait CLEAR, BACK, un tour de molette ou un cycle
+        //de lecture pour que l'ecran dise la verite. Les donnees en EEPROM etaient
+        //bonnes : c'est l'affichage qui mentait.
+        //Tous les autres chemins qui bougent trk.pos faisaient deja ce recalage - BACK,
+        //FWD, CLEAR, la molette, l'insertion, ENTER, le changement de piste. Il manquait
+        //celui de l'entree dans le mode, le seul ou trk.pos ne bouge pas mais devient
+        //soudain ce qui compte.
+        nextPattern = track[trkBuffer].patternNbr[trk.pos];
+        if (curPattern != nextPattern) selectedPatternChanged = TRUE;
         needLcdUpdate = TRUE;
         keyboardMode = FALSE;
         seq.configMode  = FALSE;
