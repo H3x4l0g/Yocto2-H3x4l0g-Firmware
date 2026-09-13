@@ -1,7 +1,7 @@
 # Yocto v2 — changelog
 
 De la **v2.003beta** d'e-licktronic — dernière version publiée, projet retiré du commerce
-en 2017 — à la **v2.026**. Seul ce qui change le comportement de la machine est listé ;
+en 2017 — à la **v2.030**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -62,6 +62,19 @@ le détail technique vit dans `TODO.md`.
   l'EEPROM bloquait 115 ms et commençait *à* la barre : au-delà de 230 BPM les premiers
   pas du nouveau pattern se rejouaient. Le bus tourne désormais à sa vitesse nominale et
   le chargement prend 30 ms — de près de deux pas de retard à un demi.
+- Une chaîne ne peut plus aller lire **hors de la zone des patterns**. Sur une chaîne dont
+  la position enregistrée était incohérente, le calcul rebouclait et le séquenceur allait
+  lire dans la zone des pistes : un pattern de bruit. Rien n'était détruit — c'était une
+  lecture — mais ça s'entendait.
+
+## Direction de lecture
+
+- **Le changement de direction est accessible en PATT PLAY**, comme le manuel le décrit,
+  et plus seulement en édition. Son jumeau — le décalage gauche/droite — y était déjà :
+  les deux gestes sont enfin symétriques.
+- **Et il se sauvegarde.** Changer la direction ne faisait pas clignoter la LED ENTER,
+  maintenir ENTER n'enregistrait rien, et le prochain chargement du pattern écrasait le
+  changement. La donnée partait bien en EEPROM ; c'est le drapeau qui manquait.
 
 ## Pistes
 
@@ -93,6 +106,8 @@ le détail technique vit dans `TODO.md`.
 - **Plus de note restée en l'air.** BACK et FWD font sonner chaque note en parcourant la
   pile ; maintenir l'un puis appuyer sur l'autre coupait la mauvaise note, et la première
   tenait indéfiniment.
+- Les douze notes du haut ne repartent plus dans l'octave du bas. Au-delà d'une certaine
+  hauteur, la note envoyée débordait et rebouclait ; la molette s'arrête maintenant avant.
 
 ## Synchro et sorties
 
@@ -100,6 +115,21 @@ le détail technique vit dans `TODO.md`.
 - Horloge MIDI entrante : 2 ms d'attente active par tick supprimées, soit 48 ms par
   seconde à 120 BPM rendues à la boucle principale.
 - Dérive sur quatre minutes ramenée de 0,75 s à 13 ms.
+- **Un accord MIDI part d'un seul coup.** Grosse caisse, caisse claire et cymbale sur le
+  même pas arrivaient en trois messages, traités à trois tours de boucle d'écart — une
+  attaque molle au lieu d'un coup net. Ils partent maintenant sur le même front, comme un
+  pas du séquenceur.
+- **Une note MIDI ne coupe plus le pas en cours.** Elle remplaçait le déclenchement du
+  séquenceur au lieu de s'y ajouter : le coup du pattern était tronqué.
+- **Et elle ne met plus les autres voix à zéro.** Chaque note MIDI reposait les douze
+  vélocités d'un coup, avec des valeurs nulles pour toute voix jamais frappée en MIDI.
+  Séquenceur en marche ça se rattrapait au pas suivant ; à l'arrêt, non.
+- **En synchro esclave, l'horloge n'est plus doublée en sortie.** La bibliothèque MIDI
+  renvoyait vers la sortie tout ce qui arrivait à l'entrée, horloge comprise : un appareil
+  chaîné derrière recevait 48 impulsions par noire au lieu de 24.
+- Plus d'impulsion DIN-sync ou trigger perdue en jeu MIDI dense. Les bits d'adresse du
+  convertisseur de vélocité et les sorties temps réel partagent le même port, et une note
+  reçue pouvait écraser une impulsion en cours d'écriture.
 
 ## Fiabilité
 
