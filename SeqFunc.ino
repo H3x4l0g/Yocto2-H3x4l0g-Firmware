@@ -146,14 +146,49 @@ void InstToStepWord()
   }
 }
 
+//Changer la direction de lecture------------------------------------------------------
+//SHIFT + Shift Right fait tourner forward > backward > ping-pong > random.
+//SHIFT + INST + Shift Right ne change que l'instrument courant ; sans INST, la valeur
+//obtenue est recopiee sur les seize.
+//
+//patternWasEdited MANQUAIT. dir[] est pourtant bien ecrit en EEPROM par SavePattern() et
+//relu par LoadPattern() - le chemin de donnees etait complet, seul le drapeau sautait.
+//Consequence : la LED ENTER ne clignotait pas, maintenir ENTER n'enregistrait rien, et
+//le prochain chargement du pattern ecrasait le changement. Le manuel est explicite juste
+//au-dessus du passage : "Enter led is blinking to indicate that pattern was edited. To
+//save it press Enter".
+//Meme defaut, meme forme que le drapeau de piste efface en quittant TRACK par la touche
+//PATT : une donnee bien modifiee en RAM, un drapeau absent, et l'ecran qui ment.
+void ChangePatternDirection()
+{
+  if (instBtn){
+    //Change current instrument direction
+    if (pattern[ptrnBuffer].dir[curInst]++ >= MAX_SEQ_DIR) pattern[ptrnBuffer].dir[curInst] = FORWARD;
+  }
+  else {
+    if (pattern[ptrnBuffer].dir[curInst]++ >= MAX_SEQ_DIR) pattern[ptrnBuffer].dir[curInst] = FORWARD;
+    byte dir = pattern[ptrnBuffer].dir[curInst];
+    for (byte z = 0; z < NBR_INST; z++){
+      pattern[ptrnBuffer].dir[z] = dir;
+    }
+  }
+  patternWasEdited = TRUE;
+  needLcdUpdate = TRUE;
+}
+
 ///////////////////////shift left pattern///////////////////////////////
 void ShiftLeftPattern()
 {
 
   patternWasEdited = TRUE;
 
+  //Le modificateur est INST, pas SHIFT - et c'est ce qu'il faut lire ici. Le test
+  //portait aussi "&& !shiftBtn.pressed", condition MORTE : l'appelant est deja dans la
+  //branche "SHIFT relache" de SeqParameter(). Elle ne servait a rien sauf a laisser
+  //croire que SHIFT jouait un role dans ce geste, ce qui envoie chercher la mauvaise
+  //touche. Le manuel dit bien INST : "+ + => Change selected instrument direction".
   //only shift selected instruments
-  if (instBtn && !shiftBtn.pressed){
+  if (instBtn){
     //remember first step velocity value
     byte temp = pattern[ptrnBuffer].velocity[curInst][0];
 
@@ -193,8 +228,10 @@ void ShiftRightPattern()
 {
   patternWasEdited = TRUE; 
 
+  //Meme remarque que dans ShiftLeftPattern() : le modificateur est INST, et le
+  //"&& !shiftBtn.pressed" etait une condition morte qui induisait en erreur.
   //shift right only selected instrument
-  if (instBtn && !shiftBtn.pressed){
+  if (instBtn){
     //---------------Variable---------------------
     //Instrument Trig value
     unsigned int trigValue = pattern[ptrnBuffer].inst[curInst];

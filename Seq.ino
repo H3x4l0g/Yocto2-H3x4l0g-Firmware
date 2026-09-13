@@ -79,6 +79,22 @@ void SeqParameter()
 
   //-------------------Shift button pressed------------------------------
   if (shiftBtn.pressed){
+    //--------------------------------sequencer run direction-----------------------
+    //Le manuel documente le changement de direction DANS LES DEUX MODES : section 2
+    //"Pattern play mode" - "Change pattern direction (forward > backward > ping-pong >
+    //random)" - et section 3 "pattern edit step mode", qui ajoute seulement la variante
+    //SHIFT + INST pour l'instrument courant.
+    //Le code ne l'autorisait qu'en PATT EDIT : le handler etait enferme dans
+    //if (curSeqMode == PTRN_STEP). Or son jumeau, le decalage gauche/droite, est
+    //documente en mode PLAY avec la mention "work in edit mode too" et n'a jamais eu de
+    //filtre de mode. Les deux devaient etre symetriques ; l'une l'etait restee, l'autre
+    //non. C'est un geste de jeu : il a sa place sur le pattern qui tourne.
+    //MUTE n'est qu'une surcouche des touches de pas, d'ou le meme idiome "from" que les
+    //trois autres handlers : muter ne doit pas avaler le geste.
+    if (dirBtn.justPressed){
+      SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
+      if (from == PTRN_STEP || from == PTRN_PLAY) ChangePatternDirection();
+    }
     /*if (trkBtn.justPressed){
      needLcdUpdate = TRUE;
      curSeqMode = TRACK_WRITE;
@@ -424,22 +440,9 @@ void SeqParameter()
       }
       //pattern chain advance : cf PatternChainUpdate(), called from the common part
 
-      //--------------------------------sequencer run direction-----------------------
-      if (shiftBtn.pressed && dirBtn.justPressed){
-        if(instBtn){
-          //Change current instrument direction
-          if (pattern[ptrnBuffer].dir[curInst]++ >= MAX_SEQ_DIR) pattern[ptrnBuffer].dir[curInst] = FORWARD;
-        }
-        else {
-          byte dir;
-         if (pattern[ptrnBuffer].dir[curInst]++ >= MAX_SEQ_DIR) pattern[ptrnBuffer].dir[curInst] = FORWARD; 
-          dir = pattern[ptrnBuffer].dir[curInst];
-          //Change all instrument direction in PATTERN STEP MODE
-          for (byte z =0; z < NBR_INST; z++){
-             pattern[ptrnBuffer].dir[z] = dir;
-          }
-        }
-      }
+      //La direction du sequenceur vivait ici, enfermee dans PATT EDIT. Elle est remontee
+      //dans la branche SHIFT du haut, ou PATT PLAY l'atteint aussi : cf
+      //ChangePatternDirection().
     }
     //////////////////////////////TAP EDIT///////////////////////////////
     else if (curSeqMode == PTRN_TAP)
