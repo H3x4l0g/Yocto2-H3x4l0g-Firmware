@@ -2,9 +2,20 @@
 //
 //   T I M E R . I N O                          qui bat, et qui relache
 //
-//   Deux compteurs materiels, deux metiers. Timer1 bat la mesure : c'est lui qui
-//   declenche CountPPQN() 96 fois par noire. Timer2 ne sert qu'a une chose, relacher
-//   les sorties de trig 2 ms apres les avoir armees.
+//   Timer1 bat la mesure : c'est lui qui declenche CountPPQN() 96 fois par noire.
+//   Tout le reste du fichier ne fait qu'une chose, RELACHER ce que le sequenceur a arme.
+//   Et il le fait de deux facons, pour deux destinations qui n'ont rien a voir :
+//
+//     les seize bits des registres a decalage   Timer2, en interruption,  2 ms
+//     TRIG-1, la prise du panneau               millis(), a la boucle,   10 ms
+//
+//   Les deux durees sont heritees et n'ont jamais ete justifiees nulle part.
+//
+//   Ces deux moities vivaient dans deux fichiers, et chacun n'en disait que la sienne :
+//   l'en-tete d'ici affirmait que Timer2 relachait "les sorties de trig", ce qui etait
+//   faux puisqu'il ne touche pas a TRIG-1, et Trig.ino ne savait rien de Timer2. Il
+//   fallait ouvrir les deux pour voir l'asymetrie - c'est precisement pourquoi personne
+//   ne l'avait vue. Reunis le 14/09/2026.
 //
 //--------------------------------------------------------------------------------------
 //   AVANT D'Y TOUCHER
@@ -32,16 +43,28 @@
 //      Timer3 sert un jour au flam, ne pas armer ses sorties de comparaison : elles sont
 //      sur le bus SPI.
 //
-//   2. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1, et ce n'est pas un detail : en
+//   2. SUR CETTE CARTE, SEULE TRIG-1 SORT VRAIMENT. Releve sur le schema, docs/eagle/ :
+//
+//        PA2   TRIG_1   -> J2, un connecteur.   La seule qui aille quelque part.
+//        PA3   TRIG_2   -> TEST_MODE.1          une broche du cavalier de test
+//        PA4   TRIG_3   -> TEST_MODE.3          idem
+//
+//      Le pattern porte pourtant une piste TR2 complete - seize pas, editable,
+//      enregistree en EEPROM - et Clock.ino fait bien TR2_HIGH quand elle se declenche.
+//      Le signal s'arrete sur un cavalier. Et il n'en revient jamais : TR2_LOW n'est
+//      ecrit NULLE PART dans le depot, InitIO() ne pose que TR1_HIGH, et trig2State est
+//      mis a HIGH sans que personne ne le relise.
+//
+//   3. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1, et ce n'est pas un detail : en
 //      synchro esclave Timer1 est ARRETE, CountPPQN() etant appele par l'horloge MIDI
 //      entrante. Une comparaison OCR1B ne se declencherait jamais et les trigs
 //      resteraient colles en l'air.
 //
-//   3. StartTrigPulseIfIdle() NE RELANCE PAS UNE IMPULSION EN COURS. Les voix partent
+//   4. StartTrigPulseIfIdle() NE RELANCE PAS UNE IMPULSION EN COURS. Les voix partent
 //      sur le FRONT montant : un bit qui ne redescend jamais fait taire les notes
 //      suivantes du meme instrument. Un flux MIDI serre relancerait le compte sans fin.
 //
-//   4. TimerSetFrequency() FAIT UNE SEULE DIVISION, en 32 bits. L'ancienne en faisait
+//   5. TimerSetFrequency() FAIT UNE SEULE DIVISION, en 32 bits. L'ancienne en faisait
 //      deux en 16 bits et tronquait deux fois : 7 des 221 tempos etaient justes, avec
 //      jusqu'a 0,54 BPM d'ecart - 0,75 s de derive en quatre minutes.
 //
@@ -146,4 +169,34 @@ void TimerSetFrequency()
   //redemarre la periode plutot.
   if (TCNT1 > OCR1A) TCNT1 = 0;
   SREG = sreg;
+}
+
+//Relacher TRIG-1 quand sa duree est ecoulee--------------------------------------------
+//Appelee a chaque tour de boucle principale. C'est l'autre moitie du metier de ce
+//fichier : pas d'interruption ici, une simple comparaison sur millis().
+void SetTrigTime()
+{
+   if (trig1State && !trigTimeOk){
+    trigTime = millis();
+    trigTimeOk = HIGH;
+  }
+  //Ce test tournait sans garde, et c'etait deux bugs sur une ligne.
+  //
+  //UN : trig1State est leve par l'interruption du sequenceur (Clock.ino). Quand elle
+  //tombait entre les deux if, trigTime portait encore l'horodatage de l'impulsion
+  //precedente, donc millis() - trigTime depassait deja TRIG_TIME_MS et l'impulsion toute
+  //neuve etait coupee sur place - le coup de trig ecourte qu'on entendait de temps en
+  //temps sur TRIG-1. Diagnostique independamment par zabox sur la NAVA, "[1.027] solves
+  //short trig 1 pulse".
+  //
+  //DEUX : la note MIDI 60 mene TRIG-1 comme une porte, TR1_LOW a l'appui et TR1_HIGH au
+  //relacher (Midi.ino). Sans garde, ce test tournait a chaque tour de boucle et ramenait
+  //TR1 en l'air aussitot : cette porte ne survivait pas a une iteration.
+  //
+  //Exiger trigTimeOk fait que seule une impulsion demarree PAR cette fonction peut etre
+  //arretee par elle, et seulement une fois son horodatage pris.
+  if (trigTimeOk && (millis() - trigTime >= TRIG_TIME_MS)){
+    TR1_HIGH;//TRIG-1 revient au repos - cette sortie est active a l'etat bas
+    trig1State = trigTimeOk = LOW;
+  }
 }
