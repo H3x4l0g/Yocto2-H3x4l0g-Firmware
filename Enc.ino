@@ -14,8 +14,12 @@
 //   sinon, TRACK WRITE         -> les champs de la piste
 //   sinon, mode clavier        -> la pile de notes externes
 //   sinon, mode config         -> le parametre affiche
-//   sinon, ecran d'edition     -> inerte, volontairement
-//   sinon                      -> le tempo
+//   sinon, PATT EDIT/TAP/TRACK -> inerte, volontairement
+//   sinon                      -> le tempo   (PATT PLAY, ou il est affiche)
+//
+//   MUTE n'apparait pas dans cette liste : ce n'est pas un mode mais une surcouche des
+//   touches de pas, et la chaine lit le mode REEL du dessous. La molette y fait donc ce
+//   que fait l'ecran affiche, jamais autre chose.
 //
 //--------------------------------------------------------------------------------------
 //   AVANT D'Y TOUCHER
@@ -24,9 +28,11 @@
 //      panneau, donc ce que la main trouve sous ses doigts. Ca ne se fait pas en
 //      passant.
 //
-//   2. L'INERTIE SUR LES ECRANS D'EDITION EST UN CHOIX. La molette n'y touche PAS au
-//      tempo, qui n'y est meme pas affiche : on ne le deplace plus en croyant regler
-//      autre chose. TEMPO maintenu reste le chemin vers le tempo, depuis n'importe ou.
+//   2. LA REGLE EST SIMPLE : LA MOLETTE NE TOUCHE QU'A CE QUI EST AFFICHE. Partout ou
+//      le tempo n'est pas a l'ecran - PATT EDIT, PATT TAP, TRACK PLAY - elle est inerte,
+//      pour qu'on cesse de le deplacer en croyant regler autre chose. Le seul endroit ou
+//      elle le regle nue est PATT PLAY, qui l'affiche. TEMPO maintenu reste le chemin
+//      vers le tempo depuis n'importe ou, et en montre la valeur pendant qu'on le tient.
 //
 //   3. UN CRAN = UN PAS. Le decodage accumule les transitions du cycle de Gray et ne
 //      valide qu'au retour sur l'etat de repos. La table d'origine comptait les quatre
@@ -295,7 +301,7 @@ void EncGet()
       break;
     }
   }
-  ////////////////////////PATT EDIT ET PATT TAP : LA MOLETTE EST INERTE/////////////
+  ////////////PATT EDIT, PATT TAP ET TRACK PLAY : LA MOLETTE EST INERTE//////////
   //Elle tombait sur le BPM, qui n'est meme pas affiche sur ces ecrans : on reglait le
   //tempo en croyant regler autre chose. Elle ne fait plus rien ici.
   //Les deux modes ensemble parce que c'est le meme ecran - LcdUpdate() les sert sur des
@@ -309,7 +315,10 @@ void EncGet()
   //bien plus tard, sans rien pour faire le lien.
   //TEMPO maintenu reste le chemin vers le tempo, et LcdUpdate() en affiche la valeur
   //pendant que la touche est tenue.
-  else if ((from == PTRN_STEP || from == PTRN_TAP) && !tempoBtn.pressed){
+  //TRACK PLAY rejoint la liste le 14/09/2026 : son ecran montre la position et le pattern,
+  //pas le tempo, et la molette y reglait pourtant le BPM. PATT PLAY reste le seul endroit
+  //ou elle le regle nue - parce que c'est le seul ou il est affiche.
+  else if ((from == PTRN_STEP || from == PTRN_TAP || from == TRACK_PLAY) && !tempoBtn.pressed){
     encNotch = 0;
   }
   else{
