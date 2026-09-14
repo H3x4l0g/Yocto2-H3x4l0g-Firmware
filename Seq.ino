@@ -191,7 +191,6 @@ void SeqParameter()
     }
     // if (backBtn.justPressed) ;//back  track postion
     //if (fwdBtn.justPressed) ;//foward track postion
-    if (numBtn.pressed) ;//select Track number
     if (ptrnBtn.justPressed){
       SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;//cf trkBtn above
       if (!IS_TRACK_MODE(from) || !isRunning){//transport rule : cf trkBtn above
@@ -237,8 +236,9 @@ void SeqParameter()
       //rien ne l'effacait non plus. C'est ce qui rendait l'oubli possible.
       needLcdUpdate = TRUE;
     }
-    if (curSeqMode != MUTE) muteBtn.counter = 0;
-    if (!seq.configMode) seq.configPage = 0;
+    //Les deux lignes qui etaient ici repetaient mot pour mot le haut de la fonction,
+    //qui tourne a chaque passe AVANT elles. Le cas 2 ci-dessus remet deja le compteur a
+    //zero, et configPage n'est incremente que dans la branche SHIFT, hors d'atteinte.
     if (tempoBtn.justRelease) needLcdUpdate = TRUE;
   }
 
@@ -476,96 +476,50 @@ void SeqParameter()
           if (stepBtn[a].curState != stepBtn[a].prevState){
             //pressed dropped from the guard : cf StepButtonGet() in Button.ino
             if (stepBtn[a].curState == HIGH){
-              static byte tempVel[16];//store temp instrument velocity
-              switch (a){
-              case BD_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[BD];
-                tempVel[BD] = instVelHigh[BD];
-                break;              
-              case SD_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[SD];
-                tempVel[SD] = instVelHigh[SD];
-                break;
-              case LT_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[LT];
-                tempVel[LT] = instVelHigh[LT];
-                break;
-              case MT_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[MT];
-                tempVel[MT] = instVelHigh[MT];
-                break;
-              case HT_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[HT];
-                tempVel[HT] = instVelHigh[HT];
-                break;
-              case PC2_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[PC2];
-                tempVel[PC2] = instVelHigh[PC2];
-                break;
-              case CH_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[CH];
-                tempVel[CH] = instVelHigh[CH];
-                break;
-              case RM_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[RM];
-                tempVel[RM] = instVelHigh[RM];
-                break;
-              case HC_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[HC];
-                tempVel[HC] = instVelHigh[HC];
-                break;
-              case CY_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[CY];
-                tempVel[CY] = instVelHigh[CY];
-                break;
-              case OH_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[OH];
-                tempVel[OH] = instVelHigh[OH];
-                break;
-              case CB_BTN:
-                if (isRunning) pattern[ptrnBuffer].velocity[instOut[a]][tapStepCount] = instVelHigh[CB];
-                tempVel[CB] = instVelHigh[CB];
-                break;
+              //Le tableau des douze cas ne disait rien : BD_BTN vaut 0 et BD vaut 0,
+              //SD_BTN vaut 1 et SD vaut 1, et ainsi de suite jusqu'a PC2. Les douze cas
+              //faisaient mot pour mot la meme chose, et instOut[] etait la table identite
+              //qui allait avec - partie de define.h avec muxInst[], jamais lue nulle part.
+              //ATTENTION AUX QUATRE DERNIERES TOUCHES : la boucle va jusqu'a
+              //NBR_STEP_BTN, soit seize, mais seules douze portent une voix. Le switch
+              //n'avait pas de cas pour 12 a 15, donc ni velocite ni vitesse de frappe
+              //n'etaient posees pour elles. Ce silence-la est reconduit tel quel.
+              if (a < NBR_TAP_INST){
+                if (isRunning) pattern[ptrnBuffer].velocity[a][tapStepCount] = instVelHigh[a];
+                tapVel[a] = instVelHigh[a];
               }
 
-
               //-----SET Velocity Values-----//
-              //Set first multiplexer IC111 value
-              bitWrite(MUX_INH_PORT, MUX_INH1_BIT, 0);
-              bitWrite(MUX_INH_PORT, MUX_INH2_BIT, 1);   
-              SetDacA(tempVel[CY]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B111 << 5;
-              SetDacA(tempVel[OH]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B11 << 5;
-              SetDacA(tempVel[CH]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B101 << 5;
-              SetDacA(tempVel[PC2]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B1 << 5;
-              ////////////////////////////////////////////
-              delayMicroseconds(100);//Coudl BE REMOVE !!!!
-              ////////////////////////////////////////////
-              //Set Second multiplexer values
-              bitWrite(MUX_INH_PORT, MUX_INH1_BIT, 1);
-              bitWrite(MUX_INH_PORT, MUX_INH2_BIT, 0);   
-              SetDacA(tempVel[BD]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B111 << 5;
-              SetDacA(tempVel[SD]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B11 << 5;
-              SetDacA(tempVel[LT]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B101 << 5;
-              SetDacA(tempVel[MT]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B1 << 5;
-              SetDacA(tempVel[HT]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B110 << 5;
-              SetDacA(tempVel[RM]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B10 << 5;
-              SetDacA(tempVel[HC]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B100 << 5;
-              SetDacA(tempVel[CB]);//
-              PORTA = dinStartState | dinClkState << 1 | 1 << 2 | B0 << 5;
+              //C'etait la QUATRIEME copie du balayage des douze adresses, celle que la
+              //fusion des trois autres avait ratee - l'en-tete de Mux.ino n'en annoncait
+              //que trois, il dit vrai maintenant. Quarante lignes qui refaisaient a la
+              //main SelectFirstMux(), SelectSecondMux(), muxAddr[] et MuxAddr(), avec les
+              //adresses en dur et les deux commentaires de multiplexeur intervertis.
+              //Trois differences s'en vont avec, toutes dans le bon sens :
+              //  - Le PORTA brut ECRASAIT TR1 ET TR2, douze fois par frappe. Le "1 << 2"
+              //    remettait TR1 au repos (il est actif a l'etat bas, cf TR1_LOW) : une
+              //    frappe relachait donc le gate d'une note 60 tenue en MIDI. Et le bit 3
+              //    a zero remettait TR2 au repos, lui actif a l'etat haut.
+              //    A NOTER : TR2_LOW n'est appele NULLE PART ailleurs dans le depot - le
+              //    carnet le dit, l'impulsion monte et ne redescend jamais. Ce balayage
+              //    etait donc, par accident, la seule chose qui la faisait retomber. Elle
+              //    ne retombe plus. Sans consequence sur cette carte, TR2 s'arretant sur
+              //    un cavalier qui ne va nulle part, mais c'est a savoir le jour ou on le
+              //    cable.
+              //    MuxAddr() ne touche qu'aux trois bits d'adresse, interruptions fermees.
+              //  - Les 15 us de stabilisation de multiplexeur, absents ici, reviennent.
+              //  - Le delayMicroseconds(100) marque "Coudl BE REMOVE" s'en va. Le compte
+              //    total ne bouge pas : +12 x 5 us de charge, +2 x 20 us de selection,
+              //    -100 us. La frappe dure autant qu'avant.
+              SetMuxTap();
 
-              SetDoutTrig(1 << instOut[a]);
-              if(isRunning) bitSet(tempInst[instOut[a]],tapStepCount);
+              //instOut[12..15] n'a jamais ete initialise et valait donc 0, c'est-a-dire
+              //BD : les touches 13 a 16 declenchent et enregistrent une GROSSE CAISSE en
+              //mode TAP. Reconduit ici tel quel - ce qu'elles devraient faire est un choix
+              //de geste, pas un defaut de forme. Porte au carnet.
+              byte out = (a < NBR_TAP_INST) ? a : BD;
+              SetDoutTrig(1 << out);
+              if(isRunning) bitSet(tempInst[out],tapStepCount);
               delayMicroseconds(2000);
               SetDoutTrig(0);// Reset Trig
             }      

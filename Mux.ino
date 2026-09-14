@@ -11,6 +11,7 @@
 //   APPELE PAR     SetMux()          l'interruption d'horloge, a chaque pas
 //                  SetMuxTrigOne()   une note MIDI recue, pour son seul instrument
 //                  SetMuxTest()      le mode test de voix
+//                  SetMuxTap()       une frappe en mode TAP, les douze d'un coup
 //
 //--------------------------------------------------------------------------------------
 //   AVANT D'Y TOUCHER
@@ -58,15 +59,26 @@ static inline void MuxAddr(byte addr)
 }
 
 //La valeur envoyee au DAC, selon la source--------------------------------------------
-//C'est la SEULE chose qui distinguait SetMux(), SetMuxTest() et SetMuxTrigMidi() - cette
-//derniere est partie depuis, cf SetMuxTrigOne(). Les trois parcouraient les memes douze
-//adresses, dans le meme ordre, avec les memes
-//temporisations de charge des condensateurs. Vingt lignes recopiees trois fois - et le
-//correctif de la course ci-dessus aurait du etre applique aux trois, ce qui est
-//exactement le schema qui avait produit les bugs de chainage.
+//C'est la SEULE chose qui distingue SetMux(), SetMuxTest() et SetMuxTap(), plus
+//SetMuxTrigMidi() qui est partie depuis, cf SetMuxTrigOne(). Toutes parcouraient les
+//memes douze adresses, dans le meme ordre, avec les memes temporisations de charge des
+//condensateurs. Vingt lignes recopiees QUATRE fois - et le correctif de la course
+//ci-dessus aurait du etre applique aux quatre, ce qui est exactement le schema qui avait
+//produit les bugs de chainage.
+//La quatrieme copie a d'ailleurs survecu a la fusion des trois autres : elle etait dans
+//Seq.ino, pas ici, et personne ne va chercher un balayage de multiplexeur dans le
+//fichier des boutons. Elle ecrasait TR1 et TR2 a chaque frappe, faute de passer par
+//MuxAddr().
 static byte MuxValue(byte src, byte inst)
 {
   if (src == MUX_TEST) return 127;
+  //Le mode TAP ne lit pas le pattern : il rend la velocite de la derniere frappe de
+  //chaque voix, celle que le bloc TAP de Seq.ino vient de poser. Et il n'ajoute PAS
+  //l'accent global - la copie qu'il remplacait ne l'ajoutait pas non plus.
+  //tapVel[] vaut zero pour une voix jamais frappee depuis l'allumage : un premier coup
+  //pose donc les onze autres condensateurs a zero volt. C'etait deja le cas, le tableau
+  //etant un static jamais initialise ailleurs ; c'est reconduit tel quel.
+  if (src == MUX_TAP) return tapVel[inst];
   //Accent global. Le test d'origine s'ecrivait "bitRead(...) & ~(bitRead(...))" et ne
   //marchait que parce que bitRead rend exactement 0 ou 1 : ~0 vaut 0xFFFF et ~1 vaut
   //0xFFFE, donc seul le bit 0 decidait. Juste par accident ; ecrit ici comme il se lit.
@@ -113,6 +125,15 @@ void SetMux()
 void SetMuxTest()
 {
   MuxSweep(MUX_TEST);
+}
+
+//Poser les douze velocites de frappe du mode TAP--------------------------------------
+//Quatrieme appelant du balayage, recupere de Seq.ino ou il vivait recopie a la main.
+//Une fonction nommee plutot qu'un MuxSweep() direct : MuxSweep est static, et l'ordre de
+//concatenation des .ino par l'IDE n'est pas un contrat sur lequel s'appuyer.
+void SetMuxTap()
+{
+  MuxSweep(MUX_TAP);
 }
 
 //Poser la velocite d'UN instrument----------------------------------------------------

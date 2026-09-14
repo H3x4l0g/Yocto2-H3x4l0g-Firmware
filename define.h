@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.040"
+#define FW_VERSION  "Yocto v2.041"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -109,6 +109,9 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 //Sequencer
 #define NBR_INST 16
 #define NBR_STEP_BTN 16
+//Seize touches de pas, mais douze voix seulement : en mode TAP les quatre dernieres ne
+//portent rien. Cf le bloc TAP de Seq.ino.
+#define NBR_TAP_INST 12
 #define NBR_STEP 16
 #define NBR_PATTERN 16 //Number of pattern in a bank
 #define NBR_BANK 8
@@ -328,8 +331,6 @@ Button shiftBtn, enterBtn, numBtn, lastStepBtn, backBtn, fwdBtn, muteBtn, bankBt
 
 boolean instBtn;
 boolean doublePush = 0; //flag that CH and CH_LOW button are pressed together
-byte instOut[NBR_INST]=  { 
-  BD, SD, LT, MT, HT,RM, HC, CB, CY, OH, CH, PC2};
 unsigned int readButtonState;
 
 //Led-----------------------------------------------
@@ -541,11 +542,17 @@ const int8_t knobDir[] = {
 //Elle n'ecrit plus que la sienne, cf SetMuxTrigOne.)
 #define MUX_PATTERN 0
 #define MUX_TEST    1
+#define MUX_TAP     2
 
 byte muxAddr[8]={
   B111, B11, B101, B1, B110, B10, B100, B0};// Due to the  A, B, C pin on PORTA sequence
-byte muxInst[12]={
-  BD, SD, LT, MT, HT, RM, HC, CB, CY, OH, CH, PC2};//To match with DAC mux OUT
+//La velocite de la derniere frappe de chaque voix en mode TAP, relue par MuxValue().
+//Etait un static au fond du bloc TAP de Seq.ino, quand le balayage y vivait aussi.
+//Zero pour une voix jamais frappee depuis l'allumage.
+byte tapVel[NBR_INST];
+
+//muxInst[] etait ici : la meme table identite qu'instOut[], declaree et jamais lue
+//une seule fois dans tout le depot. Douze octets.
 
 //LCD------------------------------------------------
 boolean needLcdUpdate = TRUE;
