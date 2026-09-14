@@ -14,6 +14,16 @@
 //      et retrig sont reservees et comptees dans PTRN_SIZE alors que rien ne les ecrit :
 //      c'est volontaire, les retirer casserait toutes les sauvegardes existantes.
 //
+//   1bis. AUCUN TRANSFERT NE CHEVAUCHE LA FRONTIERE ENTRE LES DEUX PUCES, et c'est ce
+//      qui rend le point 1 vital. Une page de 128 octets qui franchirait 65536 ne
+//      passerait PAS sur la puce suivante : elle reboucleraient a l'adresse 0 de la meme
+//      puce, ecrasant le pattern 0. Si ca n'arrive jamais, c'est que toutes les zones
+//      tombent sur des multiples de 128 - PTRN_SIZE vaut 1280, les regions sont a 0, 128,
+//      384, 1152 - et que 65536 en est un aussi. Verifie au plus juste : la page de
+//      velocite du pattern 51 occupe 65408 a 65535, soit pile les 128 derniers octets de
+//      la premiere puce. Changer une taille pour une valeur qui n'est pas un multiple de
+//      128, c'est ouvrir ce trou.
+//
 //   2. L'ADRESSE DE LA PUCE SUIT L'ADRESSE DE L'OCTET. Les bits 16 et au-dela designent
 //      le boitier : HRDW_ADDRESS + (adress >> 16). Ce calcul etait recopie a neuf
 //      endroits et deux l'avaient oublie - une lecture rendait alors les donnees de
