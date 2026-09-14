@@ -9,50 +9,93 @@
 //--------------------------------------------------------------------------------------
 //   AVANT D'Y TOUCHER
 //
-//   1. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1, et ce n'est pas un detail : en
+//   1. LES SIX SORTIES DE COMPARAISON TOMBENT SUR DES LIGNES DE COMMANDE. Releve sur le
+//      schema, docs/eagle/ - ce n'est pas une coincidence, le concepteur a mis les
+//      selections de boitier sur les ports B et D, exactement la ou l'AVR place ses
+//      sorties de PWM :
+//
+//        OC0A  PB3   TRIG_CS     le verrou des registres de trig
+//        OC0B  PB4   LED_CS      le verrou des registres de LED
+//        OC1B  PD4   SW_CS       le chargement des registres de boutons
+//        OC1A  PD5   DAC_CS      la selection du convertisseur
+//        OC2B  PD6   INH_MUX1    l'inhibition du premier multiplexeur
+//        OC2A  PD7   INH_MUX2    l'inhibition du second
+//        OC3A  PB6   DIN         l'entree de la chaine de registres
+//        OC3B  PB7   SCK         L'HORLOGE SPI DE TOUTE LA MACHINE
+//
+//      Tant que les bits COM de TCCR0A, TCCR1A, TCCR2A restent a zero, les broches
+//      appartiennent au port et tout va bien. C'est le cas aujourd'hui - "TCCR1A = 0" et
+//      "TCCR2A = _BV(WGM21)" ne sont pas seulement un choix de mode, ils garantissent
+//      cela - mais rien ne le disait.
+//
+//      Concretement : JAMAIS d'analogWrite() sur PB3, PB4, PD4, PD5, PD6 ou PD7, et si
+//      Timer3 sert un jour au flam, ne pas armer ses sorties de comparaison : elles sont
+//      sur le bus SPI.
+//
+//   2. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1, et ce n'est pas un detail : en
 //      synchro esclave Timer1 est ARRETE, CountPPQN() etant appele par l'horloge MIDI
 //      entrante. Une comparaison OCR1B ne se declencherait jamais et les trigs
 //      resteraient colles en l'air.
 //
-//   2. StartTrigPulseIfIdle() NE RELANCE PAS UNE IMPULSION EN COURS. Les voix partent
+//   3. StartTrigPulseIfIdle() NE RELANCE PAS UNE IMPULSION EN COURS. Les voix partent
 //      sur le FRONT montant : un bit qui ne redescend jamais fait taire les notes
 //      suivantes du meme instrument. Un flux MIDI serre relancerait le compte sans fin.
 //
-//   3. TimerSetFrequency() FAIT UNE SEULE DIVISION, en 32 bits. L'ancienne en faisait
+//   4. TimerSetFrequency() FAIT UNE SEULE DIVISION, en 32 bits. L'ancienne en faisait
 //      deux en 16 bits et tronquait deux fois : 7 des 221 tempos etaient justes, avec
 //      jusqu'a 0,54 BPM d'ecart - 0,75 s de derive en quatre minutes.
 //
 //======================================================================================
 
+//Demarrer le compteur de mesure--------------------------------------------------------
+//L'ordre compte : le mode et la periode sont poses AVANT d'autoriser l'interruption, et
+//le drapeau de comparaison est efface juste avant. Sans cet effacement, une comparaison
+//restee en attente d'un arret precedent partirait des l'autorisation - un tick fantome
+//au demarrage. StartTrigPulse() prend la meme precaution sur Timer2 depuis toujours ;
+//Timer1 ne l'avait pas, par simple asymetrie.
+//TCCR1A reste a zero : cf le point 1 de l'en-tete, ses bits COM commandent DAC_CS.
 void TimerStart()
 {
-  TCCR1A = TCCR1B = 0;
-  //prescale 8 => 16000000/8 = 2000000 Hz by tick
-  TCCR1B |= _BV (CS11) | _BV (WGM12);
-  TimerSetFrequency();
-  TIMSK1 |= _BV(OCIE1A);
-
+  TCCR1A = 0;
+  TCCR1B = _BV(CS11) | _BV(WGM12);  //CTC, prediviseur 8 : 16 MHz / 8 = 2 MHz de comptage
+  TimerSetFrequency();              //pose OCR1A, et recale TCNT1 s'il est deja au-dela
+  TIFR1 = _BV(OCF1A);               //jeter une comparaison restee en attente
+  TIMSK1 = _BV(OCIE1A);
 }
 
-//Trigger pulse one shot------------------------------------------------------------
-//The sequencer interrupt used to hold the shift register outputs high with a
-//delayMicroseconds(2000) - 2 ms of busy wait inside the ISR, more than the whole tick
-//period at 250 BPM. Timer2 carries the pulse instead and fires a tiny interrupt that
-//just releases the outputs.
-//Timer2 rather than an OCR1B compare on Timer1 : in SLAVE sync Timer1 is stopped and
-//CountPPQN is driven by the incoming MIDI clock, so a Timer1 compare would never fire
-//and the trigger would stay latched.
-//Prescaler 128 -> 125 kHz, one tick = 8 us, so 2 ms = 250 ticks.
+//Arreter le compteur de mesure---------------------------------------------------------
+//L'horloge se coupe D'ABORD, le reste ensuite. L'ecriture chainee "TCCR1A = TCCR1B =
+//OCR1A = 0" faisait l'inverse : elle evalue de droite a gauche, donc elle mettait OCR1A
+//a zero pendant que le compteur tournait encore en CTC. Sans consequence en pratique,
+//l'arret suivant de quelques cycles - mais c'etait juste par accident.
+void TimerStop(void)
+{
+  TCCR1B = 0;                       //l'horloge d'abord : plus rien ne compte
+  TIMSK1 = 0;
+  TCCR1A = 0;
+  OCR1A = 0;
+}
+
+//L'impulsion de trig, un coup unique----------------------------------------------------
+//L'interruption du sequenceur tenait les sorties des registres a decalage en l'air avec
+//un delayMicroseconds(2000) - 2 ms d'attente active DANS l'interruption, plus que la
+//periode d'un tick entier a 250 BPM. C'est Timer2 qui porte l'impulsion desormais, et il
+//declenche une interruption minuscule dont tout le travail est de relacher les sorties.
+//Timer2 plutot qu'une comparaison OCR1B sur Timer1 : en synchro esclave Timer1 est
+//arrete et CountPPQN() est appele par l'horloge MIDI entrante, donc une comparaison sur
+//Timer1 ne partirait jamais et le trig resterait colle.
+//Prediviseur 128 -> 125 kHz, un tick vaut 8 us, donc 2 ms font 250 ticks.
 #define TRIG_PULSE_TICKS 250
 
 void StartTrigPulse()
 {
-  TCCR2A = _BV(WGM21);              //CTC, OCR2A is TOP
+  TCCR2A = _BV(WGM21);              //CTC, OCR2A est le sommet - et les bits COM restent
+                                    //a zero, ils commandent les deux INH_MUX (point 1)
   TCNT2  = 0;
   OCR2A  = TRIG_PULSE_TICKS - 1;
-  TIFR2  = _BV(OCF2A);              //drop a compare match left pending
+  TIFR2  = _BV(OCF2A);              //jeter une comparaison restee en attente
   TIMSK2 = _BV(OCIE2A);
-  TCCR2B = _BV(CS22) | _BV(CS20);   //start, prescaler 128
+  TCCR2B = _BV(CS22) | _BV(CS20);   //depart, prediviseur 128
 }
 
 //Armer l'impulsion sans relancer celle qui court deja---------------------------------
@@ -75,22 +118,21 @@ void StartTrigPulseIfIdle()
 
 ISR(TIMER2_COMPA_vect)
 {
-  TCCR2B = 0;                       //one shot : stop the timer
+  TCCR2B = 0;                       //coup unique : le compteur s'arrete lui-meme
   TIMSK2 = 0;
   ResetDoutTrig();
 }
 
-void TimerStop(void)
-{
-  bitWrite(TIMSK1, OCIE1A, 0);
-  TCCR1A = TCCR1B = OCR1A = 0;
-}
-
-//Tick rate for Timer1 = (BPM * PPQN) / 60 Hz
-//Kept in 32 bits and divided once. The previous two step integer division,
-//(bpm*PPQN)/60 then (F_CPU/8)/that, truncated twice and hit the exact tempo for only
-//7 of the 221 settings - up to 0.54 BPM off, ie 0.75 s adrift over four minutes at
-//121 BPM. CTC counts OCR1A + 1 ticks per period, hence the -1.
+//La periode de Timer1 pour un tempo donne----------------------------------------------
+//Cadence voulue = (BPM * PPQN) / 60 Hz, donc une periode de (F_CPU / 8) * 60 / (BPM *
+//PPQN) comptes. Tenu en 32 bits et divise UNE fois. L'ancienne version divisait en deux
+//temps, (bpm * PPQN) / 60 puis (F_CPU / 8) / ce resultat : elle tronquait deux fois et
+//ne tombait juste que sur 7 des 221 tempos - jusqu'a 0,54 BPM d'ecart, soit 0,75 s de
+//derive en quatre minutes a 121 BPM.
+//En CTC le compteur fait OCR1A + 1 ticks par periode, d'ou le -1.
+//La borne du tempo n'est pas cosmetique : elle interdit un bpm nul, qui diviserait par
+//zero. Et le resultat tient dans les 16 bits d'OCR1A sur toute la plage - 41666 comptes
+//a 30 BPM, 5000 a 250.
 void TimerSetFrequency()
 {
   unsigned int bpm = constrain(seq.bpm, MIN_BPM, MAX_BPM);
@@ -99,9 +141,9 @@ void TimerSetFrequency()
   uint8_t sreg = SREG;
   cli();
   OCR1A = (unsigned int)(ticks - 1);
-  //A new OCR1A below the count already reached would simply be missed : the counter
-  //would climb to 0xFFFF before wrapping, a 32 ms hiccup. Restart the period instead.
+  //Un OCR1A neuf plus bas que le compte deja atteint serait simplement manque : le
+  //compteur grimperait jusqu'a 0xFFFF avant de reboucler, un hoquet de 32 ms. On
+  //redemarre la periode plutot.
   if (TCNT1 > OCR1A) TCNT1 = 0;
   SREG = sreg;
 }
-
