@@ -65,27 +65,34 @@ void EncGet()
   //does not serve.
   boolean shufHeld = shufBtn.pressed && (from == PTRN_STEP || from == PTRN_TAP);
   if (shufHeld){
+    //LES DEUX TEMOINS STATIQUES SONT PARTIS - prevShuf et prevShufInst[NBR_INST], dix
+    //sept octets. Ils ne servaient qu'a savoir si la valeur avait bouge dans CETTE passe,
+    //ce que la valeur d'avant dit sans rien retenir entre deux appels. Et retenir etait
+    //nuisible : le geste global ecrivait les seize shuffle[] sans toucher a
+    //prevShufInst[], qui restait donc perime. Le cran de molette qui retombait ensuite
+    //pile sur cette valeur perimee ne posait ni redessin ni patternWasEdited - un cran
+    //mort, au hasard, apres chaque reglage global. Aucun des deux temoins n'etait remis a
+    //jour au chargement d'un pattern non plus.
+    //Comparer avant et apres est immunise par construction : rien ne survit a la passe.
     if (shiftBtn.pressed){
+      byte before = pattern[ptrnBuffer].globalShuffle;
       pattern[ptrnBuffer].globalShuffle = EncGet(pattern[ptrnBuffer].globalShuffle, 1);
       if(pattern[ptrnBuffer].globalShuffle <= 1) pattern[ptrnBuffer].globalShuffle = 1;
       if(pattern[ptrnBuffer].globalShuffle >= MAX_SHUF_TYPE) pattern[ptrnBuffer].globalShuffle = MAX_SHUF_TYPE;
-      static byte prevShuf;
-      if (pattern[ptrnBuffer].globalShuffle != prevShuf){
-        prevShuf = pattern[ptrnBuffer].globalShuffle;
+      if (pattern[ptrnBuffer].globalShuffle != before){
         needLcdUpdate = TRUE;
         patternWasEdited = TRUE;
         for (byte z = 0; z < NBR_INST; z++){
-          pattern[ptrnBuffer].shuffle[z ] = pattern[ptrnBuffer].globalShuffle;
+          pattern[ptrnBuffer].shuffle[z] = pattern[ptrnBuffer].globalShuffle;
         }
       }
     }
     else{
+      byte before = pattern[ptrnBuffer].shuffle[curInst];
       pattern[ptrnBuffer].shuffle[curInst] = EncGet(pattern[ptrnBuffer].shuffle[curInst], 1);
       if(pattern[ptrnBuffer].shuffle[curInst] <= 1) pattern[ptrnBuffer].shuffle[curInst] = 1;
       if(pattern[ptrnBuffer].shuffle[curInst] >= MAX_SHUF_TYPE) pattern[ptrnBuffer].shuffle[curInst] = MAX_SHUF_TYPE;
-      static byte prevShufInst[NBR_INST];
-      if (pattern[ptrnBuffer].shuffle[curInst] != prevShufInst[curInst]){
-        prevShufInst[curInst] = pattern[ptrnBuffer].shuffle[curInst];
+      if (pattern[ptrnBuffer].shuffle[curInst] != before){
         needLcdUpdate = TRUE;
         patternWasEdited = TRUE;
       }

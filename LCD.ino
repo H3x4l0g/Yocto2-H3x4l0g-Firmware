@@ -92,8 +92,25 @@ void LcdUpdate()
           LcdPrintGlobalAcc();
         }
         else if (shufBtn.pressed){
+          //DEUX GESTES, DEUX ECRANS. SHUFFLE seul regle la voix courante, SHIFT+SHUFFLE
+          //regle les seize d'un coup - et les deux dessinaient le MEME ecran, titre
+          //compris, avec un bargraphe qui lisait TOUJOURS shuffle[curInst].
+          //Le geste global affichait donc la valeur de l'instrument courant, jamais la
+          //sienne. On entrait sur une valeur, le premier cran en posait une autre -
+          //globalShuffle partant de son propre coin - et le curseur sautait sans
+          //prevenir. D'ou "il faut repasser par la valeur pour que ca bouge" : il
+          //fallait surtout revenir a la main sur celle qu'on croyait editer.
+          //Le titre nomme desormais ce qu'on regle, et la voix par son nom : quand seize
+          //shuffles peuvent differer, savoir lequel est sous la molette n'est pas un
+          //luxe.
+          boolean shufGlobal = shiftBtn.pressed;
           lcd.setCursor(0,0);
-          lcd.print("  Shuffle value ");
+          if (shufGlobal) lcd.print(" Shuffle  GLOBAL");
+          else {
+            lcd.print(" Shuffle        ");
+            lcd.setCursor(13,0);
+            LcdPrintLabel(selectInstString, curInst);//trois caracteres, colonnes 13 a 15
+          }
           lcd.setCursor(0,1);
           LcdClearLine();
           lcd.setCursor(0,1);
@@ -102,7 +119,9 @@ void LcdUpdate()
           LcdPrintLine(MAX_SHUF_TYPE);//columns 2 to 12
           lcd.setCursor(14,1);
           lcd.print("+");
-          lcd.setCursor(1 + pattern[ptrnBuffer].shuffle[curInst],1);
+          byte shufShown = shufGlobal ? pattern[ptrnBuffer].globalShuffle
+                                      : pattern[ptrnBuffer].shuffle[curInst];
+          lcd.setCursor(1 + shufShown,1);
           lcd.print((char)219);
         }
         else if (keyboardMode){
