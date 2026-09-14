@@ -97,7 +97,11 @@ void setup()
 
   WireBeginTX(262137); 
   Wire.endTransmission();
-  Wire.requestFrom(0X53, 3); //
+  //Derniere lecture I2C qui calculait son adresse de puce a la main - 0x53 se trouvait
+  //juste, 262137 >> 16 valant bien 3, mais c'etait la dixieme copie de la regle que
+  //WireRequestFrom() existe pour tenir. L'en-tete d'EEprom.ino promet deux portes
+  //d'entree et une seule ; c'est vrai maintenant.
+  WireRequestFrom(262137, 3);
   byte data1 = (Wire.read() & 0xFF);
   byte data2 = (Wire.read() & 0xFF);
   byte data3 = (Wire.read() & 0xFF);

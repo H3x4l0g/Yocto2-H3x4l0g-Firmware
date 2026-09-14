@@ -79,12 +79,14 @@
 #define PTRN_SETUP_OFFSET  (PTRN_TRIG_OFFSET + PTRN_SETUP_SIZE)
 #define PTRN_VEL_SIZE      (unsigned long)(256)
 #define PTRN_VEL_OFFSET    (PTRN_SETUP_OFFSET + PTRN_VEL_SIZE)
+
 //Probabilite, micro-timing et retrig : trois champs de Pattern (define.h) et trois zones
 //reservees ici, mais RIEN ne les ecrit ni ne les relit - les boucles de sauvegarde et de
 //chargement etaient en commentaire depuis l'amont, et ont ete retirees le 13/09/2026.
 //Les tailles restent dans PTRN_SIZE : les changer decalerait tous les patterns deja
 //enregistres. La place est donc reservee pour le jour ou ces fonctions existeront.
 //A noter : PTRN_RETRIG_OFFSET sert deja a stocker extNote, cf LoadPattern().
+
 #define PTRN_PROB_SIZE     (unsigned long)(256)
 #define PTRN_PROB_OFFSET   (PTRN_VEL_OFFSET + PTRN_PROB_SIZE)
 #define PTRN_uTIMING_SIZE  (unsigned long)(256)
@@ -143,7 +145,15 @@ void SavePattern(byte patternNbr)
   Wire.write((byte)(pattern[ptrnBuffer].groupPos));
   Wire.write((byte)(pattern[ptrnBuffer].groupLength));
   Wire.write((byte)(pattern[ptrnBuffer].globalAcc));
-  //103 bytes => 25 byte left ;)
+  //La longueur de la pile de notes EXT. Elle n'etait PAS enregistree : extNote[] revenait
+  //au complet, sans son point de bouclage, qui gardait alors la valeur laissee par le
+  //pattern precedemment charge dans ce buffer et ne survivait a aucune coupure. La piste
+  //EXT n'a donc jamais ete enregistrable. Le copier-coller la transportait, lui
+  //(SeqFunc.ino), ce qui trahit l'oubli plutot que le choix.
+  //Elle se range dans la queue inutilisee de la page : aucun offset ne bouge, aucun
+  //pattern deja enregistre n'est decale.
+  Wire.write((byte)(pattern[ptrnBuffer].extLength));
+  //104 bytes => 24 byte left ;)
 
   Wire.endTransmission();//end page transmission
   delay(DELAY_WR);//delay between each write page
@@ -217,7 +227,13 @@ void LoadPattern(byte patternNbr)
   pattern[!ptrnBuffer].groupPos = Wire.read();
   pattern[!ptrnBuffer].groupLength = Wire.read();
   pattern[!ptrnBuffer].globalAcc = Wire.read();
-  //103 bytes requested
+  //La borne n'est pas du zele : les patterns enregistres AVANT que cet octet n'existe
+  //portent ici ce que l'initialisation d'usine y avait laisse - zero - et une puce jamais
+  //initialisee y porte 0xFF. Au-dela du maximum, on retombe sur une note, ce que ces
+  //patterns font de toute facon aujourd'hui. Meme garde qu'a la saisie, cf key.ino.
+  pattern[!ptrnBuffer].extLength = Wire.read();
+  if (pattern[!ptrnBuffer].extLength > MAX_EXT_INST_NOTE) pattern[!ptrnBuffer].extLength = 0;
+  //104 bytes requested
 
     //VELOCITY-----------------------------------------------
   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
@@ -287,6 +303,14 @@ void LoadTrack(byte trackNbr)
   byte lowbyte = track[trkBuffer].patternNbr[1020];
   byte highbyte = track[trkBuffer].patternNbr[1021];
   track[trkBuffer].length =  (unsigned int)(lowbyte | (highbyte << 8));
+  //LoadSeqSetup() borne chacun de ses cinq champs ; celui-ci ne bornait rien. Sur une
+  //zone jamais ecrite, les deux octets valent 0xFF et la longueur sort a 65535, alors que
+  //les positions utiles s'arretent a 999 et que patternNbr[] ne compte que 1024 entrees.
+  //Seq.ino laisse avancer trk.pos tant qu'il est <= length : la lecture partait donc
+  //au-dela du tableau, a prendre de la RAM quelconque pour des numeros de pattern.
+  //Zero plutot qu'un ecretage a 999 : une longueur impossible veut dire piste vide, pas
+  //piste de 999 pas de n'importe quoi.
+  if (track[trkBuffer].length > MAX_TRACK_POS) track[trkBuffer].length = 0;
 
 }
 
@@ -370,8 +394,6 @@ byte LoadPatternGroup(byte patternNum, byte type)
 }
 
 
-//==================================================================================================
-//==================================================================================================
 //init pattern in the EEprom
 void InitEEprom()
 {
@@ -399,8 +421,14 @@ void InitEEprom()
     Wire.write((byte)(0));//(pattern[ptrnBuffer].globalDir));
     Wire.write((byte)(0));//(pattern[ptrnBuffer].groupPos));
     Wire.write((byte)(0));//(pattern[ptrnBuffer].groupLength));
-    //102 bytes
-    for(int a =0; a < 26; a++){
+    //globalAcc et extLength etaient absents d'ici alors que SavePattern() et
+    //LoadPattern() les comptent : les zeros de remplissage en tenaient lieu, ce qui
+    //donnait le bon resultat par accident. Les trois fonctions decrivent desormais la
+    //meme page, champ par champ.
+    Wire.write((byte)(0));//(pattern[ptrnBuffer].globalAcc));
+    Wire.write((byte)(0));//(pattern[ptrnBuffer].extLength));
+    //104 bytes
+    for(int a =0; a < 24; a++){
       Wire.write( (byte)(0));//unused parameters
     }//128 bytes FIRST PAGE
 
