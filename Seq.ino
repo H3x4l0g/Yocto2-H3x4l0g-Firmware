@@ -288,6 +288,22 @@ void SeqParameter()
         pattern[ptrnBuffer].scale[a] = SCALE_16;
         pattern[ptrnBuffer].dir[a] = 0;//0 is forward
       }
+      //Les deux champs "globaux" sont le resume des deux tableaux qu'on vient de
+      //reecrire, et ils restaient sur l'ancien pattern.
+      //globalLength decide de la FIN DE MESURE (Clock.ino) : effacer un pattern de huit
+      //pas donnait seize pas par instrument et une mesure qui finissait toujours au
+      //huitieme - donc des chaines et des pistes qui avancaient au milieu du pattern. Et
+      //comme CLEAR pose patternWasEdited, la valeur fausse partait en EEPROM au premier
+      //ENTER : le pattern restait infirme apres extinction.
+      //globalScale fait avancer tapStepCount (Clock.ino) : efface depuis une grille de
+      //32e, le compteur du mode TAP gardait cette grille-la alors que les seize
+      //instruments etaient repasses en 16e.
+      //Les memes deux valeurs que la boucle ci-dessus, pas d'autres : NBR_STEP - 1 et
+      //SCALE_16. UpdateLongerInst() derriere, parce que longerInstLength designait encore
+      //l'instrument le plus long d'AVANT - cf son en-tete dans SeqFunc.ino.
+      pattern[ptrnBuffer].globalLength = NBR_STEP - 1;
+      pattern[ptrnBuffer].globalScale = SCALE_16;
+      UpdateLongerInst();
       ////////////////////////////////////////////////////////////////////////
       //init all intrument velocity ||   PEUT ETRE SUPPRIMER, A TESTER !!!  ||
       ////////////////////////////////////////////////////////////////////////
@@ -763,10 +779,28 @@ void SeqParameter()
       TrackPosToPattern();
       needLcdUpdate = TRUE;
     }
-    if(readButtonState){
-      trk.next = FirstBitOn();
-      selectedTrackChanged = TRUE;
-      needLcdUpdate = TRUE;
+    //readButtonState est un NIVEAU, pas un front : tant qu'une touche de pas restait
+    //tenue, ce bloc reposait selectedTrackChanged a CHAQUE PASSE DE BOUCLE - donc un
+    //LoadTrack() par passe, soit huit pages de 128 octets en I2C, ~23 ms a 400 kHz. Une
+    //seconde de pression valait une quarantaine de rechargements : LED figees, molette
+    //plus echantillonnee, et le tampon MIDI d'entree en debordement (23 ms a 31250 bauds
+    //font 72 octets pour une file de 64). Le sequenceur, lui, continuait sans rien voir :
+    //il tourne dans l'interruption.
+    //Le niveau est GARDE plutot que remplace par un front, contrairement au site jumeau
+    //de TRACK WRITE : il autorise de rouler d'une touche a l'autre sans relacher, et ce
+    //geste-la n'a aucune raison de disparaitre. C'est le CHANGEMENT de piste qui
+    //declenche la lecture, une seule fois - le handler de selectedTrackChanged pose
+    //trk.current = trk.next juste apres, donc la condition retombe d'elle-meme.
+    //Effet de bord assume : rappuyer sur la piste ou l'on est deja ne recharge plus rien.
+    //Ca ne faisait que jeter en silence les editions de piste non sauvees - LoadTrack()
+    //ecrase la RAM et le handler abaisse trackNeedSaved - sans que rien ne l'annonce.
+    if (readButtonState){
+      byte sel = FirstBitOn();
+      if (sel != trk.current){
+        trk.next = sel;
+        selectedTrackChanged = TRUE;
+        needLcdUpdate = TRUE;
+      }
     }
   }
 
