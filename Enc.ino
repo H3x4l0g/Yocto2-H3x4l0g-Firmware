@@ -148,48 +148,78 @@ void EncGet()
   else if (keyboardMode){
     switch (curIndex){
       //track position
-    case 0://external instrument note index
+    //Le "break" de ce premier cas etait ENFERME dans le if qui suit, et l'accolade de ce
+    //if manquait : les cas 1, 2 et 3 etaient donc imbriques DEDANS. Ca compilait et ca
+    //marchait, un "case" pouvant se placer n'importe ou dans le corps d'un switch et le
+    //saut ignorant la condition - mais toute ligne ajoutee a la fin du premier cas serait
+    //tombee dans la queue du quatrieme. Remis d'aplomb.
+    case 0://l'index de la note qu'on edite
       if(instBtn) noteIndex = EncGet(noteIndex, 10);
       else noteIndex = EncGet(noteIndex, 1);
-      noteIndex = constrain(noteIndex, 0, 99);
+      //L'index s'arretait a 99 au lieu de s'arreter a la pile. On pouvait donc amener le
+      //curseur bien au-dela de [len], editer une note qui ne serait jamais jouee, et se
+      //demander pourquoi on ne l'entend pas. Meme defaut, meme forme et meme correctif
+      //que la position de piste dans TRACK WRITE, et que la longueur de pile dans
+      //key.ino : on ne se promene que sur ce qui existe. Les notes s'ajoutent aux touches
+      //de pas, qui allongent la pile d'elles-memes.
+      noteIndex = constrain(noteIndex, 0, pattern[ptrnBuffer].extLength);
       static unsigned int prevNoteIndex;
       if (noteIndex != prevNoteIndex){
         prevNoteIndex = noteIndex;
         needLcdUpdate = TRUE;
-        break;
-      case 1://external instrument note
-        if(instBtn) pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 12);
-        else pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 1);
-        //115 et non 127 : au-dela, note + 12 depasse 127 a l'envoi et reboucle dans
-        //l'octave du bas. Cf MAX_EXT_NOTE dans define.h.
-        pattern[ptrnBuffer].extNote[noteIndex] = constrain(pattern[ptrnBuffer].extNote[noteIndex], 0, MAX_EXT_NOTE);
-        static unsigned int prevExtNote;
-        if (pattern[ptrnBuffer].extNote[noteIndex] != prevExtNote){
-          prevExtNote = pattern[ptrnBuffer].extNote[noteIndex];
-          needLcdUpdate = TRUE;
-        }
-        break;
-      case 2://external instrument notes stack length
-        if(instBtn) pattern[ptrnBuffer].extLength = EncGet(pattern[ptrnBuffer].extLength, 10);
-        else pattern[ptrnBuffer].extLength = EncGet(pattern[ptrnBuffer].extLength, 1);
-        pattern[ptrnBuffer].extLength = constrain(pattern[ptrnBuffer].extLength, 0, 99);
-        static unsigned int prevExtLength;
-        if (pattern[ptrnBuffer].extLength != prevExtLength){
-          prevExtLength = pattern[ptrnBuffer].extLength;
-          patternNeedSaved = TRUE;
-          needLcdUpdate = TRUE;
-        }
-        break;
-      case 3://octave
-        keybOct = EncGet(keybOct, 1);
-        keybOct = constrain(keybOct, 0, 7);
-        static unsigned int prevKeybOct;
-        if (keybOct != prevKeybOct){
-          prevKeybOct = keybOct;
-          needLcdUpdate = TRUE;
-        }
-        break;
       }
+      break;
+
+    case 1://la note elle-meme
+      if(instBtn) pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 12);
+      else pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 1);
+      //115 et non 127 : au-dela, note + 12 depasse 127 a l'envoi et reboucle dans
+      //l'octave du bas. Cf MAX_EXT_NOTE dans define.h.
+      pattern[ptrnBuffer].extNote[noteIndex] = constrain(pattern[ptrnBuffer].extNote[noteIndex], 0, MAX_EXT_NOTE);
+      static unsigned int prevExtNote;
+      if (pattern[ptrnBuffer].extNote[noteIndex] != prevExtNote){
+        prevExtNote = pattern[ptrnBuffer].extNote[noteIndex];
+        //LE DRAPEAU MANQUAIT, et c'est le meme oubli que pour la direction. Editer une
+        //note a la molette ne posait rien : ENTER ne clignotait pas, l'ecriture n'etait
+        //pas autorisee, et le travail partait en silence au chargement suivant. La meme
+        //donnee posee aux touches de pas, elle, est bien marquee (key.ino).
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+
+    case 2://la longueur de la pile
+      if(instBtn) pattern[ptrnBuffer].extLength = EncGet(pattern[ptrnBuffer].extLength, 10);
+      else pattern[ptrnBuffer].extLength = EncGet(pattern[ptrnBuffer].extLength, 1);
+      pattern[ptrnBuffer].extLength = constrain(pattern[ptrnBuffer].extLength, 0, MAX_EXT_INST_NOTE);
+      static unsigned int prevExtLength;
+      if (pattern[ptrnBuffer].extLength != prevExtLength){
+        prevExtLength = pattern[ptrnBuffer].extLength;
+        //patternNeedSaved etait pose en direct ici, seul site du depot a le faire : tous
+        //les autres passent par patternWasEdited, que Seq.ino convertit. Le resultat
+        //etait le meme, mais deux drapeaux pour une seule idee finissent toujours par
+        //diverger. Et 99 en dur devient MAX_EXT_INST_NOTE, qui vaut 99 et dit pourquoi.
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+        //Raccourcir la pile sous le curseur laisserait celui-ci dans le vide.
+        if (noteIndex > pattern[ptrnBuffer].extLength) noteIndex = pattern[ptrnBuffer].extLength;
+      }
+      break;
+
+    case 3://l'octave des touches de pas - PAS celle de la note affichee
+      //keybOct ne transpose QUE la saisie aux seize touches (key.ino) : il decide dans
+      //quelle octave elles ecrivent. Il ne touche ni a la note sous le curseur, ni a ce
+      //qui sort en lecture, et il ne fait pas partie du pattern - d'ou l'absence de
+      //drapeau, qui est correcte ici. C'est pourquoi le tourner ne semble rien faire
+      //quand on regarde [not] : l'effet ne se voit qu'a la prochaine note jouee.
+      keybOct = EncGet(keybOct, 1);
+      keybOct = constrain(keybOct, 0, MAX_OCT - 1);
+      static unsigned int prevKeybOct;
+      if (keybOct != prevKeybOct){
+        prevKeybOct = keybOct;
+        needLcdUpdate = TRUE;
+      }
+      break;
     }
   }
   ///////////////////////////////////CONFIG MODE////////////////////////////////////
