@@ -74,8 +74,50 @@ void CountPPQN() {
   //Une lecture ici, une ecriture en fin de fonction.
   byte p = ppqn;
 
-  if (p % (PPQN / 2) == 0) blinkTempo = !blinkTempo;
-  if (p % (pattern[ptrnBuffer].scale[curInst] / 2) == 0) blinkFast[curInst] = LOW;
+  //Le cache des modulos-----------------------------------------------------------------
+  //p % scale ne depend que de p et de la scale, et il n'y a que QUATRE scales possibles.
+  //C'etait recalcule pour chacun des seize instruments, deux fois chacun, plus quatre
+  //fois hors de la boucle : 36 divisions par tick, dont seize sur 16 bits.
+  //Calcule ici une fois par tick, avec des diviseurs constants a la compilation - le
+  //compilateur les traduit en multiplication par reciproque au lieu d'appeler
+  //__udivmodqi4. Indexe par SCALE_ROW(), le meme rang que la table de swing.
+  //Ecrit en une seule vraie division, et pas quatre :
+  //  16 et 32 sont des puissances de deux, donc de simples masques ;
+  //  12 se deduit de 24 par une comparaison, puisque p % 24 est deja inferieur a 24 ;
+  //  reste 24, la seule qui divise vraiment.
+  //Les operandes sont gardes en octets : ecrit tel quel, "p % 24" promeut en entier et
+  //sort __divmodhi4, 230 cycles. En octets c'est __udivmodqi4, une boucle de decalage et
+  //soustraction sur huit tours, une soixantaine de cycles appel compris.
+  //(Une version precedente de ce commentaire annoncait une multiplication par reciproque
+  //et "une dizaine de cycles" : le desassemblage dit le contraire, avr-gcc appelle bien
+  //le helper. Le gain reste enorme - une division par tick au lieu de trente-six, dont
+  //seize en 16 bits - mais il est de l'ordre de 4300 cycles economises, pas de 4900.)
+  //
+  //Le cache vivait DANS le bloc isRunning, et le clignotement rapide juste en dessous
+  //s'en passait : il ecrivait "p % (scale / 2)", deux octets promus en entier, donc un
+  //__divmodhi4 de 230 cycles a CHAQUE tick, y compris a l'arret. Le commentaire de ce
+  //cache affirmait par ailleurs qu'une scale corrompue a zero ne pouvait plus diviser
+  //par zero - c'etait vrai ici, faux une ligne plus bas. Remonte, il sert aux deux.
+  byte m24 = (byte)(p % (byte)SCALE_16);
+  byte modBySc[4];
+  modBySc[SCALE_ROW(SCALE_16)] = m24;                                       //24
+  modBySc[SCALE_ROW(SCALE_32)] = (m24 >= SCALE_32) ? m24 - SCALE_32 : m24;  //12
+  modBySc[SCALE_ROW(SCALE_16t)] = p & (SCALE_16t - 1);                      //16
+  modBySc[SCALE_ROW(SCALE_8t)] = p & (SCALE_8t - 1);                        //32
+
+  //Le clignotement du tempo, deux fois par noire. Le transtypage n'est pas decoratif :
+  //PPQN / 2 est une constante ENTIERE, donc "p % (PPQN / 2)" promeut p en int et sort un
+  //__divmodhi4 signe - 230 cycles, a chaque tick, meme a l'arret. Verifie au
+  //desassemblage. En octets c'est __udivmodqi4, une soixantaine de cycles.
+  if ((byte)(p % (byte)(PPQN / 2)) == 0) blinkTempo = !blinkTempo;
+  //Le clignotement rapide de l'instrument affiche s'eteint a la MOITIE de son pas.
+  //"p % (sc / 2) == 0" equivaut a "p % sc vaut 0 ou sc / 2", les quatre scales etant
+  //paires : deux comparaisons sur un modulo deja en main, plus aucune division.
+  //SCALE_ROW() borne son index, donc une scale corrompue donne un mauvais clignotement,
+  //jamais une lecture hors table ni une division par zero.
+  byte scCur = pattern[ptrnBuffer].scale[curInst];
+  byte modCur = modBySc[SCALE_ROW(scCur)];
+  if (modCur == 0 || modCur == (byte)(scCur >> 1)) blinkFast[curInst] = LOW;
   //if (p % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//la machine bat a 96 ppqn, l'horloge MIDI se compte en 24 : un envoi sur quatre
 
   if (p % 4 == 0) {
@@ -105,28 +147,6 @@ void CountPPQN() {
   }
 
   if (isRunning) {
-    //p % scale ne depend que de p et de la scale, et il n'y a que QUATRE scales possibles.
-    //C'etait recalcule pour chacun des seize instruments, deux fois chacun, plus quatre
-    //fois hors de la boucle : 36 divisions par tick, dont seize sur 16 bits.
-    //Calcule ici une fois par tick, avec des diviseurs constants a la compilation - le
-    //compilateur les traduit en multiplication par reciproque au lieu d'appeler
-    //__udivmodqi4. Indexe par SCALE_ROW(), le meme rang que la table de swing.
-    //Effet de bord bienvenu : une scale corrompue a zero faisait une division par zero,
-    //ce qui n'est plus possible.
-    //Ecrit en une seule vraie division, et pas quatre :
-    //  16 et 32 sont des puissances de deux, donc de simples masques ;
-    //  12 se deduit de 24 par une comparaison, puisque p % 24 est deja inferieur a 24 ;
-    //  reste 24, la seule qui divise vraiment.
-    //Les operandes sont gardes en octets : ecrit tel quel, "p % 24" promeut en entier et
-    //sort __divmodhi4, 230 cycles. En octets, avr-gcc emet une multiplication par
-    //reciproque, une dizaine de cycles.
-    byte m24 = (byte)(p % (byte)SCALE_16);
-    byte modBySc[4];
-    modBySc[SCALE_ROW(SCALE_16)] = m24;                                       //24
-    modBySc[SCALE_ROW(SCALE_32)] = (m24 >= SCALE_32) ? m24 - SCALE_32 : m24;  //12
-    modBySc[SCALE_ROW(SCALE_16t)] = p & (SCALE_16t - 1);                      //16
-    modBySc[SCALE_ROW(SCALE_8t)] = p & (SCALE_8t - 1);                        //32
-
     byte gs = pattern[ptrnBuffer].globalScale;
     byte gsMod = modBySc[SCALE_ROW(gs)];
 
@@ -140,6 +160,14 @@ void CountPPQN() {
     unsigned int sv = 0;
 
     for (byte z = 0; z < NBR_INST; z++) {
+      //Rebouclage du compteur de pas. Il vivait dans une SECONDE boucle de seize
+      //iterations en fin de tick ; le test est le meme, mais il est ici juste avant la
+      //seule chose qui lit stepCount[z], et une boucle entiere disparait de
+      //l'interruption. Rien ne lit stepCount entre la fin d'un tick et le debut du
+      //suivant, les deux emplacements sont donc equivalents.
+      //length[] est le numero du DERNIER pas, base zero : 15 veut dire seize pas.
+      if (stepCount[z] > pattern[ptrnBuffer].length[z]) stepCount[z] = 0;
+
       byte sc = pattern[ptrnBuffer].scale[z];
       byte mod = modBySc[SCALE_ROW(sc)];
       if (mod == 0) stepChanged[z] = TRUE;  //le pas a change
@@ -175,8 +203,13 @@ void CountPPQN() {
                  : 0;
 
       if (mod == d && stepChanged[z]) {  //a chaque pas
-        stepChanged[z] = FALSE;          //ce pas est declenche, ne pas y revenir
-        blinkFast[z] = HIGH;             // A SORTIR DE CETTE BOUCLE
+        stepChanged[z] = FALSE;  //ce pas est declenche, ne pas y revenir
+        //Led.ino ne lit jamais que blinkFast[curInst] : les quinze autres cases etaient
+        //ecrites a chaque pas et relues par personne. C'est le "TO BE REMOVED OUT OF
+        //THIS FOR LOOP" laisse par l'amont - il ne pouvait pas sortir de la boucle, il
+        //doit etre pose quand le pas de l'instrument AFFICHE part, mais il peut se
+        //passer des quinze ecritures volatiles inutiles.
+        if (z == curInst) blinkFast[z] = HIGH;
 
         //la direction de lecture, instrument par instrument-----------
         switch (pattern[ptrnBuffer].dir[z]) {
@@ -263,14 +296,6 @@ void CountPPQN() {
         noteIndexCpt = 0;
       }
     }  //FIN DU BLOC DE DECLENCHEMENT
-
-    //Rebouclage des compteurs de pas. length[] est le numero du DERNIER pas, base zero :
-    //une longueur de 15 veut donc dire seize pas, de 0 a 15.
-    for (byte z = 0; z < NBR_INST; z++) {
-      if (stepCount[z] > pattern[ptrnBuffer].length[z]) {
-        stepCount[z] = 0;
-      }
-    }
 
     //Fin de mesure : la piste avance d'un cran et le pattern suivant peut prendre la main
     if (globalStepCount > pattern[ptrnBuffer].globalLength) {
