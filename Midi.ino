@@ -33,7 +33,7 @@
 
 /////////////////////Function//////////////////////
 
-//initialize midi real time variable
+//Remettre a plat les drapeaux de transport recus
 void  InitMidiRealTime()
 {
   midiStart = LOW;
@@ -41,7 +41,9 @@ void  InitMidiRealTime()
   midiContinue = LOW;
 }
 
-//intialize note off when stop or patternChanged  or ext instrument loop back
+//Couper la note EXT en cours : a l'arret, au changement de pattern, au rebouclage de la
+//pile de notes. noteIndexCpt designe la note SUIVANTE, d'ou le -1 ; a zero, la derniere
+//jouee etait celle de l'index extLength, la pile venant de reboucler.
 void InitMidiNoteOff()
 {
   if(midiNoteOnActive){
@@ -51,31 +53,32 @@ void InitMidiNoteOff()
   }
 }
 
-//Send note OFF
+//Envoyer un note-off
 void MidiSendNoteOff (byte channel, byte value)
 {
   MIDI.sendNoteOff(value + 12, 0, channel);
 }
-//Send note ON
+//Envoyer un note-on
 void MidiSendNoteOn (byte channel, byte value, byte velocity)
 {
   MIDI.sendNoteOn(value + 12, velocity, channel);
 }
 
-//Handle clock
+//L'horloge recue, en synchro esclave
 void HandleClock()
 {
   DIN_CLK_HIGH;
-  //A delayMicroseconds(2000) used to sit between the second and third call. It was there
-  //to let the trigger pulse finish before the next tick could retrigger, back when the
-  //sequencer interrupt held the outputs with its own 2 ms busy wait. Timer2 carries the
-  //pulse now, so the wait had nothing left to wait for - it only blocked the main loop
-  //for 2 ms on every incoming MIDI clock, which is 48 ms per second at 120 BPM.
-  //zabox reached the same conclusion on the NAVA and commented it out there.
-  //The four back to back calls are still wrong - the four sub ticks ought to be spread
-  //over the incoming clock period rather than fired at once - but that is a rewrite,
-  //noted separately in TODO.md.
-  CountPPQN();//execute 4x because internal sequencer run as 96 ppqn
+  //Un delayMicroseconds(2000) trainait entre le deuxieme et le troisieme appel. Il etait
+  //la pour laisser l'impulsion de trig finir avant que le tick suivant ne redeclenche,
+  //du temps ou l'interruption du sequenceur tenait les sorties avec sa propre attente
+  //active de 2 ms. C'est Timer2 qui porte l'impulsion desormais : cette attente n'avait
+  //donc plus rien a attendre, elle ne faisait que bloquer la boucle principale 2 ms a
+  //chaque horloge MIDI recue, soit 48 ms par seconde a 120 BPM.
+  //zabox est arrive a la meme conclusion sur la NAVA et l'a mise en commentaire la-bas.
+  //Les quatre appels d'affilee restent faux - les quatre sous-ticks devraient etre
+  //etales sur la periode de l'horloge recue au lieu de partir d'un coup - mais c'est une
+  //reecriture, notee a part dans TODO.md.
+  CountPPQN();//quatre fois : la machine bat a 96 ppqn, l'horloge MIDI a 24
   CountPPQN();
   CountPPQN();
   CountPPQN();
@@ -83,25 +86,25 @@ void HandleClock()
 
 }
 
-//handle start
+//Start recu
 void HandleStart()
 {
   midiStart = HIGH;
 }
 
-//handle stop
+//Stop recu
 void HandleStop()
 {
   midiStop = HIGH;
 }
 
-//handle Continue
+//Continue recu
 void HandleContinue()
 {
   midiContinue = HIGH;
 }
 
-//Disconned midi real time callback
+//Debrancher les rappels de transport, quand la machine redevient maitre
 void DisconnectMidiHandleRealTime()
 {
   MIDI.disconnectCallbackFromType(midi::Clock);
@@ -110,170 +113,82 @@ void DisconnectMidiHandleRealTime()
   MIDI.disconnectCallbackFromType(midi::Continue);
 }
 
-//Handle noteON
+//Quelle voix repond a quelle note----------------------------------------------------
+//La correspondance etait ecrite TROIS fois en switch : une pour le note-on, une pour le
+//note-off, et une pour le note-on a velocite nulle - qui est un note-off deguise. Les
+//deux dernieres etaient identiques au caractere pres, cinquante lignes chacune. Ajouter
+//une note ou corriger un numero demandait trois retouches concordantes ; c'est la meme
+//famille de piege que les douze copies du recalage de piste.
+//
+//Table en PROGMEM indexee par (note - 34), donc rien en RAM. Les trous sont les notes
+//General MIDI que le Yocto n'a pas.
+#define MIDI_NOTE_FIRST 34
+#define MIDI_NOTE_LAST  55
+#define MIDI_NOTE_TR1   60
+#define MIDI_NO_INST    0xFF
+
+static const byte midiNoteInst[] PROGMEM = {
+  RM,           //34  Rimshot
+  BD, BD,       //35  Acoustic Bass Drum / 36 Bass Drum 1
+  MIDI_NO_INST, //37  Side Stick
+  SD,           //38  Acoustic Snare
+  HC,           //39  Hand Clap
+  SD,           //40  Electric Snare
+  LT,           //41  Low Floor Tom
+  CH,           //42  Closed Hi Hat
+  MIDI_NO_INST, //43  High Floor Tom
+  MIDI_NO_INST, //44  Pedal Hi Hat
+  MT,           //45  Low Tom
+  OH,           //46  Open Hi Hat
+  MT, MT,       //47  Low-Mid Tom / 48 Hi-Mid Tom
+  CB,           //49  Crash Cymbal 1
+  HT,           //50  High Tom
+  CY,           //51  Ride Cymbal 1
+  MIDI_NO_INST, //52  Chinese Cymbal
+  PC2, PC2, PC2 //53 Ride Bell / 54 Tambourine / 55 Splash Cymbal
+};
+
+static byte MidiNoteToInst(byte pitch)
+{
+  if (pitch < MIDI_NOTE_FIRST || pitch > MIDI_NOTE_LAST) return MIDI_NO_INST;
+  return pgm_read_byte(&midiNoteInst[pitch - MIDI_NOTE_FIRST]);
+}
+
+//Note recue----------------------------------------------------------------------------
+//La note 60 ne declenche pas une voix : elle tient TRIG-1 comme une porte, basse a
+//l'appui et haute au relacher - cette sortie est active a l'etat bas, cf Clock.ino.
+//SetTrigTime() sait ne pas la relacher lui-meme, cf le commentaire de Trig.ino.
 void HandleNoteOn(byte channel, byte pitch, byte velocity)
 {
-  //Midi note On with 0 velocity as Midi note Off
+  if (channel != seq.RXchannel) return;
+  //Une note ON a velocite nulle EST un note-off : la norme l'autorise et beaucoup de
+  //claviers n'envoient que ca. Le traitement etait recopie ; il est delegue.
   if (velocity == 0){
-    if (channel == seq.RXchannel){
-      switch (pitch){
-      case 35:
-      case 36:
-        MidiTrigOff(BD);
-        break;
-      case 38:
-      case 40:
-        MidiTrigOff(SD);
-        break;
-      case 41:
-        MidiTrigOff(LT);
-        break;
-      case 45:
-      case 47:
-      case 48:
-        MidiTrigOff(MT);
-        break;
-      case 50:
-        MidiTrigOff(HT);
-        break;
-      case 34:
-        MidiTrigOff(RM);
-        break;
-      case 39:
-        MidiTrigOff(HC);
-        break;
-      case 42:
-        MidiTrigOff(CH);
-        break;
-      case 46:
-        MidiTrigOff(OH);
-        break;
-      case 51:
-        MidiTrigOff(CY);
-        break;
-      case 49:
-        MidiTrigOff(CB);
-        break;
-      case 55:
-      case 54:
-      case 53:
-        MidiTrigOff(PC2);
-        break;
-      case 60:
-        TR1_HIGH;
-        break;
-      }
-    }
+    HandleNoteOff(channel, pitch, velocity);
+    return;
   }
-  else{
-    if (channel == seq.RXchannel){
-      switch (pitch){
-      case 35:
-      case 36:
-        MidiTrigOn(BD, velocity);
-        break;
-      case 38:
-      case 40:
-        MidiTrigOn(SD, velocity);
-        break;
-      case 41:
-        MidiTrigOn(LT, velocity);
-        break;
-      case 45:
-      case 47:
-      case 48:
-        MidiTrigOn(MT, velocity);
-        break;
-      case 50:
-        MidiTrigOn(HT, velocity);
-        break;
-      case 34:
-        MidiTrigOn(RM, velocity);
-        break;
-      case 39:
-        MidiTrigOn(HC, velocity);
-        break;
-      case 42:
-        MidiTrigOn(CH, velocity);
-        break;
-      case 46:
-        MidiTrigOn(OH, velocity);
-        break;
-      case 51:
-        MidiTrigOn(CY, velocity);
-        break;
-      case 49:
-        MidiTrigOn(CB, velocity);
-        break;
-      case 55:
-      case 54:
-      case 53:
-        MidiTrigOn(PC2, velocity);
-        break;
-      case 60:
-        TR1_LOW;
-        break;
-      }
-    }
+  if (pitch == MIDI_NOTE_TR1){
+    TR1_LOW;
+    return;
   }
+  byte inst = MidiNoteToInst(pitch);
+  if (inst != MIDI_NO_INST) MidiTrigOn(inst, velocity);
 }
 
-//Handle noteOFF
+//Note relachee-------------------------------------------------------------------------
+//La velocite de relacher n'est pas lue : elle fait partie de la signature du rappel.
 void HandleNoteOff(byte channel, byte pitch, byte velocity)
 {
-  if (channel == seq.RXchannel){
-    switch (pitch){
-    case 35:
-    case 36:
-      MidiTrigOff(BD);
-      break;
-    case 38:
-    case 40:
-      MidiTrigOff(SD);
-      break;
-    case 41:
-      MidiTrigOff(LT);
-      break;
-    case 45:
-    case 47:
-    case 48:
-      MidiTrigOff(MT);
-      break;
-    case 50:
-      MidiTrigOff(HT);
-      break;
-    case 34:
-      MidiTrigOff(RM);
-      break;
-    case 39:
-      MidiTrigOff(HC);
-      break;
-    case 42:
-      MidiTrigOff(CH);
-      break;
-    case 46:
-      MidiTrigOff(OH);
-      break;
-    case 51:
-      MidiTrigOff(CY);
-      break;
-    case 49:
-      MidiTrigOff(CB);
-      break;
-    case 55:
-    case 54:
-    case 53:
-      MidiTrigOff(PC2);
-      break;
-    case 60:
-      TR1_HIGH;
-      break;
-    }
-  }   
+  (void)velocity;
+  if (channel != seq.RXchannel) return;
+  if (pitch == MIDI_NOTE_TR1){
+    TR1_HIGH;
+    return;
+  }
+  byte inst = MidiNoteToInst(pitch);
+  if (inst != MIDI_NO_INST) MidiTrigOff(inst);
 }
 
-
-//MidiTrigOn insturment
 //Declencher une voix analogique depuis une note MIDI recue----------------------------
 //Trois defauts tenaient dans ces cinq lignes :
 //  1. SetMuxTrigMidi() balayait les douze adresses du multiplexeur pour poser UNE
@@ -337,16 +252,26 @@ void MidiTrigFlush()
   SREG = sreg;
 }
 
-//MidiTrigOff insturment
+//Relacher le verrou d'une voix : la note suivante pourra la redeclencher
 void MidiTrigOff(byte inst)
 {
   instWasMidiTrigged[inst] = FALSE;
 }
 
-//Midi send all note off
+//Tout couper, dehors ET dedans---------------------------------------------------------
+//Appelee au STOP, et sur un Stop ou un Continue recu.
+//instWasMidiTrigged[] n'etait remis a FALSE que par le note-off de la note EXACTE. Un
+//note-off perdu - cable debranche, clavier remis a zero, message avale par un hub -
+//laissait donc le drapeau leve, et MidiTrigOn() rendait la main aussitot : la voix
+//devenait SOURDE AU MIDI, definitivement, jusqu'a extinction de la machine. Rien nulle
+//part ne remettait ces seize drapeaux a zero.
+//STOP est le geste de panique naturel et cette fonction porte deja ce nom : elle libere
+//donc aussi les verrous locaux, et rend TRIG-1 au repos si une note 60 le tenait.
 void SendAllNoteOff()
 {
-  MIDI.sendControlChange(ALL_NOTE_OFF , 0, seq.TXchannel);	
+  MIDI.sendControlChange(ALL_NOTE_OFF , 0, seq.TXchannel);
+  for (byte z = 0; z < NBR_INST; z++) instWasMidiTrigged[z] = FALSE;
+  TR1_HIGH;
 }
 
 
