@@ -304,9 +304,37 @@ void MidiTrigOn(byte inst, byte velocity)
 void MidiTrigFlush()
 {
   if (!midiTrigPending) return;
+
+  //Lever les bits et armer le compteur sont un seul geste, interruptions fermees.
+  //Deux facons pour Timer2 de venir tout defaire entre les deux :
+  //
+  //  - son interruption tombe PENDANT la sequence. ResetDoutTrig() rabat alors les bits
+  //    qu'on vient de lever, et StartTrigPulseIfIdle() voit un compteur arrete et arme
+  //    2 ms sur un registre deja vide. La voix n'a eu qu'une microseconde d'etat haut au
+  //    lieu des cent que le front demande : note faible, ou muette. Quelques
+  //    microseconde de fenetre sur 2 ms, donc rare - le genre de note manquante qu'on
+  //    met sur le compte du clavier. Le cli() ci-dessous ferme ce cas.
+  //
+  //  - son echeance etait DEJA tombee en arrivant ici, son interruption attendant d'etre
+  //    servie. Le cli() ne l'annule pas : elle partirait a la restauration de SREG, apres
+  //    notre travail, et l'effacerait. On fait donc son travail a sa place, avant de
+  //    lever quoi que ce soit - c'est exactement le corps de ISR(TIMER2_COMPA_vect),
+  //    ecrire 1 sur OCF2A effacant le drapeau en attente.
+  //
+  //Le drapeau ne peut etre leve que par une impulsion reellement echue : StartTrigPulse()
+  //l'efface avant d'armer, et compteur a l'arret il ne peut pas se lever tout seul.
+  byte sreg = SREG;
+  cli();
+  if (TIFR2 & _BV(OCF2A)){
+    TCCR2B = 0;
+    TIMSK2 = 0;
+    TIFR2  = _BV(OCF2A);
+    ResetDoutTrig();
+  }
   AddDoutTrig(midiTrigPending);
   midiTrigPending = 0;
   StartTrigPulseIfIdle();//Timer2 relache les sorties ; cf le commentaire de la fonction
+  SREG = sreg;
 }
 
 //MidiTrigOff insturment
