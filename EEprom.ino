@@ -90,6 +90,18 @@
 #define OFFSET_GROUP       (unsigned long)(37) //save only .groupPos and .groupLength
 #define GROUP_SIZE         (unsigned long)(2)
 #define MAX_PAGE_SIZE      (unsigned long)(128)
+//LE TAMPON I2C DOIT TENIR UNE PAGE ENTIERE, ET CE N'EST PAS LE CAS PAR DEFAUT.
+//yocto2.ino inclut <WireN.h> et non <Wire.h> : c'est une bibliotheque du sketchbook dont
+//le seul interet est BUFFER_LENGTH a 132. Le Wire livre avec MightyCore plafonne a 32, et
+//son write() JETTE EN SILENCE tout ce qui depasse - il pose un write error que personne
+//ne lit et rend 0. Une page de velocite fait 2 octets d'adresse plus 128 de donnees, soit
+//130 : avec le Wire standard, chaque sauvegarde de pattern serait tronquee a 30 octets
+//utiles, et ca compilerait sans un avertissement.
+//132 = 128 + 2 + 2 de marge. Le chiffre a ete choisi pour cette machine, et rien ne le
+//disait. Cette verification transforme une perte de donnees muette en erreur de
+//compilation.
+static_assert(BUFFER_LENGTH >= MAX_PAGE_SIZE + 2,
+              "Tampon I2C trop petit : il faut WireN (BUFFER_LENGTH 132), pas Wire (32)");
 #define HRDW_ADDRESS       0x50
 #define HRDW_ADDRESS_UP    (0x50 | B100)
 #define DELAY_WR           10
