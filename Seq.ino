@@ -541,7 +541,10 @@ void SeqParameter()
               }
               if (a == EXT_INST){
                 InitMidiNoteOff();
-                MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], HIGH_VEL);
+                //instVelHigh[EXT_INST] et non HIGH_VEL : la frappe enregistre un pas
+                //plein juste au-dessus, elle doit sonner comme ce qu'elle ecrit. En TAP
+                //la piste EXT part donc accentuee, comme les douze voix y partent pleines.
+                MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], instVelHigh[EXT_INST]);
                 midiNoteOnActive = TRUE;
                 //noteIndexCpt est volatile et avance aussi dans l'interruption. Sur AVR un
                 //++ est lire-modifier-ecrire : un tick tombant au milieu perdrait un cran.

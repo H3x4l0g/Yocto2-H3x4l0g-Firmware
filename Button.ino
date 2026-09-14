@@ -142,7 +142,15 @@ unsigned int InstValueGet(unsigned int value)
         stepBtn[a].justPressed = 1;
 
         //two button state
-        if(curInst == GLOBAL_ACC || curInst == TR1 || curInst == TR2 || curInst == EXT_INST){
+        //EXT_INST etait ici : un pas y etait present ou absent, et sa velocite toujours
+        //instVelHigh. Il passe au cycle a trois etats des voix, eteint > normal > accent
+        //> eteint, parce que sa velocite VA QUELQUE PART - elle part dans le note-on MIDI
+        //(cf Clock.ino), la ou celle de l'accent global et des deux trigs n'est lue par
+        //personne. Une x0xb0x en n0nx0x2 lit l'accent dans la velocite : le cycle du
+        //panneau devient le geste d'accentuation de la piste externe.
+        //Le prix est celui du cycle : effacer un pas demande desormais deux pressions de
+        //plus, comme sur les douze voix.
+        if(curInst == GLOBAL_ACC || curInst == TR1 || curInst == TR2){
           if (bitRead(value,a)) stepBtn[a].counter = 2;
           else stepBtn[a].counter = 1;
           switch (stepBtn[a].counter){

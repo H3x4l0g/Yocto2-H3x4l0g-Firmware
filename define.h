@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.041"
+#define FW_VERSION  "Yocto v2.042"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -476,10 +476,20 @@ byte muteOut[NBR_STEP_BTN]=  {
 //Et ces tables ne sont qu'un tampon pose A LA SAISIE : les patterns deja enregistres
 //gardent la velocite qu'ils portent, il faut repasser sur les pas pour les remettre.
 //BD, SD, LT, MT, HT, RM, HC, CB, CY, OH, CH, PC2
+//L'ENTREE 13 (EXT_INST) N'EST PAS UNE TENSION. La piste externe n'a pas de canal de
+//multiplexeur - il n'y en a que douze - et sa velocite part telle quelle dans le note-on
+//MIDI. Ses deux seuils sont donc des velocites MIDI, pas des volts :
+//  demi  = 80  la velocite envoyee jusqu'ici en dur (HIGH_VEL), donc le pas normal
+//  plein = 127 l'accent. La x0xb0x en n0nx0x2 accentue au-dela de 100 ; 127 laisse de
+//              la marge quel que soit le seuil exact de la machine en face.
+//Le demi passe de 40 a 80 pour que les pas DEJA ENREGISTRES, tous ecrits a 80 par
+//l'ancien cycle a deux etats, se relisent comme des pas normaux et sonnent comme avant.
+//C'est aussi ce qui les affiche en demi plutot qu'en plein : Led.ino compare a
+//instVelLow. Monter un seuil est sans risque, cf l'avertissement ci-dessus.
 byte instVelHigh[NBR_INST]={
-  80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80};
+  80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 127, 80, 80};
 byte instVelLow[NBR_INST]={
-  40, 40, 40, 40, 40, 40, 40, 40, 60, 60, 60, 40, 40, 40, 40, 40};
+  40, 40, 40, 40, 40, 40, 40, 40, 60, 60, 60, 40, 40, 80, 40, 40};
 
 //Track----------------------------------------------
 typedef struct Track Track;

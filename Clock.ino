@@ -38,7 +38,6 @@
 //
 //======================================================================================
 
-/////////////////////Function//////////////////////
 //Un pas au hasard, sans division-------------------------------------------------------
 //La direction RANDOM appelait random(0, length+1) DANS l'interruption d'horloge.
 //random() de l'Arduino passe par une multiplication 32 bits puis __divmodsi4 - une
@@ -288,7 +287,17 @@ void CountPPQN() {
       if (bitRead(sv, EXT_INST))  //pattern[ptrnBuffer].inst[EXT_INST], curStep[EXT_INST]))
       {
         InitMidiNoteOff();
-        MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], HIGH_VEL);
+        //La velocite du PAS, et non plus HIGH_VEL en dur. Elle etait pourtant deja
+        //enregistree et sauvegardee, simplement jamais relue : c'est elle qui porte
+        //l'accent depuis que la piste EXT a un cycle a trois etats (cf InstValueGet).
+        //Le pas donne la velocite, la pile donne la hauteur - deux index differents, et
+        //c'est normal : l'accent appartient a la position dans la mesure, la note a la
+        //position dans la pile.
+        //L'ecretage vise l'octet jamais ecrit : une zone EEPROM vierge rend 0xFF, qui
+        //n'est pas une velocite MIDI valable.
+        byte extVel = pattern[ptrnBuffer].velocity[EXT_INST][curStep[EXT_INST]];
+        if (extVel > 127) extVel = 127;
+        MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], extVel);
         midiNoteOnActive = TRUE;
         noteIndexCpt++;  //avancer d'une note dans la pile
       }
