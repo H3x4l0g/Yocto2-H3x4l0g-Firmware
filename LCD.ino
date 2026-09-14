@@ -172,6 +172,23 @@ void LcdUpdate()
         lcd.print(curPattern - ((curPattern / 16)*NBR_PATTERN) + 1); 
         break;
       }
+
+      //MUTE, en grand et par-dessus--------------------------------------------------
+      //Posee APRES le switch : elle recouvre la premiere ligne quel que soit l'ecran du
+      //dessous, dont la seconde ligne reste entiere et continue de dire ce qui joue.
+      //Le caractere 219 est le pave plein, celui du bargraphe de shuffle - cinq de
+      //chaque cote tiennent les seize colonnes et ne ressemblent a aucun autre ecran.
+      //La premiere ligne portait les etiquettes de champ en mode edition ; on ne les
+      //perd pas pour rien, la molette y etant desormais inerte sous MUTE : il n'y a
+      //plus aucun champ a designer. Oublier qu'on est en MUTE et s'en apercevoir au
+      //changement de pattern, c'est une mesure de perdue - et ca n'arrive qu'une fois
+      //de trop.
+      if (curSeqMode == MUTE){
+        lcd.setCursor(0,0);
+        for (byte a = 0; a < 5; a++) lcd.print((char)219);
+        lcd.print(" MUTE ");
+        for (byte a = 0; a < 5; a++) lcd.print((char)219);
+      }
     }
   }
 }

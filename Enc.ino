@@ -41,13 +41,23 @@ void EncGet()
   //Sample the encoder ONCE per loop, the branches below only consume the notch
   EncRead();
 
+  //MUTE N'EST PAS UN MODE, c'est une surcouche des touches de pas. LcdUpdate() le sait
+  //depuis toujours et continue d'afficher l'ecran de ce qui joue dessous ; cette chaine,
+  //elle, comparait curSeqMode brut et n'y voyait donc que MUTE. Aucune de ses cinq
+  //branches ne reconnaissait plus son mode, et tout tombait au bout : la molette reglait
+  //le TEMPO pendant que l'ecran montrait une page d'edition, un bargraphe de shuffle ou
+  //la valeur d'accent global. Exactement l'incoherence que l'inertie plus bas a ete
+  //ecrite pour supprimer - MUTE passait par-dessus.
+  //Meme idiome que les quatre handlers de Seq.ino : on lit le mode reel une fois.
+  SeqMode from = (curSeqMode == MUTE) ? prevSeqMode : curSeqMode;
+
   //////////////////////////////////SHUFFLE////////////////////////////////////
   //PTRN_TAP was missing from this test while LcdUpdate() offers the shuffle screen in
   //both editing modes - the two case labels are shared. So in TAP the screen showed a
   //shuffle bargraph while the knob moved something else entirely : the BPM before the
   //instrument selector existed, curInst after. A screen promising a parameter the knob
   //does not serve.
-  boolean shufHeld = shufBtn.pressed && (curSeqMode == PTRN_STEP || curSeqMode == PTRN_TAP);
+  boolean shufHeld = shufBtn.pressed && (from == PTRN_STEP || from == PTRN_TAP);
   if (shufHeld){
     if (shiftBtn.pressed){
       pattern[ptrnBuffer].globalShuffle = EncGet(pattern[ptrnBuffer].globalShuffle, 1);
@@ -85,7 +95,7 @@ void EncGet()
   //Molette nue, comme depuis toujours. Elle est passee derriere INST maintenu en v2.013,
   //quand elle est devenue selecteur d'instrument - pour eviter qu'arriver sur ACC en
   //tournant ne la piege sur la valeur. Le selecteur est parti, le geste revient.
-  else if (curInst == GLOBAL_ACC && curSeqMode == PTRN_STEP){
+  else if (curInst == GLOBAL_ACC && from == PTRN_STEP){
     pattern[ptrnBuffer].globalAcc = EncGet(pattern[ptrnBuffer].globalAcc, 1);
     //MIN_GLOBAL_ACC / MAX_GLOBAL_ACC sat in define.h without a single user, the bound
     //being written out here and a third time as the width of the bargraph. One source.
@@ -98,7 +108,7 @@ void EncGet()
     }
   }
   ///////////////////////////////////TRACK WRITE////////////////////////////////////
-  else if (curSeqMode == TRACK_WRITE && !tempoBtn.pressed && !seq.configMode){
+  else if (from == TRACK_WRITE && !tempoBtn.pressed && !seq.configMode){
     switch (curIndex){
       //track position
     case 0://track position
@@ -299,7 +309,7 @@ void EncGet()
   //bien plus tard, sans rien pour faire le lien.
   //TEMPO maintenu reste le chemin vers le tempo, et LcdUpdate() en affiche la valeur
   //pendant que la touche est tenue.
-  else if ((curSeqMode == PTRN_STEP || curSeqMode == PTRN_TAP) && !tempoBtn.pressed){
+  else if ((from == PTRN_STEP || from == PTRN_TAP) && !tempoBtn.pressed){
     encNotch = 0;
   }
   else{
@@ -311,7 +321,7 @@ void EncGet()
     {
       curBpm = seq.bpm;
       TimerSetFrequency();
-      if (curSeqMode == PTRN_PLAY || tempoBtn.pressed) needLcdUpdate = TRUE;
+      if (from == PTRN_PLAY || tempoBtn.pressed) needLcdUpdate = TRUE;
     }
   }
 }

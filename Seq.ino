@@ -226,13 +226,16 @@ void SeqParameter()
       switch (muteBtn.counter){
       case 1:
         prevSeqMode = curSeqMode;
-        curSeqMode = MUTE; //paste copy buffered pattern to the current pattern number
+        curSeqMode = MUTE;
         break;
       case 2:
         curSeqMode = prevSeqMode;
         muteBtn.counter = 0;
         break;
       }
+      //Ni l'entree ni la sortie ne redessinaient l'ecran : rien n'annoncait le mode, et
+      //rien ne l'effacait non plus. C'est ce qui rendait l'oubli possible.
+      needLcdUpdate = TRUE;
     }
     if (curSeqMode != MUTE) muteBtn.counter = 0;
     if (!seq.configMode) seq.configPage = 0;
