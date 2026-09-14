@@ -63,35 +63,36 @@ byte RandomStep(byte maxStep) {
   return (byte)((((unsigned int)(rngState & 0xFF)) * ((unsigned int)maxStep + 1)) >> 8);
 }
 
-//Timer interrupt
+//L'interruption d'horloge
 ISR(TIMER1_COMPA_vect) {
   CountPPQN();
 }
 
-//Tick proceed each pulse
+//Un tick, appele 96 fois par noire
 void CountPPQN() {
-  //p is volatile and was re-read from SRAM on each of its ~40 uses below.
-  //One read here, one write back at the end.
+  //ppqn est volatile, et il etait relu en SRAM a chacun de ses ~40 usages ci-dessous.
+  //Une lecture ici, une ecriture en fin de fonction.
   byte p = ppqn;
 
   if (p % (PPQN / 2) == 0) blinkTempo = !blinkTempo;
   if (p % (pattern[ptrnBuffer].scale[curInst] / 2) == 0) blinkFast[curInst] = LOW;
-  //if (p % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//as NAVA seq is 96ppqn we need to send clock each 4 internal ppq
+  //if (p % 4 == 0) MIDI.sendRealTime(midi::Clock);//MidiSend(CLOCK_CMD);//la machine bat a 96 ppqn, l'horloge MIDI se compte en 24 : un envoi sur quatre
 
   if (p % 4 == 0) {
-    //Writing UDR1 directly rather than through the library is [zabox]'s fix for the MIDI
-    //clock lag, and it stays. What goes is the unbounded wait that used to guard it.
+    //Ecrire UDR1 en direct plutot que de passer par la bibliotheque, c'est le correctif
+    //de [zabox] contre le retard de l'horloge MIDI, et il reste. Ce qui part, c'est
+    //l'attente non bornee qui le gardait.
     //
-    //UDRE1 is only ever set once MIDI.begin() has enabled the UART1 transmitter, and
-    //setup() starts Timer1 in InitSeq() about 230 ms BEFORE that call - LoadTrack() and
-    //LoadPattern() sit in between, at 100 kHz over I2C. So the interrupt fires some
-    //forty times while the port is still closed. A spin here runs inside an interrupt
-    //with the flags masked : nothing can preempt it, nothing can recover it, the machine
-    //is simply dead until the power is cut.
+    //UDRE1 ne se leve qu'une fois que MIDI.begin() a arme l'emetteur de l'UART1, et
+    //setup() demarre Timer1 dans InitSeq() environ 230 ms AVANT cet appel - LoadTrack()
+    //et LoadPattern() sont entre les deux, a 100 kHz sur l'I2C. L'interruption part donc
+    //une quarantaine de fois alors que le port est encore ferme. Une attente active ici
+    //tourne DANS une interruption, drapeaux masques : rien ne peut la preempter, rien ne
+    //peut la recuperer, la machine est simplement morte jusqu'a la coupure du courant.
     //
-    //Dropping a clock byte that has nowhere to go costs nothing - the sequencer is not
-    //running yet and no one is listening. Freezing costs everything.
-    if (UCSR1A & (1 << UDRE1)) UDR1 = CLOCK_CMD;  //Tick
+    //Perdre un octet d'horloge qui n'a nulle part ou aller ne coute rien - le sequenceur
+    //ne tourne pas encore et personne n'ecoute. Geler coute tout.
+    if (UCSR1A & (1 << UDRE1)) UDR1 = CLOCK_CMD;  //le tick
   }
   if (seq.sync == MASTER) {
     if (p % 4 == 0) {
@@ -133,31 +134,33 @@ void CountPPQN() {
 
     if (tapStepCount > pattern[ptrnBuffer].globalLength) tapStepCount = 0;
 
-    //stepValue is volatile and read by Led.ino, but it was also accumulated with
-    //|= inside the 16 instrument loop - one SRAM round trip per iteration.
-    //Built in a local, published once.
+    //stepValue est volatile et lu par Led.ino, mais il etait aussi accumule au |= dans
+    //la boucle des seize instruments - un aller-retour en SRAM par iteration.
+    //Construit ici dans une locale, publie une seule fois.
     unsigned int sv = 0;
 
     for (byte z = 0; z < NBR_INST; z++) {
       byte sc = pattern[ptrnBuffer].scale[z];
       byte mod = modBySc[SCALE_ROW(sc)];
-      if (mod == 0) stepChanged[z] = TRUE;  //Step changed ?
+      if (mod == 0) stepChanged[z] = TRUE;  //le pas a change
 
       //-----------------------------------------------------------------------------
-      //Here is everything happen each step
+      //Ici se decide tout ce qui arrive a chaque pas
       //-----------------------------------------------------------------------------
-      //Swing offset : even steps stay on the grid, odd steps are pushed (setting - 1)
-      //ticks late. Derived from stepCount, never from a flag of its own.
-      //shufPolarity was a boolean toggled on every step played, and it drifted : on a
-      //pattern with an odd number of steps it came back inverted at each loop, so the
-      //swing moved onto the even steps. It was reset on PLAY only - not on a pattern
-      //change, not on a length change, not on a resync - so the swing phase was
-      //effectively arbitrary the rest of the time. stepCount[z] already carries the
-      //step number and is wrapped, reset and resynchronised everywhere it must be, so
-      //reading its low bit makes the drift structurally impossible.
-      //This also replaces the shuffle[MAX_SHUF_TYPE][2] table, which held nothing the
-      //index did not already carry : column 0 was always 0, column 1 always minus the
-      //row number.
+      //Le retard de swing : les pas pairs restent sur la grille, les impairs sont
+      //repousses de quelques ticks. La parite vient de stepCount, jamais d'un drapeau
+      //a elle.
+      //shufPolarity etait un booleen bascule a chaque pas joue, et il derivait : sur un
+      //pattern au nombre impair de pas, il revenait inverse a chaque tour, et le swing
+      //passait donc sur les pas pairs. Il n'etait remis a zero qu'au PLAY - pas au
+      //changement de pattern, pas au changement de longueur, pas a une resynchro - si
+      //bien que la phase du swing etait arbitraire le reste du temps. stepCount[z] porte
+      //deja le numero du pas, et il est reboucle, remis a zero et resynchronise partout
+      //ou il faut : lire son bit de poids faible rend la derive structurellement
+      //impossible.
+      //Ca remplace aussi la table shuffle[MAX_SHUF_TYPE][2], qui ne contenait rien que
+      //l'index ne portait deja : la colonne 0 valait toujours 0, la colonne 1 toujours
+      //l'oppose du numero de ligne.
       //Le retard vient de la table de swing plutot que de (reglage - 1) ticks, pour qu'un
       //cran veuille dire un ratio sur les quatre resolutions : cf define.h.
       //Le test etait "(p - retard) % scale == 0", une division SUR 16 BITS parce que la
@@ -171,11 +174,11 @@ void CountPPQN() {
                  ? SWING_TICKS(sc, pattern[ptrnBuffer].shuffle[z])
                  : 0;
 
-      if (mod == d && stepChanged[z]) {  //Each Step
-        stepChanged[z] = FALSE;          //flag that we already trig this step
-        blinkFast[z] = HIGH;             // TO BE REMOVED OUT OF THIS FOR LOOP
+      if (mod == d && stepChanged[z]) {  //a chaque pas
+        stepChanged[z] = FALSE;          //ce pas est declenche, ne pas y revenir
+        blinkFast[z] = HIGH;             // A SORTIR DE CETTE BOUCLE
 
-        //sequencer direction for each instruments-----------
+        //la direction de lecture, instrument par instrument-----------
         switch (pattern[ptrnBuffer].dir[z]) {
           case FORWARD:
             curStep[z] = stepCount[z];
@@ -193,18 +196,18 @@ void CountPPQN() {
             curStep[z] = RandomStep(pattern[ptrnBuffer].length[z]);
             break;
         }
-        //Set each step value in a 16bit word depending step counter and direction of each instrument
-        //Compare the current step of each instrument and store in "stepValue"
+        //Poser le bit de cet instrument dans le mot de seize bits, selon son compteur
+        //de pas et sa direction. L'accent global n'en est pas : il ne se declenche pas,
+        //il est lu par MuxValue() au moment du balayage.
         if (z != GLOBAL_ACC) {  //&& z != TR1 && z != TR2){
           sv |= ((bitRead(pattern[ptrnBuffer].inst[z], curStep[z])) << z);
         }
 
-        //Set the multiplexer for velocity out just before Trig
         stepCount[z]++;
       }
     }
 
-    //incremente global step count according the longer instrument length
+    //Avancer le compteur global au rythme de l'instrument le plus long
     if (modBySc[SCALE_ROW(pattern[ptrnBuffer].scale[longerInstLength])] == 0) {
       globalStepCount++;
     }
@@ -228,56 +231,59 @@ void CountPPQN() {
       }
     }
 
-    //Add Mute value to StepValue
+    //Retirer les instruments mutes, puis publier pour Led.ino
     sv &= ~muteInst;
-    stepValue = sv;  //published for Led.ino
+    stepValue = sv;
 
-    //Is there something to trig ?
+    //Y a-t-il quelque chose a declencher ?
     if (sv) {
       if (bitRead(sv, TR1)) {
-        TR1_LOW;  //Trigout pulse
+        TR1_LOW;  //impulsion sur la sortie de trig
         trig1State = HIGH;
       }
       if (bitRead(sv, TR2)) {
-        TR2_HIGH;  //Trigout pulse
+        TR2_HIGH;  //impulsion sur la sortie de trig
         trig2State = HIGH;
       }
+      //Les tensions d'abord, les declenchements ensuite : chaque condensateur doit
+      //porter sa velocite avant que la voix ne parte.
       SetMux();
-      //Trig according mute value
       SetDoutTrig(sv);
-      StartTrigPulse();  //Timer2 releases the outputs 2 ms later
+      StartTrigPulse();  //Timer2 relache les sorties 2 ms plus tard
 
-      //Trig external instrument-------------------------------------
+      //L'instrument externe------------------------------------------
       if (bitRead(sv, EXT_INST))  //pattern[ptrnBuffer].inst[EXT_INST], curStep[EXT_INST]))
       {
         InitMidiNoteOff();
         MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], HIGH_VEL);
         midiNoteOnActive = TRUE;
-        noteIndexCpt++;  //incremente external inst note index
+        noteIndexCpt++;  //avancer d'une note dans la pile
       }
       if (noteIndexCpt > pattern[ptrnBuffer].extLength) {
         noteIndexCpt = 0;
       }
-    }  //END IF STEP VALUE
+    }  //FIN DU BLOC DE DECLENCHEMENT
 
+    //Rebouclage des compteurs de pas. length[] est le numero du DERNIER pas, base zero :
+    //une longueur de 15 veut donc dire seize pas, de 0 a 15.
     for (byte z = 0; z < NBR_INST; z++) {
-      //  stepChanged[z] = FALSE;//flag that we already trig this step
-      //  stepCount[z]++;
       if (stepCount[z] > pattern[ptrnBuffer].length[z]) {
         stepCount[z] = 0;
       }
-      //}
     }
 
-
-    if (globalStepCount > pattern[ptrnBuffer].globalLength) {  // && (p % 24 == pattern[ptrnBuffer].scale - 1))
+    //Fin de mesure : la piste avance d'un cran et le pattern suivant peut prendre la main
+    if (globalStepCount > pattern[ptrnBuffer].globalLength) {
       endMeasure = TRUE;
       trackPosNeedIncremante = TRUE;
       globalStepCount = 0;
-      //The buffer swap used to be duplicated here ; it never ran, the main loop
-      //cleared nextPatternReady first. Single copy in SwitchPatternBuffer() now,
-      //which also stops the interrupt writing ptrnBuffer behind the main loop.
+      //La bascule de buffer etait recopiee ici ; elle ne tournait jamais, la boucle
+      //principale ayant deja efface nextPatternReady. Une seule copie desormais, dans
+      //SwitchPatternBuffer() - ce qui evite en prime que l'interruption ecrive ptrnBuffer
+      //dans le dos de la boucle principale.
     }
+    //Le drapeau de fin de mesure se rabaisse quatre ticks plus tard, une fois que la
+    //boucle principale a eu le temps de le voir. Valeur heritee, jamais expliquee.
     if (gsMod == 4 && globalStepCount == 0) {
       endMeasure = FALSE;
     }
@@ -285,7 +291,7 @@ void CountPPQN() {
 
   if (++p > PPQN) p = 1;
   ppqn = p;
-}  // END COUNT FUNCTION
+}  //FIN DE CountPPQN
 
 //Le metronome : un masque de pas, rien de plus-----------------------------------------
 //Il n'ecrit plus rien dans le pattern. Les quatre temps sont le masque 0x1111, et la
