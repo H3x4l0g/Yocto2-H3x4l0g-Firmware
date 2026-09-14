@@ -480,14 +480,14 @@ void SeqParameter()
               //SD_BTN vaut 1 et SD vaut 1, et ainsi de suite jusqu'a PC2. Les douze cas
               //faisaient mot pour mot la meme chose, et instOut[] etait la table identite
               //qui allait avec - partie de define.h avec muxInst[], jamais lue nulle part.
-              //ATTENTION AUX QUATRE DERNIERES TOUCHES : la boucle va jusqu'a
-              //NBR_STEP_BTN, soit seize, mais seules douze portent une voix. Le switch
-              //n'avait pas de cas pour 12 a 15, donc ni velocite ni vitesse de frappe
-              //n'etaient posees pour elles. Ce silence-la est reconduit tel quel.
-              if (a < NBR_TAP_INST){
-                if (isRunning) pattern[ptrnBuffer].velocity[a][tapStepCount] = instVelHigh[a];
-                tapVel[a] = instVelHigh[a];
-              }
+              //Les seize touches portent les seize pistes, "a" etant directement le
+              //numero de piste. Le switch n'avait pas de cas pour 12 a 15 : ces
+              //quatre-la ne posaient aucune velocite. InstValueGet() en pose une pour
+              //elles quand on edite au pas - instVelHigh vaut 80 sur les seize entrees -
+              //et un pas pose en TAP doit etre indiscernable d'un pas pose au pas.
+              if (isRunning) pattern[ptrnBuffer].velocity[a][tapStepCount] = instVelHigh[a];
+              //tapVel[] n'est que la table du multiplexeur : douze voix, pas au-dela.
+              if (a < NBR_TAP_INST) tapVel[a] = instVelHigh[a];
 
               //-----SET Velocity Values-----//
               //C'etait la QUATRIEME copie du balayage des douze adresses, celle que la
@@ -513,13 +513,46 @@ void SeqParameter()
               //    -100 us. La frappe dure autant qu'avant.
               SetMuxTap();
 
-              //instOut[12..15] n'a jamais ete initialise et valait donc 0, c'est-a-dire
-              //BD : les touches 13 a 16 declenchent et enregistrent une GROSSE CAISSE en
-              //mode TAP. Reconduit ici tel quel - ce qu'elles devraient faire est un choix
-              //de geste, pas un defaut de forme. Porte au carnet.
-              byte out = (a < NBR_TAP_INST) ? a : BD;
-              SetDoutTrig(1 << out);
-              if(isRunning) bitSet(tempInst[out],tapStepCount);
+              //LES QUATRE DERNIERES TOUCHES. Elles passaient par instOut[12..15], jamais
+              //initialise et valant donc 0 : les touches 13 a 16 tapaient toutes une
+              //grosse caisse, et l'enregistraient. Elles jouent desormais les quatre
+              //pistes sans voix, qui sont deja les instruments 12 a 15 et que le geste
+              //INST + touche atteint par les memes indices.
+              //Chacune fait ce que l'interruption du sequenceur fait pour elle, et rien
+              //de plus - cf le bloc de declenchement de Clock.ino :
+              //
+              //  12 GLOBAL_ACC  N'EST PAS UN DECLENCHEMENT. L'interruption l'exclut
+              //                 explicitement du mot de trigs ; il est lu par MuxValue()
+              //                 pendant le balayage. La touche pose donc l'accent dans le
+              //                 pattern, et ne sonne pas d'elle-meme.
+              //  13 EXT_INST    une note de la pile part en MIDI, comme au sequenceur.
+              //  14 TR1         actif a l'etat BAS. C'est SetTrigTime() qui le relache, a
+              //                 chaque tour de boucle principale : rien a faire ici, et
+              //                 surtout pas une seconde voie de relachement.
+              //  15 TR2         actif a l'etat haut - et il NE RETOMBE PAS, TR2_LOW
+              //                 n'etant ecrit nulle part. Le sequenceur est reproduit tel
+              //                 quel plutot que repare ici seulement : le jour ou TR2
+              //                 apprendra a retomber, ce sera au meme endroit pour les
+              //                 deux. Cf carnet.
+              if (a != GLOBAL_ACC){
+                if (a == TR1){ TR1_LOW;  trig1State = HIGH; }
+                if (a == TR2){ TR2_HIGH; trig2State = HIGH; }
+                SetDoutTrig(1 << a);
+              }
+              if (a == EXT_INST){
+                InitMidiNoteOff();
+                MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], HIGH_VEL);
+                midiNoteOnActive = TRUE;
+                //noteIndexCpt est volatile et avance aussi dans l'interruption. Sur AVR un
+                //++ est lire-modifier-ecrire : un tick tombant au milieu perdrait un cran.
+                //Ferme le temps des trois instructions, comme partout ailleurs ici.
+                byte sreg = SREG;
+                cli();
+                noteIndexCpt++;
+                if (noteIndexCpt > pattern[ptrnBuffer].extLength) noteIndexCpt = 0;
+                SREG = sreg;
+              }
+              if(isRunning) bitSet(tempInst[a],tapStepCount);
               delayMicroseconds(2000);
               SetDoutTrig(0);// Reset Trig
             }      
