@@ -288,7 +288,7 @@ void SeqParameter()
         pattern[ptrnBuffer].scale[a] = SCALE_16;
         pattern[ptrnBuffer].dir[a] = 0;//0 is forward
       }
-      //Les deux champs "globaux" sont le resume des deux tableaux qu'on vient de
+      //Les trois champs "globaux" sont le resume des trois tableaux qu'on vient de
       //reecrire, et ils restaient sur l'ancien pattern.
       //globalLength decide de la FIN DE MESURE (Clock.ino) : effacer un pattern de huit
       //pas donnait seize pas par instrument et une mesure qui finissait toujours au
@@ -298,11 +298,17 @@ void SeqParameter()
       //globalScale fait avancer tapStepCount (Clock.ino) : efface depuis une grille de
       //32e, le compteur du mode TAP gardait cette grille-la alors que les seize
       //instruments etaient repasses en 16e.
-      //Les memes deux valeurs que la boucle ci-dessus, pas d'autres : NBR_STEP - 1 et
-      //SCALE_16. UpdateLongerInst() derriere, parce que longerInstLength designait encore
-      //l'instrument le plus long d'AVANT - cf son en-tete dans SeqFunc.ino.
+      //globalShuffle sert de point de depart a la molette de shuffle global (Enc.ino) :
+      //apres un effacement il la faisait repartir de l'ancienne valeur au lieu de
+      //DEFAULT_SHUF. Ajoute le 14/09 apres les deux autres - il avait ete manque parce
+      //qu'on avait corrige les deux champs trouves sans chercher s'il y en avait un
+      //troisieme. La boucle ci-dessus ecrit trois tableaux, il fallait trois resumes.
+      //Les memes valeurs que cette boucle, pas d'autres : NBR_STEP - 1, SCALE_16 et
+      //DEFAULT_SHUF. UpdateLongerInst() derriere, parce que longerInstLength designait
+      //encore l'instrument le plus long d'AVANT - cf son en-tete dans SeqFunc.ino.
       pattern[ptrnBuffer].globalLength = NBR_STEP - 1;
       pattern[ptrnBuffer].globalScale = SCALE_16;
+      pattern[ptrnBuffer].globalShuffle = DEFAULT_SHUF;
       UpdateLongerInst();
       ////////////////////////////////////////////////////////////////////////
       //init all intrument velocity ||   PEUT ETRE SUPPRIMER, A TESTER !!!  ||

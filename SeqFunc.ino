@@ -73,7 +73,16 @@ void CopyPatternToBuffer()
   bufferedPattern.extLength = pattern[ptrnBuffer].extLength;
   bufferedPattern.globalAcc = pattern[ptrnBuffer].globalAcc;
 
-  for ( byte j = 0; j < pattern[ptrnBuffer].extLength; j++){
+  //extLength EST L'INDEX DE LA DERNIERE NOTE, pas un compte - quatre sites le disent :
+  //LCD.ino affiche extLength + 1, key.ino pose extLength = noteIndex - 1 en ajoutant une
+  //note, Clock.ino joue bien l'index extLength avant de reboucler, et le note-off de
+  //Midi.ino va chercher extNote[extLength]. Une pile de cinq notes a donc extLength = 4.
+  //La borne etait stricte : la copie s'arretait a l'avant-derniere note et la derniere
+  //gardait ce que le pattern de destination avait a cette place. C'est celle qui ferme
+  //la phrase, donc celle qu'on entend le mieux.
+  //extNote[] compte 128 entrees et extLength est borne a MAX_EXT_INST_NOTE = 99 : la
+  //borne inclusive ne peut pas deborder.
+  for ( byte j = 0; j <= pattern[ptrnBuffer].extLength; j++){
     bufferedPattern.extNote[j] = pattern[ptrnBuffer].extNote[j];
   }
 }
@@ -103,7 +112,8 @@ void PasteBufferToPattern()
   pattern[ptrnBuffer].extLength = bufferedPattern.extLength;
   pattern[ptrnBuffer].globalAcc = bufferedPattern.globalAcc;
 
-  for ( byte j = 0; j < bufferedPattern.extLength; j++){
+  //Borne inclusive, cf CopyPatternToBuffer() : extLength est l'index de la derniere note.
+  for ( byte j = 0; j <= bufferedPattern.extLength; j++){
     pattern[ptrnBuffer].extNote[j] = bufferedPattern.extNote[j];
   }
 }
@@ -342,7 +352,19 @@ void PatternChainUpdate(SeqMode playMode)
 //needLcdUpdate reste chez l'appelant : tous les sites n'en veulent pas.
 void TrackPosToPattern()
 {
-  nextPattern = track[trkBuffer].patternNbr[trk.pos];
+  //patternNbr[] SORT DE L'EEPROM ET N'EST VALIDE PAR PERSONNE. LoadTrack() borne depuis
+  //le 14/09 la LONGUEUR de la piste, pas son CONTENU. Un octet de zone vierge vaut 0xFF,
+  //soit 255, alors que MAX_PTRN vaut 128 - et LoadPattern() prend un byte sans rien
+  //verifier : l'adresse calculee sortait de la zone des patterns pour aller lire dans
+  //celle des pistes. Lecture seule, donc rien n'est detruit, mais ca joue du bruit.
+  //C'est le danger que InitPattern() decrit deja pour group.firstPattern - il avait ete
+  //bouche la, et pas ici, alors que LoadPattern() n'a que deux appelants et que celui-ci
+  //est le seul qui puisse lui passer n'importe quoi.
+  //Zero plutot qu'un ecretage a MAX_PTRN - 1 : un numero impossible ne designe aucun
+  //pattern, et ecreter fabriquerait une donnee plausible a partir d'une donnee fausse.
+  //Meme raisonnement que la longueur de piste remise a zero dans LoadTrack().
+  byte ptrn = track[trkBuffer].patternNbr[trk.pos];
+  nextPattern = (ptrn < MAX_PTRN) ? ptrn : 0;
   if (curPattern != nextPattern) selectedPatternChanged = TRUE;
 }
 
