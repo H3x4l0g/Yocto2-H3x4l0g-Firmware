@@ -407,12 +407,14 @@ void SwitchPatternBuffer()
   //pas continue donc de tourner sur quatre mesures, comme avant.
   //Un octet, donc une ecriture atomique sur AVR : rien a fermer.
   noteIndexCpt = 0;
-  //When pattern changed init all instrument step counter
-  for (byte z = 0; z < NBR_INST; z++){
-    stepCount[z] = 0;
-  }
   ptrnBuffer = !ptrnBuffer;
   InitPattern();//SHOULD BE REMOVED WHEN EEPROM WILL BE INITIALIZED
+  //Les seize compteurs de pas etaient remis a zero ICI, avant la bascule. Ils le sont
+  //maintenant APRES, et alignes sur la barre plutot que sur zero : cf AlignStepCount().
+  //Apres la bascule parce que ce sont la scale et la longueur du nouveau pattern qui
+  //decident, et apres InitPattern() parce que celle-ci recalcule longerInstLength, dont
+  //la scale sert de reference.
+  AlignStepCount();
   InstToStepWord();
 }
 
@@ -429,6 +431,67 @@ void ResyncStepCount(byte inst)
   int grid = globalStepCount;
   if (grid < 0) grid = 0;
   stepCount[inst] = grid % (pattern[ptrnBuffer].length[inst] + 1);
+  SREG = sreg;
+}
+
+//Aligner les compteurs de pas sur LA BARRE, et non sur zero----------------------------
+//SwitchPatternBuffer() remettait les seize stepCount[] a zero. Zero dit QUEL index, jamais
+//QUAND : un instrument tire quand ppqn % sa scale vaut zero, sur une grille absolue que la
+//remise a zero ne deplace pas d'un tick.
+//
+//Or LA DEMANDE DE CHANGEMENT PART AU DERNIER PAS DE LA MESURE, pas a la barre -
+//globalStepCount depasse globalLength a ce tick-la. Il reste donc un pas de reference
+//entier, ou les ~12 ms de LoadPattern() tiennent largement ; la remise a zero atterrit
+//quelques ticks apres. D'ou deux sorts opposes :
+//  - un instrument a la scale de REFERENCE ne tire plus avant la barre, son index 0 y
+//    tombe pile. C'est le cas courant, et c'est pourquoi le defaut est reste invisible ;
+//  - un instrument PLUS RAPIDE tire encore une fois avant la barre et y joue son index 0.
+//    L'index 1 tombe alors sur la barre, l'index 2 apres, et son pattern entier est
+//    decale d'un pas POUR TOUTE SA DUREE.
+//Releve en jouant le 15/09/2026 : un 1/32 sous une reference en 1/16, decale de +1 pas,
+//100 % reproductible. Le compte l'explique et predit la constance : frappes en trop =
+//(ticks restants - 1) / scale, soit 1 pour un 1/32 et 0 pour un 1/16 a TOUT tempo, le
+//retard de chargement ne faisant varier le numerateur que de quelques ticks sur vingt.
+//
+//On pose donc l'index qui fait tomber le zero SUR LA BARRE : les frappes en trop
+//consomment la FIN du cycle au lieu de son debut. Zero frappe en trop rend span, que le
+//rebouclage en tete de boucle du tick ramene a zero - le cas courant ne bouge pas d'un
+//octet, et c'est voulu.
+//
+//APPELEE APRES LA BASCULE DE ptrnBuffer : ce sont la scale et la longueur du NOUVEAU
+//pattern qui gouvernent les frappes a venir. Exact tant que les deux patterns partagent
+//leur scale de reference - sinon la barre elle-meme se deplace, et c'est un autre sujet.
+//
+//Le -1 du numerateur n'est pas cosmetique : sans lui, une barre distante d'un multiple
+//exact de la scale compterait une frappe de trop, celle qui tombe SUR la barre.
+//La publication est fermee parce que stepCount[] est un int : deux octets, donc une
+//ecriture non atomique que l'interruption pouvait lire a moitie. Le calcul, lui, reste
+//dehors - seize divisions ne se font pas interruptions coupees.
+void AlignStepCount()
+{
+  int wanted[NBR_INST];
+
+  byte scRef = pattern[ptrnBuffer].scale[longerInstLength];
+  if (!scRef) scRef = SCALE_16;//une scale nulle sortirait d'un pattern corrompu, et on
+                               //divise par elle juste en dessous
+  //ppqn parcourt 1 a 96 et toutes les scales divisent 96 : le reste est donc la position
+  //dans le pas de reference courant, et ce qui manque pour atteindre le suivant - la
+  //barre - en est le complement.
+  byte remain = scRef - (byte)(ppqn % scRef);
+
+  for (byte z = 0; z < NBR_INST; z++){
+    byte sc = pattern[ptrnBuffer].scale[z];
+    if (!sc) sc = SCALE_16;
+    byte span = pattern[ptrnBuffer].length[z] + 1;
+    byte extra = (byte)((remain - 1) / sc);//frappes STRICTEMENT avant la barre
+    if (extra >= span) extra %= span;      //pile plus courte que l'avance : sans objet
+    byte s = span - extra;
+    wanted[z] = (s >= span) ? 0 : s;
+  }
+
+  byte sreg = SREG;
+  cli();
+  for (byte z = 0; z < NBR_INST; z++) stepCount[z] = wanted[z];
   SREG = sreg;
 }
 
