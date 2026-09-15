@@ -159,7 +159,7 @@ void LcdUpdate()
         break;
       case TRACK_WRITE:
         lcd.setCursor(0,0);
-        lcd.print("pos ptr len num ");
+        lcd.print("pos ptr len trk ");
         lcd.setCursor(cursorPos[curIndex],0);
         lcd.print(letterUpTrackWrite[curIndex]);
         lcd.setCursor(0,1);

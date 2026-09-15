@@ -570,8 +570,11 @@ byte curIndex;//position of the cursor
 byte curPage = 0;
 byte cursorPos[MAX_CUR_POS]={
   0, 4, 8, 12};
+//La quatrieme lettre etait N, pour "num". C'est le NUMERO DE PISTE, et l'appeler trk le
+//dit sans qu'on ait a le deviner - la touche du panneau qui y menait s'appelle NUM, mais
+//le champ, lui, designe une piste.
 const char *letterUpTrackWrite[MAX_CUR_POS]={
-  "P", "P", "L", "N"};
+  "P", "P", "L", "T"};
 const char *letterUpExtInst[MAX_CUR_POS]={
   "I", "N", "L", "O"};
 const char *letterUpConfPage1[MAX_CUR_POS]={
