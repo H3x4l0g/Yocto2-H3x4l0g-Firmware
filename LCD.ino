@@ -175,31 +175,30 @@ void LcdUpdate()
         lcd.print(trk.current + 1);
         break;
       case TRACK_PLAY:
+        //LE TITRE RESTE SEUL EN HAUT. La piste y a d'abord ete collee a cote, en colonnes
+        //13 a 15 : "Track PlayT1" est laid et l'information etait mal placee. Elle
+        //descend sur la seconde ligne, a gauche, exactement la ou le pattern se trouvait.
+        //
+        //LE PATTERN COURANT PART AVEC, et c'est raisonne : PATT PLAY n'affiche pas les
+        //instruments qui jouent, cet ecran-ci n'a pas a afficher le pattern engage. En
+        //mode piste, ce qu'on suit est LA PISTE ET LA POSITION DEDANS - le pattern est un
+        //detail d'execution, et TRACK EDIT le montre pour qui le veut.
+        //
+        //D'ou l'ordre de lecture : quelle piste a gauche, ou l'on en est a droite.
+        //Base 1 des deux cotes, comme partout ailleurs.
         lcd.setCursor(0,0);
-        //PATT PLAY dit quel pattern joue ; TRACK PLAY ne disait pas quelle PISTE. On y
-        //voyait la position et le pattern courant, jamais le slot - alors que la piste
-        //est ce que l'ecran represente en entier.
-        //Elle va dans le titre et pas sur la seconde ligne : celle-ci est deja pleine de
-        //"pos" et "ptrn", qui changent tous les deux en jouant, tandis que la piste est
-        //l'identite de l'ecran - au meme titre que les mots "Track Play".
-        //Les colonnes 13 a 15 du titre etaient trois espaces, il n'y a donc rien a
-        //sacrifier. Base 1 comme partout ailleurs : la piste 1 est la premiere.
         lcd.print("   Track Play   ");
-        lcd.setCursor(13,0);
-        lcd.print("T");
+        lcd.setCursor(0,1);
+        LcdClearLine();
+        lcd.setCursor(0,1);
+        lcd.print("trk:");
         lcd.print(trk.current + 1);
-        lcd.setCursor(0,1);
-        LcdClearLine(); 
-        lcd.setCursor(0,1);
+        lcd.setCursor(8,1);
         lcd.print("pos:");
         //Le +1 manquait ici : la meme variable etait affichee en base 0 en lecture et en
         //base 1 en edition, donc la premiere mesure s'appelait 0 d'un cote et 1 de
         //l'autre. Base 1 partout - une piste commence a la mesure 1.
         lcd.print(trk.pos + 1);
-        lcd.setCursor(8,1);
-        lcd.print("ptrn:");
-        lcd.print((char)((curPattern / 16) + 65));
-        lcd.print(curPattern - ((curPattern / 16)*NBR_PATTERN) + 1); 
         break;
       }
 
