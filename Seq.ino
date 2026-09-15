@@ -552,18 +552,22 @@ void SeqParameter()
               }
               if (a == EXT_INST){
                 InitMidiNoteOff();
+                //Meme regle que le tick : on BORNE, on releve l'index, on avance - et le
+                //tout d'un bloc. noteIndexCpt est volatile et avance aussi dans
+                //l'interruption ; sur AVR un ++ est lire-modifier-ecrire, donc un tick
+                //tombant au milieu perdrait un cran. L'emission est faite APRES, hors des
+                //interruptions fermees : elle ecrit sur le port serie, ce n'est pas un
+                //endroit ou les tenir.
+                byte sreg = SREG;
+                cli();
+                if (noteIndexCpt > pattern[ptrnBuffer].extLength) noteIndexCpt = 0;
+                byte extIdx = noteIndexCpt;
+                noteIndexCpt++;
+                SREG = sreg;
                 //instVelHigh[EXT_INST] et non HIGH_VEL : la frappe enregistre un pas
                 //plein juste au-dessus, elle doit sonner comme ce qu'elle ecrit. En TAP
                 //la piste EXT part donc accentuee, comme les douze voix y partent pleines.
-                MidiExtNoteOn(pattern[ptrnBuffer].extNote[noteIndexCpt], instVelHigh[EXT_INST]);
-                //noteIndexCpt est volatile et avance aussi dans l'interruption. Sur AVR un
-                //++ est lire-modifier-ecrire : un tick tombant au milieu perdrait un cran.
-                //Ferme le temps des trois instructions, comme partout ailleurs ici.
-                byte sreg = SREG;
-                cli();
-                noteIndexCpt++;
-                if (noteIndexCpt > pattern[ptrnBuffer].extLength) noteIndexCpt = 0;
-                SREG = sreg;
+                MidiExtNoteOn(pattern[ptrnBuffer].extNote[extIdx], instVelHigh[EXT_INST]);
               }
               if(isRunning) bitSet(tempInst[a],tapStepCount);
               delayMicroseconds(2000);

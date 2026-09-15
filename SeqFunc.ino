@@ -391,6 +391,22 @@ void SwitchPatternBuffer()
   keybOct = DEFAULT_OCT;
   noteIndex = 0;
   InitMidiNoteOff();
+  //LA PILE DE NOTES REPART DU DEBUT, ELLE AUSSI. noteIndexCpt - le compteur de LECTURE,
+  //a ne pas confondre avec noteIndex juste au-dessus qui est le curseur d'EDITION -
+  //etait le seul etat de la piste EXT a survivre au changement de pattern. Or extNote[]
+  //et extLength appartiennent AU PATTERN : continuer un index dans une autre pile ne
+  //veut rien dire, l'index 8 d'une pile de 10 n'ayant aucun rapport avec l'index 8 d'une
+  //pile de 7.
+  //En jeu ca donnait exactement ce qui a ete signale : aller du pattern 1 (7 notes) au
+  //pattern 2 (10 notes) et revenir laissait la pile du 1 decalee d'un montant arbitraire
+  //- celui de ce qu'avait consomme le 2. Un pattern ne sonnait plus pareil d'une fois
+  //sur l'autre.
+  //LA DERIVE CONTRE LA GRILLE N'EST PAS TOUCHEE, et c'est ce qui compte : elle se produit
+  //A L'INTERIEUR d'un pattern qui boucle, et cette fonction n'est appelee que si le
+  //numero change vraiment (cf selectedPatternChanged). Une pile de cinq notes sur seize
+  //pas continue donc de tourner sur quatre mesures, comme avant.
+  //Un octet, donc une ecriture atomique sur AVR : rien a fermer.
+  noteIndexCpt = 0;
   //When pattern changed init all instrument step counter
   for (byte z = 0; z < NBR_INST; z++){
     stepCount[z] = 0;

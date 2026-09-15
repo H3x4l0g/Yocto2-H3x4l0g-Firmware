@@ -306,6 +306,14 @@ void CountPPQN() {
       //tenait la note jusqu'au STOP. Le demute ne la rattrapait pas non plus.
       InitMidiNoteOff();
 
+      //BORNER AVANT DE LIRE, ET NON APRES AVOIR INCREMENTE. L'ecretage vivait a la fin du
+      //bloc : l'index etait donc borne contre la pile du tour PRECEDENT, et une pile
+      //raccourcie a la molette entre-temps laissait lire une note hors d'elle. Le
+      //changement de pattern avait le meme effet, jusqu'a ce que SwitchPatternBuffer()
+      //remette le compteur a zero - mais borner ici ferme le cas restant, celui du
+      //champ [len] qu'on raccourcit pendant que ca tourne.
+      if (noteIndexCpt > pattern[ptrnBuffer].extLength) noteIndexCpt = 0;
+
       //Seule L'EMISSION est masquee par le mute, pas l'avancement.
       if (bitRead(sv, EXT_INST)) {
         //La velocite du PAS, et non plus HIGH_VEL en dur. Elle etait pourtant deja
@@ -322,9 +330,6 @@ void CountPPQN() {
       }
 
       noteIndexCpt++;  //avancer d'une note dans la pile, mute ou non
-      if (noteIndexCpt > pattern[ptrnBuffer].extLength) {
-        noteIndexCpt = 0;
-      }
     }
 
     //Fin de mesure : la piste avance d'un cran et le pattern suivant peut prendre la main
