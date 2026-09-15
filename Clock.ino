@@ -263,6 +263,18 @@ void CountPPQN() {
       }
     }
 
+    //LA PISTE EXT A DEUX POSITIONS, et le mute n'en concerne qu'une. La grille dit QUAND,
+    //la pile de notes dit QUOI, et les deux avancent independamment - c'est ce qui fait
+    //qu'une pile de cinq notes sur seize pas tourne contre la mesure. Muter une voix ne
+    //deplace jamais sa grille : elle continue de tourner, muette, et se retrouve en phase
+    //au demute. La pile, elle, s'arretait - parce que son avancement etait enferme dans
+    //le test du mot de trigs DEJA MASQUE.
+    //Au demute la phrase repartait donc d'ou elle s'etait figee, decalee de tous les pas
+    //passes sous le mute : le rapport entre la grille et la pile etait perdu, et c'est
+    //precisement ce rapport qui fait la fonction.
+    //On releve donc l'etat du pas EXT AVANT le masque, et on masque seulement l'emission.
+    boolean extStep = bitRead(sv, EXT_INST);
+
     //Retirer les instruments mutes, puis publier pour Led.ino
     sv &= ~muteInst;
     stepValue = sv;
@@ -282,11 +294,20 @@ void CountPPQN() {
       SetMux();
       SetDoutTrig(sv);
       StartTrigPulse();  //Timer2 relache les sorties 2 ms plus tard
+    }  //FIN DU BLOC DE DECLENCHEMENT
 
-      //L'instrument externe------------------------------------------
-      if (bitRead(sv, EXT_INST))  //pattern[ptrnBuffer].inst[EXT_INST], curStep[EXT_INST]))
-      {
-        InitMidiNoteOff();
+    //L'instrument externe------------------------------------------
+    //HORS du bloc ci-dessus, et c'est le correctif : il etait gouverne par "if (sv)",
+    //donc tout muter suffisait a figer la pile meme sans muter EXT.
+    if (extStep) {
+      //APPELE MUTE OU NON. Il ne fait quelque chose que si une note est en l'air, et
+      //muter EXT pendant qu'une note tenue sonne laissait justement cette note EN L'AIR :
+      //le prochain pas EXT ne passait plus par ici pour la relacher, et le synthe en face
+      //tenait la note jusqu'au STOP. Le demute ne la rattrapait pas non plus.
+      InitMidiNoteOff();
+
+      //Seule L'EMISSION est masquee par le mute, pas l'avancement.
+      if (bitRead(sv, EXT_INST)) {
         //La velocite du PAS, et non plus HIGH_VEL en dur. Elle etait pourtant deja
         //enregistree et sauvegardee, simplement jamais relue : c'est elle qui porte
         //l'accent depuis que la piste EXT a un cycle a trois etats (cf InstValueGet).
@@ -299,12 +320,13 @@ void CountPPQN() {
         if (extVel > 127) extVel = 127;
         MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], extVel);
         midiNoteOnActive = TRUE;
-        noteIndexCpt++;  //avancer d'une note dans la pile
       }
+
+      noteIndexCpt++;  //avancer d'une note dans la pile, mute ou non
       if (noteIndexCpt > pattern[ptrnBuffer].extLength) {
         noteIndexCpt = 0;
       }
-    }  //FIN DU BLOC DE DECLENCHEMENT
+    }
 
     //Fin de mesure : la piste avance d'un cran et le pattern suivant peut prendre la main
     if (globalStepCount > pattern[ptrnBuffer].globalLength) {
