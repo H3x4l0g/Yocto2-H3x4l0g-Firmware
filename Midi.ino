@@ -41,16 +41,46 @@ void  InitMidiRealTime()
   midiContinue = LOW;
 }
 
+//Envoyer la note EXT en cours, et RETENIR ce qu'on a envoye----------------------------
+//Les deux sites qui jouent la piste EXT - le tick du sequenceur et la frappe en mode TAP -
+//faisaient chacun leur note-on puis posaient midiNoteOnActive a la main. Un seul endroit
+//desormais : oublier de retenir la hauteur redonnerait exactement le bug que ce couple
+//vient de fermer.
+void MidiExtNoteOn(byte pitch, byte velocity)
+{
+  midiNoteOnPitch = pitch;
+  midiNoteOnActive = TRUE;
+  MidiSendNoteOn(seq.TXchannel, pitch, velocity);
+}
+
 //Couper la note EXT en cours : a l'arret, au changement de pattern, au rebouclage de la
-//pile de notes. noteIndexCpt designe la note SUIVANTE, d'ou le -1 ; a zero, la derniere
-//jouee etait celle de l'index extLength, la pile venant de reboucler.
+//pile de notes, et sous un mute.
+//
+//ELLE SE RETIENT, ELLE NE SE RECALCULE PLUS. Le code d'origine reconstruisait la hauteur
+//depuis extNote[noteIndexCpt - 1] - la note SUIVANTE moins un - et depuis extNote[] tel
+//qu'il est MAINTENANT. Trois chemins ont le droit de deplacer l'un ou l'autre entre le
+//note-on et le note-off :
+//  - PLAY remet noteIndexCpt a zero. Appuyer sur PLAY pendant qu'une note sonne envoyait
+//    donc le note-off sur extNote[extLength] au lieu de la bonne : la note en cours
+//    restait en l'air, DEFINITIVEMENT. Quelques PLAY d'affilee et le synthe en face
+//    accumule les notes coincees jusqu'a ne plus rien jouer.
+//  - le coller de pattern reecrit extNote[] sous la note qui sonne.
+//  - le mode clavier y ecrit note par note.
+//Un octet retenu, et les trois disparaissent d'un coup.
+//
+//La copie sous interruptions fermees parce que les deux champs sont UN SEUL FAIT, ecrit
+//par le tick comme par la boucle principale : les lire en deux temps laisserait la
+//fenetre ou l'on relache la hauteur d'une note qui n'est plus celle qui sonne.
 void InitMidiNoteOff()
 {
-  if(midiNoteOnActive){
-    midiNoteOnActive = FALSE;
-    if (noteIndexCpt) MidiSendNoteOff(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt - 1]);
-    else MidiSendNoteOff(seq.TXchannel, pattern[ptrnBuffer].extNote[pattern[ptrnBuffer].extLength]);
-  }
+  byte sreg = SREG;
+  cli();
+  boolean active = midiNoteOnActive;
+  byte pitch = midiNoteOnPitch;
+  midiNoteOnActive = FALSE;
+  SREG = sreg;
+
+  if (active) MidiSendNoteOff(seq.TXchannel, pitch);
 }
 
 //Envoyer un note-off
@@ -269,6 +299,12 @@ void MidiTrigOff(byte inst)
 //donc aussi les verrous locaux, et rend TRIG-1 au repos si une note 60 le tenait.
 void SendAllNoteOff()
 {
+  //La note EXT etait confiee au SEUL CC 123, que beaucoup de machines ignorent - une
+  //x0xb0x parmi elles. Un note-off explicite d'abord, le CC ensuite pour le reste : on
+  //ne demande pas poliment de couper ce qu'on sait couper soi-meme. Ca remet aussi
+  //midiNoteOnActive a zero, qui restait leve apres un STOP et faisait partir un note-off
+  //perime au pas EXT suivant.
+  InitMidiNoteOff();
   MIDI.sendControlChange(ALL_NOTE_OFF , 0, seq.TXchannel);
   for (byte z = 0; z < NBR_INST; z++) instWasMidiTrigged[z] = FALSE;
   TR1_HIGH;

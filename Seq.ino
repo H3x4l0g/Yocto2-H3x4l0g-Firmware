@@ -68,6 +68,11 @@ void SeqParameter()
     }
     tapStepCount = 0;
     stopBtn.counter = 0;
+    //RELACHER AVANT DE REMETTRE L'INDEX A ZERO. Appuyer sur PLAY pendant qu'une note EXT
+    //sonne la laissait en l'air : plus rien ensuite ne savait laquelle couper. C'est
+    //ferme des deux cotes maintenant - la hauteur est retenue (cf InitMidiNoteOff), et on
+    //relache ici plutot que d'attendre le prochain pas EXT.
+    InitMidiNoteOff();
     noteIndexCpt = 0;//init ext instrument note index counter
     MIDI.sendRealTime(midi::Start);//;MidiSend(START_CMD);
     DIN_START_HIGH;
@@ -550,8 +555,7 @@ void SeqParameter()
                 //instVelHigh[EXT_INST] et non HIGH_VEL : la frappe enregistre un pas
                 //plein juste au-dessus, elle doit sonner comme ce qu'elle ecrit. En TAP
                 //la piste EXT part donc accentuee, comme les douze voix y partent pleines.
-                MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], instVelHigh[EXT_INST]);
-                midiNoteOnActive = TRUE;
+                MidiExtNoteOn(pattern[ptrnBuffer].extNote[noteIndexCpt], instVelHigh[EXT_INST]);
                 //noteIndexCpt est volatile et avance aussi dans l'interruption. Sur AVR un
                 //++ est lire-modifier-ecrire : un tick tombant au milieu perdrait un cran.
                 //Ferme le temps des trois instructions, comme partout ailleurs ici.

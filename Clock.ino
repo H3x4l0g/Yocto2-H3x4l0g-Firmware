@@ -318,8 +318,7 @@ void CountPPQN() {
         //n'est pas une velocite MIDI valable.
         byte extVel = pattern[ptrnBuffer].velocity[EXT_INST][curStep[EXT_INST]];
         if (extVel > 127) extVel = 127;
-        MidiSendNoteOn(seq.TXchannel, pattern[ptrnBuffer].extNote[noteIndexCpt], extVel);
-        midiNoteOnActive = TRUE;
+        MidiExtNoteOn(pattern[ptrnBuffer].extNote[noteIndexCpt], extVel);
       }
 
       noteIndexCpt++;  //avancer d'une note dans la pile, mute ou non

@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.045"
+#define FW_VERSION  "Yocto v2.046"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -584,6 +584,14 @@ const char *letterUpConfPage2[MAX_CUR_POS]={
 
 //MIDI-----------------------------------------------
 volatile boolean midiNoteOnActive = FALSE;
+//LA HAUTEUR REELLEMENT ENVOYEE, retenue plutot que recalculee. InitMidiNoteOff() la
+//reconstruisait depuis extNote[noteIndexCpt - 1], c'est-a-dire depuis un index et une
+//pile que TROIS autres chemins ont le droit de deplacer entre le note-on et le note-off :
+//le bouton PLAY qui remet noteIndexCpt a zero, le coller de pattern qui reecrit extNote[],
+//et le mode clavier qui y ecrit note par note. Le note-off partait alors sur une autre
+//hauteur, et celle qui sonnait restait en l'air pour toujours.
+//Un octet, et la classe entiere disparait : on relache exactement ce qu'on a envoye.
+volatile byte midiNoteOnPitch = 0;
 boolean midiStart;
 boolean midiStop;
 boolean midiContinue;
