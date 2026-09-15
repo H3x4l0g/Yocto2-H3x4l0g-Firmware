@@ -122,9 +122,29 @@ void EncGet()
   }
   ///////////////////////////////////TRACK WRITE////////////////////////////////////
   else if (from == TRACK_WRITE && !tempoBtn.pressed && !seq.configMode){
+    //L'ACCOLADE DE FERMETURE DU PREMIER if MANQUAIT, et c'est mot pour mot le defaut du
+    //bloc clavier corrige la veille - quinze lignes plus bas, dans ce meme fichier. Le
+    //"break" du cas 0 etait enferme dans ce if, donc les cas 1, 2 et 3 y etaient
+    //imbriques. Reparer l'instance qu'on a sous les yeux sans lever la tete pour voir si
+    //elle a une jumelle, c'est la deuxieme fois cette semaine.
+    //
+    //ICI CE N'ETAIT PAS SANS CONSEQUENCE, contrairement au bloc clavier. Quand le curseur
+    //est sur "pos" et que trk.pos ne bouge pas - c'est-a-dire A CHAQUE TOUR DE BOUCLE ou
+    //l'on ne tourne rien - le if etait faux, le break saute, et l'execution tombait dans
+    //le cas 1 puis le cas 2. Le cran etant deja consomme, les valeurs ne bougeaient pas ;
+    //les tests de temoin, eux, s'executaient. Or track[].length change par d'AUTRES
+    //chemins, et surtout par LoadTrack() : prevTrkLength restait donc perime sur
+    //l'ancienne piste et trackNeedSaved repassait a TRUE tout seul au tour suivant.
+    //Resultat visible : apres un changement de piste, la LED ENTER clignotait sur une
+    //piste qu'on n'avait pas touchee, et la maintenir la reecrivait en EEPROM pour rien.
+    //
+    //Les quatre temoins statiques partent avec, comme les deux du shuffle la veille : la
+    //valeur d'avant dit la meme chose sans rien retenir entre deux passes, donc rien ne
+    //peut etre perime. Une accolade par cas, les declarations ne pouvant pas etre
+    //franchies par un saut de "case".
     switch (curIndex){
-      //track position
-    case 0://track position
+    case 0:{//la position dans la piste
+      unsigned int before = trk.pos;
       if(instBtn) trk.pos = EncGet(trk.pos, 10);
       else trk.pos = EncGet(trk.pos, 1);
       //Meme borne que FWD dans Seq.ino, et pour la meme raison : sans elle la molette
@@ -132,38 +152,56 @@ void EncGet()
       //track[].length est le premier emplacement libre, celui ou l'on ajoute.
       trk.pos = constrain(trk.pos, 0, (int)track[trkBuffer].length);
       trk.pos = constrain(trk.pos, 0, MAX_TRACK_POS);//garde-fou si la piste est corrompue
-      static unsigned int prevTrkPos;
-      if (trk.pos != prevTrkPos){
-        prevTrkPos = trk.pos;
+      if (trk.pos != before){
         TrackPosToPattern();
         needLcdUpdate = TRUE;
-        break;
-      case 1:// track pattern
-        if(instBtn) nextPattern = EncGet(nextPattern, 16);
-        else nextPattern = EncGet(nextPattern, 1);
-        nextPattern = constrain(nextPattern, 0, MAX_PTRN - 1);
-        static unsigned int prevNextPattern;
-        if (nextPattern != prevNextPattern){
-          prevNextPattern = nextPattern;
-          if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-          needLcdUpdate = TRUE;
-        }
-        break;
-      case 2://track length
-        if(instBtn) track[trkBuffer].length = EncGet(track[trkBuffer].length, 10);
-        else track[trkBuffer].length = EncGet(track[trkBuffer].length, 1);
-        track[trkBuffer].length = constrain(track[trkBuffer].length, 0, MAX_TRACK_POS);
-        static unsigned int prevTrkLength;
-        if (track[trkBuffer].length != prevTrkLength){
-          prevTrkLength = track[trkBuffer].length;
-          trackNeedSaved = TRUE;
-          needLcdUpdate = TRUE;
-        }
-        break;
-      case 3://track number
-        //toDo
-        break;
       }
+      break;
+    }
+    case 1:{//le pattern pose a cette position
+      byte before = nextPattern;
+      if(instBtn) nextPattern = EncGet(nextPattern, 16);
+      else nextPattern = EncGet(nextPattern, 1);
+      nextPattern = constrain(nextPattern, 0, MAX_PTRN - 1);
+      if (nextPattern != before){
+        if(curPattern != nextPattern) selectedPatternChanged = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 2:{//la longueur de la piste
+      unsigned int before = track[trkBuffer].length;
+      if(instBtn) track[trkBuffer].length = EncGet(track[trkBuffer].length, 10);
+      else track[trkBuffer].length = EncGet(track[trkBuffer].length, 1);
+      track[trkBuffer].length = constrain(track[trkBuffer].length, 0, MAX_TRACK_POS);
+      if (track[trkBuffer].length != before){
+        trackNeedSaved = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 3:{//le numero de piste
+      //Le champ "num" existait a l'ecran, le curseur s'y arretait, et la molette n'y
+      //repondait pas : un "toDo" laisse par l'amont. Un ecran qui promet un parametre que
+      //la molette ne sert pas - exactement le reproche que l'en-tete de ce fichier fait
+      //lui-meme au mode TAP.
+      //Meme effet que NUM + touche de pas, le seul chemin qui existait jusqu'ici : on
+      //pose trk.next et selectedTrackChanged, et SeqParameter() charge la piste puis
+      //recale le pattern. L'ecran suit dans la meme passe, LcdUpdate() venant apres lui.
+      //UN CHARGEMENT PAR CRAN, comme une pression par touche - pas un par passe de
+      //boucle. LoadTrack() lit 1024 octets en I2C, soit ~23 ms : rouler vite sur dix
+      //pistes bloque la boucle un quart de seconde, comme dix pressions le feraient.
+      //Et comme par NUM, changer de piste abandonne les editions non sauvees de celle
+      //qu'on quitte - c'est le handler de selectedTrackChanged qui abaisse trackNeedSaved.
+      byte before = trk.next;
+      trk.next = EncGet(trk.next, 1);
+      trk.next = constrain(trk.next, 0, MAX_TRACK - 1);
+      if (trk.next != before){
+        selectedTrackChanged = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
     }
   }
 

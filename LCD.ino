@@ -176,7 +176,18 @@ void LcdUpdate()
         break;
       case TRACK_PLAY:
         lcd.setCursor(0,0);
+        //PATT PLAY dit quel pattern joue ; TRACK PLAY ne disait pas quelle PISTE. On y
+        //voyait la position et le pattern courant, jamais le slot - alors que la piste
+        //est ce que l'ecran represente en entier.
+        //Elle va dans le titre et pas sur la seconde ligne : celle-ci est deja pleine de
+        //"pos" et "ptrn", qui changent tous les deux en jouant, tandis que la piste est
+        //l'identite de l'ecran - au meme titre que les mots "Track Play".
+        //Les colonnes 13 a 15 du titre etaient trois espaces, il n'y a donc rien a
+        //sacrifier. Base 1 comme partout ailleurs : la piste 1 est la premiere.
         lcd.print("   Track Play   ");
+        lcd.setCursor(13,0);
+        lcd.print("T");
+        lcd.print(trk.current + 1);
         lcd.setCursor(0,1);
         LcdClearLine(); 
         lcd.setCursor(0,1);
