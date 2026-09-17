@@ -6,3 +6,8 @@ build/
 
 # Flash backups (keep these, but off the repo - they contain the bootloader)
 yocto-backup*.hex
+
+# Import KiCad depuis Eagle : dérivé du .sch suivi, et sym-lib-table
+# porte des chemins absolus propres à la machine.
+docs/eagle/*.kicad_sym
+docs/eagle/sym-lib-table
