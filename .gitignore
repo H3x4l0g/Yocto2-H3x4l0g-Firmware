@@ -11,3 +11,7 @@ yocto-backup*.hex
 # porte des chemins absolus propres à la machine.
 docs/eagle/*.kicad_sym
 docs/eagle/sym-lib-table
+
+# Listing de desassemblage : 1,2 Mo regeneres a chaque compilation,
+# et truffes de chemins absolus. Reste sur le disque, hors du depot.
+*.lst
