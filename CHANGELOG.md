@@ -3,11 +3,6 @@
 De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.048**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
-> Les versions **v2.031 à v2.047** ne sont pas encore dépouillées ici : une
-> trentaine de commits des 13, 14 et 15/09 — l'accent sur la piste EXT, le mode TAP,
-> les deux écrans de shuffle, TRACK PLAY redessiné, l'alignement des compteurs sur la
-> barre. Le carnet les porte toutes, ce fichier non.
-
 ## Encodeur
 
 - Un cran de la molette avance d'un pas. Il en comptait **quatre**.
@@ -18,6 +13,12 @@ le détail technique vit dans `TODO.md`.
 - SHUFFLE maintenu règle le shuffle en PATT TAP aussi. Il y bougeait le tempo en silence.
 - Le « Total Accent » s'appelle **Global Accent** : tous les paramètres qui portent sur
   le pattern entier sont des « global » dans cette machine.
+- **La molette ne touche qu'à ce qui est affiché.** C'est désormais la règle, et elle
+  tient en une phrase. En MUTE elle réglait le tempo en silence pendant que l'écran
+  montrait une page d'édition, un bargraphe de shuffle ou l'accent global : elle retrouve
+  le mode qui joue dessous. En TRACK PLAY, où le tempo n'est pas affiché non plus, elle
+  devient inerte. PATT PLAY reste le seul écran où elle règle le tempo nue — c'est le seul
+  où il se lit.
 
 ## Modes
 
@@ -28,6 +29,8 @@ le détail technique vit dans `TODO.md`.
 - La bascule lecture ↔ édition **dans** une famille reste libre, machine en marche
   comprise : elle ne change que ce que font les touches, jamais ce qui joue.
 - Quitter TRACK par la touche PATT ne jette plus les modifications de piste en silence.
+- **MUTE s'annonce en grand à l'écran.** Rien ne disait qu'on y était : on s'en apercevait
+  en voulant changer de pattern, trop tard.
 
 ## Lisibilité du panneau
 
@@ -41,6 +44,13 @@ le détail technique vit dans `TODO.md`.
 
 - Une touche pouvait devenir **définitivement muette** : sortir du mode clavier en la
   maintenant la tuait jusqu'au prochain passage par ce mode. Corrigé.
+- **En mode TAP, les touches 13 à 16 jouent les quatre pistes sans voix** — accent global,
+  instrument externe, TRIG-1 et TR2. Elles frappaient toutes une grosse caisse, et
+  l'enregistraient : quatre touches pour douze instruments écrits, les quatre dernières
+  tombaient sur la case zéro.
+- **Une frappe en TAP ne relâche plus une note MIDI tenue.** Le balayage du convertisseur
+  de vélocité, recopié à la main dans ce mode, réécrivait douze fois par frappe le port qui
+  porte aussi les sorties de trig : le gate d'une note 60 retombait au passage.
 
 ## Tempo et swing
 
@@ -52,6 +62,14 @@ le détail technique vit dans `TODO.md`.
 - Le swing reste sur les pas impairs. Il dérivait sur les pairs, et sa phase était
   arbitraire dès qu'on changeait de pattern ou de longueur.
 - Plus de déphasage permanent après un changement de longueur d'instrument.
+- **SHUFFLE et SHIFT+SHUFFLE ont enfin deux écrans.** Les deux gestes dessinaient le même,
+  titre compris, avec un bargraphe qui lisait toujours la valeur de la voix courante : le
+  réglage global affichait donc autre chose que ce qu'il réglait, et le premier cran
+  faisait sauter le curseur sans prévenir. Le titre nomme maintenant ce qu'on règle, et le
+  bargraphe montre sa valeur.
+- Après un réglage de shuffle global, **un cran de molette ne reste plus sans effet** au
+  hasard : ni redessin, ni clignotement d'ENTER, sur la valeur que le geste global venait
+  de poser partout.
 
 ## Patterns et chaînes
 
@@ -75,6 +93,21 @@ le détail technique vit dans `TODO.md`.
   la position enregistrée était incohérente, le calcul rebouclait et le séquenceur allait
   lire dans la zone des pistes : un pattern de bruit. Rien n'était détruit — c'était une
   lecture — mais ça s'entendait.
+- **CLEAR remet aussi la mesure d'aplomb.** Effacer un pattern réécrivait les seize
+  longueurs et divisions mais laissait la longueur, la division et le shuffle **globaux**
+  sur les valeurs d'avant. Effacer un pattern de huit pas donnait seize pas par instrument
+  et une mesure qui finissait toujours au huitième : chaînes et pistes avançaient au
+  milieu. Et comme CLEAR arme la sauvegarde, la valeur fausse partait en EEPROM au premier
+  ENTER.
+- **Au changement de pattern, les compteurs s'alignent sur la barre** au lieu d'être remis
+  à zéro. Zéro dit quel index, jamais quand : un instrument plus rapide que la mesure
+  frappait une fois de trop avant la barre, y jouait son index 0, et tout son pattern
+  restait décalé d'un pas pour toute sa durée.
+- **Le métronome n'écrase plus les vélocités du pattern.** Le clic posait ses propres
+  valeurs dans la piste de rimshot : un rimshot à demi sur un temps revenait à plein après
+  un aller-retour sur GUIDE, sans qu'ENTER clignote pour avertir, et la donnée partait en
+  EEPROM à la première sauvegarde faite pour une autre raison. Le clic est une fonction
+  machine, il ne passe plus par le pattern.
 
 ## Direction de lecture
 
@@ -107,6 +140,23 @@ le détail technique vit dans `TODO.md`.
   supprimer ; il fallait un BACK entre chaque. Quatre pressions vident désormais une piste
   de quatre. En contrepartie, ENTER juste après une suppression **écrase** la dernière
   position au lieu d'ajouter à la suite — `SHIFT+NUM` ramène à l'emplacement d'ajout.
+- **TRACK PLAY redessiné** : la piste à gauche, la position à droite, le titre seul en
+  haut. Le pattern engagé n'y est plus — en mode piste, ce qu'on suit est la piste et l'on
+  en est où ; le pattern est un détail d'exécution, et TRACK EDIT le montre pour qui le
+  veut.
+- **Le champ `num` de TRACK WRITE s'appelle `trk`** : c'est le numéro de piste, et le dire
+  évite de le deviner. Surtout, **il répond enfin à la molette** — l'écran promettait un
+  paramètre que la molette ne servait pas.
+- **La LED ENTER ne clignote plus sur une piste jamais touchée.** Une accolade manquante
+  faisait tomber l'exécution dans les champs voisins : après un chargement de piste, le
+  témoin de longueur restait périmé et réarmait la sauvegarde tout seul. Maintenir ENTER
+  réécrivait alors la piste en EEPROM pour rien.
+- **Tenir une touche de piste ne recharge plus la piste en boucle** en TRACK PLAY. Le test
+  portait sur un niveau et non sur un front : une seconde de pression valait une
+  quarantaine de relectures de huit pages d'EEPROM.
+- **Une position de piste jamais écrite ne fait plus jouer de bruit.** Un octet de zone
+  vierge vaut 255 là où les patterns s'arrêtent à 128 : l'adresse calculée sortait de la
+  zone des patterns pour aller lire dans celle des pistes.
 
 ## Instrument externe
 
@@ -117,6 +167,45 @@ le détail technique vit dans `TODO.md`.
   tenait indéfiniment.
 - Les douze notes du haut ne repartent plus dans l'octave du bas. Au-delà d'une certaine
   hauteur, la note envoyée débordait et rebouclait ; la molette s'arrête maintenant avant.
+- **La pile de notes s'enregistre enfin.** Sa longueur n'était ni sauvegardée ni relue :
+  les notes revenaient au complet, mais sans leur point de bouclage, qui gardait la valeur
+  laissée par le pattern chargé avant. La piste EXT n'a jamais été enregistrable depuis
+  2018 — le copier-coller la transportait, lui, ce qui trahissait l'oubli plutôt que le
+  choix.
+- **Le copier-coller ne perd plus la dernière note de la pile** — celle qui ferme la
+  phrase. Elle gardait ce que le pattern de destination avait à cette place.
+- **L'accent arrive sur la piste EXT.** Ses pas étaient à deux états, présent ou absent, et
+  leur vélocité était bien enregistrée mais jamais relue. Ils rejoignent le cycle à trois
+  états des douze voix — éteint, normal, accent — et le note-on porte la vélocité du pas :
+  une x0xb0x y lit son accent. Les pas déjà enregistrés sonnent comme avant, ils
+  s'affichent seulement en demi plutôt qu'en plein. Contrepartie : effacer un pas demande
+  deux pressions de plus, comme sur les douze voix.
+- **Le curseur ne sort plus de la pile.** On pouvait l'emmener bien au-delà de la dernière
+  note, éditer là une note qui ne serait jamais jouée, et se demander pourquoi on ne
+  l'entend pas.
+- **Éditer une note à la molette marque le pattern** : ENTER clignote, et le travail ne
+  part plus en silence au chargement suivant. La même note posée à la touche de pas était
+  bien marquée — c'est l'asymétrie qui a trahi l'oubli.
+- **Muter EXT ne fige plus la pile, et ne laisse plus de note en l'air.** La grille dit
+  quand, la pile dit quoi, et c'est leur rapport qui fait la fonction : muter arrêtait la
+  pile, donc au démute la phrase repartait décalée de tous les pas passés sous le mute. Il
+  suffisait d'ailleurs de tout muter pour la figer sans toucher à EXT. Et une note tenue au
+  moment du mute restait tenue jusqu'au STOP.
+- **La pile repart du début au changement de pattern.** Elle était le seul état de la piste
+  EXT à y survivre : aller du pattern 1 au 2 puis revenir laissait la pile du 1 décalée de
+  ce que le 2 avait consommé — un pattern ne sonnait plus pareil d'une fois sur l'autre. La
+  dérive contre la grille, elle, ne bouge pas : c'est la fonction.
+- **PLAY ne laisse plus de note coincée.** Le note-off reconstruisait la hauteur au lieu de
+  retenir celle qu'il avait envoyée ; PLAY remettant le compteur de pile à zéro, la coupure
+  partait sur une autre note et celle qui sonnait n'en recevait jamais. Quelques PLAY
+  d'affilée suffisaient à empiler les notes bloquées sur le synthé en face.
+
+## Voix
+
+- **Le demi de la PC2 remonte de 20 à 40**, comme les huit autres voix. Hérité tel quel
+  d'une table de TR-909, il donnait un écart de 1 à 4 entre demi et plein, là où les huit
+  autres sont à 1 pour 2 et les charleys à 1 pour 1,3. Relevé à l'oreille, confirmé par la
+  table.
 
 ## Synchro et sorties
 
@@ -139,6 +228,18 @@ le détail technique vit dans `TODO.md`.
 - Plus d'impulsion DIN-sync ou trigger perdue en jeu MIDI dense. Les bits d'adresse du
   convertisseur de vélocité et les sorties temps réel partagent le même port, et une note
   reçue pouvait écraser une impulsion en cours d'écriture.
+- **Une voix ne devient plus sourde au MIDI pour de bon.** Le verrou qui empêche une note
+  répétée de relancer une voix avant son relâcher n'était levé que par le note-off de la
+  note exacte : un message perdu — câble débranché en cours de note, clavier remis à zéro,
+  hub bavard — et la voix ne répondait plus au MIDI jusqu'à extinction de la machine, sans
+  rien à l'écran pour le dire. STOP, et un Stop ou un Continue reçus, libèrent maintenant
+  les seize verrous.
+- **Une note MIDI ne sort plus faible ou muette.** Entre le lever des bits et l'armement de
+  l'impulsion, l'interruption de relâchement pouvait tout défaire : la voix n'avait qu'une
+  microseconde d'état haut au lieu des cent que le front demande. De l'ordre de 0,2 % des
+  notes en jeu dense, et rien pour la distinguer d'une fausse manœuvre au clavier.
+- **Un vrai note-off au lieu du seul CC 123** quand tout s'arrête. Beaucoup de machines
+  ignorent le All Notes Off — une x0xb0x parmi elles.
 
 ## Fiabilité
 
@@ -149,8 +250,9 @@ le détail technique vit dans `TODO.md`.
 - L'encodeur lisait un créneau à 16 MHz sur son canal B depuis toujours : l'horloge
   système sortait sur cette broche. C'était le tout premier symptôme du projet.
 - L'interruption d'horloge faisait trente-six divisions par tick, sur un processeur qui
-  ne sait pas faire. Elle en fait **zéro**. Le temps rendu à la boucle principale se
-  voit sur tout ce qui répond au geste.
+  ne sait pas faire. Il en reste **une**, vérifiée au désassemblage. Deux d'entre elles
+  tournaient même à l'arrêt, sur une machine qui ne jouait rien. Le temps rendu à la boucle
+  principale se voit sur tout ce qui répond au geste.
 
 ---
 
