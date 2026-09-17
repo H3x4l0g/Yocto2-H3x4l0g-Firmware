@@ -70,6 +70,15 @@ le détail technique vit dans `TODO.md`.
 - Après un réglage de shuffle global, **un cran de molette ne reste plus sans effet** au
   hasard : ni redessin, ni clignotement d'ENTER, sur la valeur que le geste global venait
   de poser partout.
+- **Changer une scale pendant que ça tourne ne décale plus le pas 1.** Le compteur de
+  l'instrument restait où il était et se mettait à avancer à une autre cadence : la grille
+  ne retombait plus sur le temps, et le seul recours était d'arrêter puis de refaire PLAY.
+  Le geste remet maintenant l'instrument en phase — l'instrument courant seul, les seize
+  sur SHIFT.
+- **Et la remise en phase après une édition de longueur tient enfin compte de la scale.**
+  Des hats en 1/32 sous une référence en 1/16 étaient renvoyés un demi-tour de pattern en
+  arrière à chaque réglage de longueur. La position se compte désormais en ticks écoulés
+  depuis la barre, la seule mesure que des instruments de cadences différentes partagent.
 
 ## Patterns et chaînes
 

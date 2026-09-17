@@ -336,14 +336,25 @@ void SeqParameter()
       scaleBtn.counter++;
       if (scaleBtn.counter == 4) scaleBtn.counter = 0;
       a = scaleValue[scaleBtn.counter];
+      //CHANGER UNE SCALE DEPLACE LA GRILLE, donc il faut remettre l'instrument dessus.
+      //LAST STEP le fait depuis toujours pour la longueur ; la scale, elle, ne
+      //resynchronisait rien : le compteur restait ou il etait et se mettait a avancer a
+      //une autre cadence, si bien que le pas 1 ne retombait plus sur le temps. Il
+      //fallait arreter et refaire PLAY, qui remet les seize compteurs a zero.
+      //Les scales s'ecrivent toutes AVANT la resynchro : MeasureTicks() lit celle de
+      //l'instrument de reference, et elle vient peut-etre de changer elle aussi.
       if (shiftBtn.pressed){
         pattern[ptrnBuffer].globalScale = a;
         //init all scale of each instrument when globalscale changed
         for (byte z = 0; z < NBR_INST; z++){
           pattern[ptrnBuffer].scale[z] = pattern[ptrnBuffer].globalScale;
         }
+        for (byte z = 0; z < NBR_INST; z++) ResyncStepCount(z);
       }
-      else pattern[ptrnBuffer].scale[curInst] = a;
+      else {
+        pattern[ptrnBuffer].scale[curInst] = a;
+        ResyncStepCount(curInst);
+      }
     } 
     //Updte scaleBtn counter if pattern change with a different scale
     if (pattern[ptrnBuffer].scale[curInst] != scaleValue[scaleBtn.counter]){
@@ -368,11 +379,13 @@ void SeqParameter()
       if (!shiftBtn.pressed){
         pattern[ptrnBuffer].length[curInst] = FirstBitOn();
         pattern[ptrnBuffer].globalLength = 0;// init global length
-        //set the highest length value as global length and remember which instrument is the longer length
+        //set the highest length value as global length
+        //Le "longerInstLength = z" qui vivait dans cette boucle etait mort : la ligne
+        //suivante le reecrit, et UpdateLongerInst() est la seule a savoir comment on
+        //choisit la reference.
         for (byte z = 0; z < NBR_INST; z++){
           if (pattern[ptrnBuffer].length[z] > pattern[ptrnBuffer].globalLength){
             pattern[ptrnBuffer].globalLength = pattern[ptrnBuffer].length[z];
-            longerInstLength = z;
           }
         }
         UpdateLongerInst();
@@ -382,9 +395,12 @@ void SeqParameter()
         pattern[ptrnBuffer].globalLength = FirstBitOn();
         for (byte z = 0; z < NBR_INST; z++){
           pattern[ptrnBuffer].length[z] = pattern[ptrnBuffer].globalLength;
-          ResyncStepCount(z);
         }
+        //LA REFERENCE D'ABORD, LES RESYNCHROS ENSUITE. Elles se faisaient dans la boucle
+        //d'ecriture, donc avant qu'UpdateLongerInst() n'ait vu les nouvelles longueurs :
+        //les quinze premieres se calaient sur la scale de l'ancienne reference.
         UpdateLongerInst();
+        for (byte z = 0; z < NBR_INST; z++) ResyncStepCount(z);
       }
       needLcdUpdate = TRUE;
       patternWasEdited = TRUE;

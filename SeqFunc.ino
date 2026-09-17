@@ -439,19 +439,71 @@ void SwitchPatternBuffer()
   InstToStepWord();
 }
 
-//Realign an instrument step counter on the measure grid---------------------------
-//Instrument lengths can be edited while the sequencer runs, and nothing used to
-//resynchronise stepCount[]. Going 16 -> 6 -> 16 steps left the instrument at an
-//arbitrary phase : it kept playing, but no longer in step with the grid drawn on
-//the step buttons. Taking globalStepCount modulo the new length puts it where it
-//would be if it had always run at that length, in phase with the measure.
-void ResyncStepCount(byte inst)
+//Ou en est la mesure, en TICKS-------------------------------------------------------
+//LE TEMPS DE LA MESURE NE SE COMPTE PAS EN PAS. "Nombre de pas" et "duree" ne sont
+//interchangeables que si tous les instruments partagent une scale - autrement dit partout
+//sauf sur un pattern polyrythmique, qui est precisement la fonction que personne n'a
+//jamais deboguee.
+//
+//globalStepCount avance a la cadence de l'instrument de REFERENCE, un pas par
+//scale[longerInstLength] ticks. ppqn % scRef dit ou l'on en est DANS le pas de reference
+//courant. Les deux ensemble donnent les ticks ecoules depuis la barre, et c'est la seule
+//grandeur que tous les instruments partagent, quelle que soit leur scale.
+//
+//A l'arret la question n'a pas de reponse utile : PLAY remet ppqn, globalStepCount et les
+//seize compteurs a zero, donc la mesure repart de la.
+unsigned int MeasureTicks()
 {
+  if (!isRunning) return 0;
+
+  byte scRef = pattern[ptrnBuffer].scale[longerInstLength];
+  if (!scRef) scRef = SCALE_16;//une scale nulle sortirait d'un pattern corrompu, et on
+                               //divise par elle juste en dessous
+
+  //globalStepCount est un int ecrit par l'interruption - deux octets, donc une lecture a
+  //fermer. ppqn est un octet et se lit d'un bloc, mais les deux doivent decrire le MEME
+  //tick : un seul instantane pour les deux.
   uint8_t sreg = SREG;
   cli();
-  int grid = globalStepCount;
-  if (grid < 0) grid = 0;
-  stepCount[inst] = grid % (pattern[ptrnBuffer].length[inst] + 1);
+  int g = globalStepCount;
+  byte p = ppqn;
+  SREG = sreg;
+
+  if (g < 0) g = 0;//-1 avant le premier PLAY
+  return (unsigned int)g * scRef + (p % scRef);
+}
+
+//Remettre un instrument en phase avec la grille----------------------------------------
+//Les longueurs ET LES SCALES s'editent pendant que le sequenceur tourne. Sans ca il faut
+//arreter et refaire PLAY pour que le pas 1 retombe sur le temps - ce qui est justement
+//ce que PLAY fait : ppqn, globalStepCount et les seize compteurs a zero.
+//
+//L'instrument a franchi e / sc pas depuis la barre : c'est l'index qu'il doit jouer a sa
+//prochaine frappe. Le modulo le ramene dans sa propre longueur, qui n'a aucune raison
+//d'etre celle de la mesure.
+//
+//L'ANCIENNE FORMULE ETAIT "globalStepCount % (length + 1)", qui prend globalStepCount pour
+//le compteur de pas de l'instrument. Ce n'est vrai que s'il tourne a la cadence de
+//reference : des hats en 1/32 sous une reference en 1/16 en sont a leur pas 16 quand
+//globalStepCount vaut 8, et la fonction les renvoyait a 8 - un demi-tour de pattern en
+//arriere, a chaque edition de longueur.
+//
+//A APPELER APRES avoir ecrit la nouvelle scale, et apres UpdateLongerInst() : c'est la
+//scale de reference du moment qui dit ce que vaut un pas de globalStepCount. Si c'est la
+//reference elle-meme qui vient de changer de scale, e vaut g * scRef + r avec r < scRef,
+//donc l'index rendu est g : tout le monde change de cadence ensemble et personne ne bouge,
+//ce qui est exactement le comportement voulu pour le geste global.
+void ResyncStepCount(byte inst)
+{
+  byte sc = pattern[ptrnBuffer].scale[inst];
+  if (!sc) sc = SCALE_16;
+  byte span = pattern[ptrnBuffer].length[inst] + 1;
+  int wanted = (MeasureTicks() / sc) % span;
+
+  //stepCount[] est un int : ecriture fermee, l'interruption pouvait le lire a moitie.
+  uint8_t sreg = SREG;
+  cli();
+  stepCount[inst] = wanted;
   SREG = sreg;
 }
 
