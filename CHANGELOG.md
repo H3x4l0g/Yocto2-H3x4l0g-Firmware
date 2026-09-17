@@ -112,6 +112,11 @@ le détail technique vit dans `TODO.md`.
   à zéro. Zéro dit quel index, jamais quand : un instrument plus rapide que la mesure
   frappait une fois de trop avant la barre, y jouait son index 0, et tout son pattern
   restait décalé d'un pas pour toute sa durée.
+- **La mesure tombe sur l'instrument le plus long en durée, et non en nombre de pas.**
+  Seize pas de 1/32 durent deux temps, douze pas de 1/16 en durent trois : les premiers
+  l'emportaient, et la barre tombait au milieu de la phrase des seconds. Enchaîné avec un
+  pattern ordinaire, ça bouclait en 6 temps au lieu de 7. Un pattern dont tous les
+  instruments partagent la résolution ne bouge pas d'un tick.
 - **Le métronome n'écrase plus les vélocités du pattern.** Le clic posait ses propres
   valeurs dans la piste de rimshot : un rimshot à demi sur un temps revenait à plein après
   un aller-retour sur GUIDE, sans qu'ENTER clignote pour avertir, et la donnée partait en

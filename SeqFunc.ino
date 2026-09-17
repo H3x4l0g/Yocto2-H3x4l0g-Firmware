@@ -513,7 +513,7 @@ void ResyncStepCount(byte inst)
 //remise a zero ne deplace pas d'un tick.
 //
 //Or LA DEMANDE DE CHANGEMENT PART AU DERNIER PAS DE LA MESURE, pas a la barre -
-//globalStepCount depasse globalLength a ce tick-la. Il reste donc un pas de reference
+//globalStepCount depasse la longueur de la reference a ce tick-la. Il reste donc un pas de reference
 //entier, ou les ~12 ms de LoadPattern() tiennent largement ; la remise a zero atterrit
 //quelques ticks apres. D'ou deux sorts opposes :
 //  - un instrument a la scale de REFERENCE ne tire plus avant la barre, son index 0 y
@@ -568,16 +568,37 @@ void AlignStepCount()
   SREG = sreg;
 }
 
-//Find which instrument carries the pattern length--------------------------------
-//longerInstLength drives globalStepCount in the ISR - therefore the end of measure,
-//and the advance of chains and tracks. It used to be assigned in one single place
-//(the per instrument length edit) : never on a pattern load, never on a global
-//length edit. A stale value made the measure advance on another instrument's scale.
+//Quel instrument porte la mesure--------------------------------------------------
+//longerInstLength pilote globalStepCount dans l'interruption - donc LA FIN DE MESURE, et
+//avec elle l'avance des chaines et des pistes, et le curseur qui court sur les LED. La
+//fonction etait appelee d'un seul endroit (l'edition de longueur par instrument), jamais
+//au chargement d'un pattern ni sur la longueur globale : une valeur perimee faisait
+//avancer la mesure sur la cadence d'un autre instrument.
+//
+//IL SE CHOISIT A LA DUREE, PAS AU NOMBRE DE PAS. Un pas n'est pas une duree : un pas de
+//1/32 dure moitie moins qu'un pas de 1/16. La comparaison ne portait que sur length[],
+//donc seize pas de 1/32 - 192 ticks - l'emportaient sur douze pas de 1/16 - 288 ticks -
+//qui sont pourtant musicalement plus longs.
+//
+//Reproduit sur la machine le 17/09/2026 : CB seul a seize pas en 1/32, tout le reste a
+//douze pas en 1/16, enchaine avec un pattern ordinaire. La mesure tombait a 2 temps au
+//lieu de 3, et la chaine bouclait en 6 temps au lieu de 7.
+//
+//La comparaison reste STRICTE, donc l'egalite va au plus petit index : c'est pourquoi le
+//defaut ne sortait que si l'instrument rapide avait seize pas et tous les autres quinze ou
+//moins. Un pattern ordinaire, seize pas partout a la meme scale, ne bouge pas d'un tick.
+//
+//(length + 1) * scale tient dans un int : seize pas de 1/8t font 512.
 void UpdateLongerInst()
 {
   byte longest = 0;
+  int best = (pattern[ptrnBuffer].length[0] + 1) * pattern[ptrnBuffer].scale[0];
   for (byte z = 1; z < NBR_INST; z++){
-    if (pattern[ptrnBuffer].length[z] > pattern[ptrnBuffer].length[longest]) longest = z;
+    int span = (pattern[ptrnBuffer].length[z] + 1) * pattern[ptrnBuffer].scale[z];
+    if (span > best){
+      best = span;
+      longest = z;
+    }
   }
   longerInstLength = longest;
 }

@@ -332,8 +332,17 @@ void CountPPQN() {
       noteIndexCpt++;  //avancer d'une note dans la pile, mute ou non
     }
 
-    //Fin de mesure : la piste avance d'un cran et le pattern suivant peut prendre la main
-    if (globalStepCount > pattern[ptrnBuffer].globalLength) {
+    //Fin de mesure : la piste avance d'un cran et le pattern suivant peut prendre la main.
+    //LA MESURE EST LE CYCLE ENTIER DE L'INSTRUMENT DE REFERENCE, d'ou la lecture de SA
+    //longueur plutot que de globalLength : globalStepCount avance a SA cadence, donc
+    //(length[ref] + 1) * scale[ref] ticks font exactement un tour de cet instrument.
+    //globalLength, lui, vaut le plus grand nombre de PAS tous instruments confondus. Les
+    //deux disaient la meme chose tant que la reference etait choisie au nombre de pas ;
+    //depuis qu'elle l'est a la duree (cf UpdateLongerInst), la mesure aurait valu le
+    //nombre de pas du plus long multiplie par la cadence d'un autre - la duree de personne.
+    //globalLength garde son role de parametre enregistre, et fait toujours reboucler
+    //tapStepCount plus haut.
+    if (globalStepCount > pattern[ptrnBuffer].length[longerInstLength]) {
       endMeasure = TRUE;
       trackPosNeedIncremante = TRUE;
       globalStepCount = 0;
