@@ -25,8 +25,10 @@
 //bank - it said where you were, never what was reachable.
 //flagLedIntensity is the same temporal dither that fades low velocity steps further
 //down : what appears ONLY in the one-frame-in-nine branch reads as dim, what appears in
-//both reads at full brightness. curBank sits inside the candidate mask, so it is lit on
-//every frame while the seven others merely glow.
+//both reads at full brightness. The one at full brightness is the bank a step button
+//would take : the playing bank while nothing is armed, the armed one once BANK has been
+//used. It sits inside the candidate mask, so it is lit on every frame while the seven
+//others merely glow.
 unsigned int BankLeds()
 {
   if (flagLedIntensity >= 8){
@@ -34,7 +36,7 @@ unsigned int BankLeds()
     return (1U << NBR_BANK) - 1;//the eight candidates, one frame in nine
   }
   flagLedIntensity++;
-  return 1U << curBank;//the current one, every frame
+  return 1U << SelectionBank();//the one a step button would take, every frame
 }
 
 //Boot sweep : one Knight Rider bounce across the sixteen step LEDs, played while the

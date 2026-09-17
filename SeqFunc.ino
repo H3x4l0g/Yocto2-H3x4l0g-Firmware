@@ -21,6 +21,27 @@
 //======================================================================================
 
 /////////////////////Function//////////////////////
+
+//LA BANQUE QUI JOUE, ET CELLE QUE PRENDRA LA PROCHAINE TOUCHE DE PAS.
+//Une seule variable tenait les deux metiers et le geste BANK les ecrivait ensemble :
+//choisir la banque D depuis A3 chargeait D3, alors que basculer de banque ne doit rien
+//jouer. La lettre se derive donc du pattern - curPattern n'est ecrit qu'a un seul
+//endroit, elle ne peut plus rester en arriere - et l'armement vit a part.
+//NBR_PATTERN vaut 16 : division et modulo sont des decalages, pas d'appel a la division
+//logicielle.
+byte PlayingBank()
+{
+  return curPattern / NBR_PATTERN;
+}
+
+//Tant que rien n'est arme, la selection au pas part de la banque affichee : l'ecran, la
+//LED et la touche disent la meme chose. Un geste BANK passe, elle part de la banque
+//armee - jusqu'a ce que le pattern y arrive, cf SeqParameter().
+byte SelectionBank()
+{
+  return (armedBank == NO_BANK) ? PlayingBank() : armedBank;
+}
+
 //Initialyse the sequencer before to run
 void InitSeq()
 {

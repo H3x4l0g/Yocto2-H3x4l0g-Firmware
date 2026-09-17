@@ -1,7 +1,12 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.030**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.048**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
+
+> Les versions **v2.031 à v2.047** ne sont pas encore dépouillées ici : une
+> trentaine de commits des 13, 14 et 15/09 — l'accent sur la piste EXT, le mode TAP,
+> les deux écrans de shuffle, TRACK PLAY redessiné, l'alignement des compteurs sur la
+> barre. Le carnet les porte toutes, ce fichier non.
 
 ## Encodeur
 
@@ -57,6 +62,11 @@ le détail technique vit dans `TODO.md`.
 - **La banque suit le pattern.** Arriver sur D13 par une piste affichait `A61`, éclairait
   la LED de banque A, et la touche de pas 3 renvoyait en A3. L'écran, la LED et la touche
   disent maintenant la même chose.
+- **Choisir une banque ne change plus le pattern qui joue.** Venant de A3, choisir la
+  banque D chargeait **D3**, et jetait la chaîne en cours au passage. Le geste arme la
+  banque, rien de plus : la touche de pas qui suit choisit le pattern. L'armement attend
+  cette touche — une chaîne qui avance entre les deux ne l'efface plus — et l'écran ne
+  change de lettre que lorsque le pattern change vraiment.
 - **Les marches au changement de pattern à haut tempo ont fondu.** Le chargement depuis
   l'EEPROM bloquait 115 ms et commençait *à* la barre : au-delà de 230 BPM les premiers
   pas du nouveau pattern se rejouaient. Le bus tourne désormais à sa vitesse nominale et

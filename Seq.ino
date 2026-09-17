@@ -413,20 +413,20 @@ void SeqParameter()
               //buttons on each call, and the two reads could disagree.
               //MAX_BANK is gone with this - one constant that says how many, rather than
               //two that differ by one and get confused for each other.
+              //LE GESTE ARME LA BANQUE, IL NE JOUE RIEN. Il chargeait le pattern de
+              //meme rang dans la nouvelle banque - depuis A3, choisir D donnait D3 -
+              //et annulait la chaine au passage. Basculer de banque est tout ce qu'il
+              //fait : la touche de pas qui suit choisit le pattern, et c'est elle qui
+              //decide du sort de la chaine, cf la branche ci-dessous.
               byte bank = FirstBitOn();
-              if (bank < NBR_BANK){
-                curBank = bank;
-                nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
-                if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-                group.length = 0;
-              }
+              if (bank < NBR_BANK) armedBank = bank;
             }
             else{//pattern group edit------------------------------------------------------
               if (SecondBitOn())
               {
                 trackPosNeedIncremante = FALSE;                                                               // [zabox] fixes group bug
                 group.length = SecondBitOn() - FirstBitOn();
-                nextPattern = group.firstPattern = FirstBitOn() + curBank * NBR_PATTERN;
+                nextPattern = group.firstPattern = FirstBitOn() + SelectionBank() * NBR_PATTERN;
                 group.pos = 1;//first pattern loaded right away, next measure plays index 1
                 doublePush = TRUE;
                 group.priority = TRUE;
@@ -448,7 +448,7 @@ void SeqParameter()
               }
               else if (!doublePush){
                 group.priority = FALSE;
-                nextPattern = FirstBitOn() + curBank * NBR_PATTERN;
+                nextPattern = FirstBitOn() + SelectionBank() * NBR_PATTERN;
                 if(enterBtn.justPressed){
                   ClearPatternGroup(nextPattern - pattern[ptrnBuffer].groupPos, pattern[ptrnBuffer].groupLength);
                   group.length = 0;
@@ -598,20 +598,17 @@ void SeqParameter()
     if (stepsBtn.justRelease) doublePush = FALSE;
     if (readButtonState){
       if (bankBtn.pressed){
+        //Armer, rien d'autre : cf le site PTRN_STEP ci-dessus. La chaine n'est plus
+        //annulee ici non plus - c'est la touche de pas qui la reprend ou la jette.
         byte bank = FirstBitOn();//9 to 16 are not banks : cf the PTRN_STEP site above
-        if (bank < NBR_BANK){
-          curBank = bank;
-          nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
-          group.length = 0;//should be 0 to play the right next pattern
-          if((curPattern != nextPattern) && !isRunning) selectedPatternChanged = TRUE;
-        }
+        if (bank < NBR_BANK) armedBank = bank;
       }
       else{
         //Group selected
         if (SecondBitOn())
         {
           group.length = SecondBitOn() - FirstBitOn();
-          nextPattern = group.firstPattern = FirstBitOn() + curBank * NBR_PATTERN;
+          nextPattern = group.firstPattern = FirstBitOn() + SelectionBank() * NBR_PATTERN;
           //SYNC while running : the current measure finishes first. If it is already
           //the chain's first pattern it counts as the chain's first step, otherwise
           //it would be played twice. Outside SYNC the first pattern is loaded right
@@ -626,7 +623,7 @@ void SeqParameter()
         else if (!doublePush){
           group.priority = FALSE;
           group.length = 0;//should be 0 to play the right next pattern
-          nextPattern = FirstBitOn() + curBank * NBR_PATTERN;
+          nextPattern = FirstBitOn() + SelectionBank() * NBR_PATTERN;
           group.pos = pattern[ptrnBuffer].groupPos;
         }
         if(curPattern != nextPattern && stepsBtn.justPressed) {  // [zabox] [1.027] fixes pattern change bug in slave mode
@@ -656,12 +653,9 @@ void SeqParameter()
     if (stepsBtn.justPressed){
 
       if (bankBtn.pressed){
+        //Armer, rien d'autre : cf le site PTRN_STEP ci-dessus.
         byte bank = FirstBitOn();//9 to 16 are not banks : cf the PTRN_STEP site above
-        if (bank < NBR_BANK){
-          curBank = bank;
-          nextPattern = curBank * NBR_PATTERN + (curPattern % NBR_PATTERN);
-          if(curPattern != nextPattern) selectedPatternChanged = TRUE;
-        }
+        if (bank < NBR_BANK) armedBank = bank;
       }
       else if(numBtn.pressed){
         trk.next = FirstBitOn();
@@ -669,7 +663,7 @@ void SeqParameter()
         needLcdUpdate = TRUE;
       }
       else{
-        nextPattern = FirstBitOn() + curBank * NBR_PATTERN;
+        nextPattern = FirstBitOn() + SelectionBank() * NBR_PATTERN;
         if(curPattern != nextPattern) selectedPatternChanged = TRUE;
       }
     }
@@ -848,18 +842,17 @@ void SeqParameter()
     patternNeedSaved = FALSE;
     LoadPattern(nextPattern);
     curPattern = nextPattern;
-    //curBank est a la fois la banque affichee et celle qui sert a la selection au pas
-    //(nextPattern = touche + curBank * NBR_PATTERN). Elle n'etait ecrite que par le geste
-    //BANK, donc elle restait en arriere des que le pattern changeait par un autre chemin :
-    //une position de piste, une chaine, un bouton de pas. Arriver sur D13 depuis TRACK
-    //EDIT puis passer en PATT EDIT affichait "A61" - la lettre venait d'un curBank reste
-    //a 0, et le numero valait 60 - 0 + 1.
-    //Les ecrans de TRACK ne tombaient pas dedans parce qu'ils derivent la banque du
-    //pattern au lieu de la lire. Ici on recale la source, une seule fois, a l'unique
-    //endroit du firmware ou curPattern est ecrit - donc l'affichage ET la selection au
-    //pas repartent du meme etat. Appuyer sur la touche 3 en etant sur D13 donne D3, plus
-    //A3.
-    curBank = curPattern / NBR_PATTERN;
+    //LA BANQUE ARMEE EST CONSOMMEE QUAND LE PATTERN ARRIVE DEDANS. Au-dela elle ferait
+    //doublon avec PlayingBank(), et la selection au pas repart de ce que l'ecran montre :
+    //appuyer sur la touche 3 en etant sur D13 donne D3, plus A3.
+    //Elle SURVIT en revanche a un chargement venu d'ailleurs - une avance de chaine, un
+    //pas de piste - sinon la machine qui tourne annulerait le geste en silence, pile
+    //quand on s'en sert : a tempo de jeu une chaine charge un pattern toutes les deux
+    //mesures.
+    //C'est ici et nulle part ailleurs, parce que curPattern n'est ecrit qu'ici. Le
+    //recalage d'affichage qui tenait cette ligne - le "A61" du 13/09 - est parti avec la
+    //variable : la lettre se derive maintenant, elle ne peut plus rester en arriere.
+    if (armedBank == PlayingBank()) armedBank = NO_BANK;
     nextPatternReady = TRUE;
   }
 

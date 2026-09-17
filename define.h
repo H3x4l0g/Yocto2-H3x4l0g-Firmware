@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.047"
+#define FW_VERSION  "Yocto v2.048"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -115,6 +115,9 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #define NBR_STEP 16
 #define NBR_PATTERN 16 //Number of pattern in a bank
 #define NBR_BANK 8
+//Aucune banque armee. NBR_BANK est hors des huit, donc aucune valeur volee a une banque
+//reelle : cf armedBank plus bas et SelectionBank() dans SeqFunc.ino.
+#define NO_BANK NBR_BANK
 #define MID_VEL 40 //velocity 0 to 127
 #define HIGH_VEL 80
 #define MAX_VEL 127 
@@ -388,7 +391,13 @@ boolean isStop = TRUE;
 SeqMode curSeqMode = PTRN_PLAY;
 SeqMode prevSeqMode = PTRN_PLAY;//mode overlayed by MUTE ; always written on MUTE entry
 byte curInst = BD;//0 is BD trig out shift register
-byte curBank = 0;//0 to 7 banks
+//LA BANQUE NE SE STOCKE PLUS : elle se lit sur curPattern, cf PlayingBank() dans
+//SeqFunc.ino. curBank portait deux metiers - la lettre affichee et la base de la
+//selection au pas - et le geste BANK les ecrivait ensemble, donc armer une banque
+//changeait le pattern qui joue. Le recalage pose pour l'affichage a chaque chargement
+//effacait de son cote l'armement des qu'une chaine avancait.
+//armedBank ne porte que le geste, et vaut NO_BANK tant qu'aucun n'attend.
+byte armedBank = NO_BANK;
 byte curPattern = 0;// 0 to 255
 byte nextPattern;
 boolean changeDir[NBR_INST]; //use to PING PONG change dir

@@ -81,8 +81,8 @@ void LcdUpdate()
         lcd.setCursor(0,1);
         LcdClearLine(); 
         lcd.setCursor(2,1);
-        lcd.print(char(curBank+65));
-        lcd.print(curPattern - (curBank*NBR_PATTERN) + 1);
+        lcd.print(char(PlayingBank()+65));
+        lcd.print(curPattern % NBR_PATTERN + 1);
         lcd.setCursor(9,1);
         LcdPrintTempo();  
         break;
@@ -147,8 +147,8 @@ void LcdUpdate()
           lcd.setCursor(0,1);
           LcdClearLine(); 
           lcd.setCursor(0,1);
-          lcd.print(char(curBank+65));
-          lcd.print(curPattern - (curBank*NBR_PATTERN) + 1);
+          lcd.print(char(PlayingBank()+65));
+          lcd.print(curPattern % NBR_PATTERN + 1);
           lcd.setCursor(5,1);
           lcd.print(pattern[ptrnBuffer].length[curInst]+1);
           lcd.setCursor(8,1);
@@ -167,8 +167,8 @@ void LcdUpdate()
         lcd.setCursor(0,1);
         lcd.print(trk.pos + 1);
         lcd.setCursor(4,1);
-        lcd.print((char)((curPattern / 16) + 65));
-        lcd.print(curPattern - ((curPattern / 16)*NBR_PATTERN) + 1); 
+        lcd.print((char)(PlayingBank() + 65));
+        lcd.print(curPattern % NBR_PATTERN + 1); 
         lcd.setCursor(8,1);
         lcd.print(track[trkBuffer].length);
         lcd.setCursor(13,1);
