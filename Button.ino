@@ -85,50 +85,19 @@ void ButtonGet( Button *button, unsigned int pin)
   button->prevState = button->curState;
 }
 
-//Return a unsigned 16bits value of the steps buttons-------------------------------- 
-// with two differne tmode TOGGLE and MOMENTARY
-unsigned int StepButtonGet(byte mode)
+//Les seize touches de pas, telles que ScanDin() vient de les lire-------------------
+//La fonction prenait un mode, TOGGLE ou MOMENTARY. La branche TOGGLE - trente-cinq
+//lignes, un compteur par touche et un etat static que personne ne relisait - n'avait
+//plus aucun appelant : les trois appels du depot demandaient tous MOMENTARY, et
+//l'edition de pas passe par InstValueGet(), qui tient son propre cycle a trois etats.
+//Le parametre part avec la branche, et les deux constantes qui n'existaient que pour lui.
+//L'explication qu'elle portait - la touche qui devenait muette pour de bon - a demenage
+//dans InstValueGet(), ou vit le code qu'elle decrit.
+unsigned int StepButtonGet()
 {
-  unsigned int data = (dinSr[1] <<8) | dinSr[0];
-  static unsigned int value;
-  switch (mode){
-  case TOGGLE:
-    for (byte a=0; a<NBR_STEP_BTN; a++){
-      stepBtn[a].justPressed = 0;
-      stepBtn[a].curState = bitRead(data,a);
-      if (stepBtn[a].curState != stepBtn[a].prevState){
-        //The rising edge is (curState != prevState) && curState == HIGH, and prevState is
-        //maintained at the bottom of this loop. The (pressed == LOW) conjunct that used to
-        //sit here tested a field this function never writes : the only writer is the
-        //keyboard mode (key.ino:78), which needs it to pair a note off with its note on.
-        //So it read LOW forever - except after leaving the keyboard WHILE HOLDING a step
-        //button, which left that one stuck HIGH and its rising edge unreachable for good.
-        //The button then answered nowhere : step edit, TAP, pattern select. Recovered only
-        //by going back into the keyboard and pressing it again.
-        //The write that kept it in sync lived in StepBtn(), commented out further down.
-        if (stepBtn[a].curState == HIGH){
-          stepBtn[a].justPressed = 1;
-          stepBtn[a].counter++;//incremente step button counter
-          switch (stepBtn[a].counter){
-          case 1:
-            bitSet (value, a);
-            break;
-          case 2:
-            stepBtn[a].counter = 0;
-            bitClear (value, a);
-            break;
-          }
-        }      
-      }
-      stepBtn[a].prevState = stepBtn[a].curState;
-    }
-    return value; 
-    break;
-  case MOMENTARY:
-    return data;
-  }
-  return 0;//unreachable with TOGGLE / MOMENTARY, closes the function properly
+  return (dinSr[1] << 8) | dinSr[0];
 }
+
 
 unsigned int InstValueGet(unsigned int value)
 {
@@ -137,7 +106,17 @@ unsigned int InstValueGet(unsigned int value)
     stepBtn[a].justPressed = 0;
     stepBtn[a].curState = bitRead(reading,a);
     if (stepBtn[a].curState != stepBtn[a].prevState){
-      if (stepBtn[a].curState == HIGH){//pressed dropped : cf StepButtonGet() above
+      //Le front montant, c'est (curState != prevState) et curState == HIGH. Le
+      //"pressed == LOW" qui s'y ajoutait lisait un champ que cette fonction n'ecrit
+      //jamais : le seul ecrivain est le mode clavier (key.ino), qui en a besoin pour
+      //apparier un note-off a son note-on. Il valait donc LOW pour toujours - sauf apres
+      //avoir quitte le clavier EN TENANT une touche de pas, ce qui laissait celle-la
+      //bloquee a HIGH et son front montant inatteignable pour de bon. La touche ne
+      //repondait alors plus nulle part - edition de pas, TAP, selection de pattern - et
+      //on n'en sortait qu'en repassant par le clavier pour l'y appuyer.
+      //Ce texte vivait dans la branche TOGGLE de StepButtonGet(), retiree le 17/09/2026 :
+      //la branche etait morte, l'explication ne l'est pas.
+      if (stepBtn[a].curState == HIGH){
         patternWasEdited = TRUE;
         stepBtn[a].justPressed = 1;
 
@@ -241,8 +220,9 @@ void MuteButtonGet()
 //return value of first pressed step button
 byte FirstBitOn()
 {
-  static unsigned int tempStepBtnValue;
-  tempStepBtnValue = StepButtonGet(MOMENTARY);
+  //Une locale, pas un static : elle est ecrite puis lue dans la foulee, et rien n'en
+  //attend la valeur au prochain appel.
+  unsigned int tempStepBtnValue = StepButtonGet();
   for (int a = 0; a < NBR_BTN_STEP; a++){
     if (bitRead (tempStepBtnValue, a)){
       return a;
@@ -257,10 +237,9 @@ byte FirstBitOn()
 //return value of second pressed step button
 byte SecondBitOn()
 {
-  static unsigned int tempStepBtnValue;
+  unsigned int tempStepBtnValue = StepButtonGet();//locale, cf FirstBitOn()
   byte counter = 0;
   byte value = 0;
-  tempStepBtnValue = StepButtonGet(MOMENTARY);
   for (int a = 0; a < NBR_BTN_STEP; a++){
     if (bitRead (tempStepBtnValue, a)){
       counter++;

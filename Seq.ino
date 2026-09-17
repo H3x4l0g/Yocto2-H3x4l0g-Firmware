@@ -41,7 +41,7 @@
 void SeqParameter()
 {  
 
-  readButtonState = StepButtonGet(MOMENTARY);
+  readButtonState = StepButtonGet();
   //can not access config when isRunning
   if (isRunning && seq.configMode){
     seq.configMode = FALSE;

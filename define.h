@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.051"
+#define FW_VERSION  "Yocto v2.052"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -98,8 +98,9 @@ static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colo
 #define MAX_CONF_PAGE 2
 
 //Utility
-#define TOGGLE 0
-#define MOMENTARY 1
+//TOGGLE et MOMENTARY sont partis avec le parametre de StepButtonGet(), le 17/09/2026 :
+//la branche TOGGLE n'avait plus d'appelant, et un mode a deux valeurs dont une seule
+//sert n'est plus un mode.
 #define TRUE 1
 #define FALSE 0
 #define ON 1
