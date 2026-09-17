@@ -64,6 +64,12 @@ void KeyboardUpdate()
     //celle de BACK sonnait indefiniment. La note envoyee est memorisee a l'appui et
     //relue telle quelle au lacher : une note-on, une note-off, toujours la meme.
     static byte backNote, fwdNote;
+    //Et une note par touche de pas : le note-off recalculait a + 12*keybOct au
+    //relachement. Tenir une touche, monter l'octave a SCALE, relacher - le note-off
+    //partait une octave plus haut et la note tenue sonnait indefiniment. Troisieme
+    //exemplaire du meme defaut apres BACK/FWD juste en dessous et le note-off de la piste
+    //EXT : on relache ce qu'on a envoye, jamais ce qu'on recalcule.
+    static byte keyNote[NBR_STEP_BTN];
     if (backBtn.justPressed){
       noteIndex--;
       //Meme chose : noteIndex est un byte, le reboucle vers 255 est rattrape par la
@@ -77,7 +83,14 @@ void KeyboardUpdate()
 
     if (fwdBtn.justPressed){
       noteIndex++;
-      if( noteIndex >= MAX_EXT_INST_NOTE ) noteIndex = MAX_EXT_INST_NOTE;
+      //FWD S'ARRETE A L'EMPLACEMENT D'AJOUT, comme sur les pistes. Il montait jusqu'a 99
+      //quelle que soit la pile : poser une note a l'index 40 d'une pile de cinq portait
+      //extLength a 39 et laissait les index 5 a 38 pleins de ce qui trainait en memoire.
+      //C'est le "trou au bout de la piste" du 14/09, sur l'autre pile.
+      //extLength est l'index de la DERNIERE note, donc l'emplacement d'ajout est le
+      //suivant - la ou une touche de pas allonge la pile d'un cran.
+      byte addSlot = ExtAddSlot();
+      if (noteIndex > addSlot) noteIndex = addSlot;
       fwdNote = pattern[ptrnBuffer].extNote[noteIndex];
       MidiSendNoteOn(seq.TXchannel, fwdNote, HIGH_VEL);
       needLcdUpdate = TRUE;
@@ -94,8 +107,9 @@ void KeyboardUpdate()
         stepBtn[a].curState = bitRead(readButtonState,a);
         if (stepBtn[a].curState != stepBtn[a].prevState){
           if ((stepBtn[a].pressed == LOW) && (stepBtn[a].curState == HIGH)){
-            pattern[ptrnBuffer].extNote[noteIndex] = a + (12* keybOct);
-            MidiSendNoteOn(seq.TXchannel, a + 12*keybOct, HIGH_VEL);
+            keyNote[a] = a + (12 * keybOct);
+            pattern[ptrnBuffer].extNote[noteIndex] = keyNote[a];
+            MidiSendNoteOn(seq.TXchannel, keyNote[a], HIGH_VEL);
             noteIndex++;
             patternWasEdited = TRUE;
             if(noteIndex > MAX_EXT_INST_NOTE) noteIndex = MAX_EXT_INST_NOTE;
@@ -109,7 +123,7 @@ void KeyboardUpdate()
             needLcdUpdate = TRUE;
           }  
           if ((stepBtn[a].pressed == HIGH) && (stepBtn[a].curState == LOW)){
-            MidiSendNoteOff(seq.TXchannel, a + 12*keybOct);    
+            MidiSendNoteOff(seq.TXchannel, keyNote[a]);//la note envoyee, pas une recalculee    
           }
           stepBtn[a].pressed = stepBtn[a].curState;
         }

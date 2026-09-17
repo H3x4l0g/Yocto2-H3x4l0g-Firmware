@@ -473,6 +473,19 @@ unsigned int MeasureTicks()
   return (unsigned int)g * scRef + (p % scRef);
 }
 
+//L'emplacement d'ajout de la pile EXT--------------------------------------------------
+//extLength est l'index de la DERNIERE note, pas un compte : le curseur peut donc aller un
+//cran plus loin, la ou une touche de pas allonge la pile. C'est la meme notion que
+//l'emplacement d'ajout d'une piste, et les DEUX curseurs de cette pile la lisent - la
+//molette en PATT EDIT et FWD en mode clavier. Ecrite une fois, pas deux : deux bornes qui
+//different d'un cran, c'est la molette qui ramene sur la derniere note pendant que FWD se
+//tient un pas plus loin.
+byte ExtAddSlot()
+{
+  byte last = pattern[ptrnBuffer].extLength;
+  return (last < MAX_EXT_INST_NOTE) ? last + 1 : MAX_EXT_INST_NOTE;
+}
+
 //Remettre un instrument en phase avec la grille----------------------------------------
 //Les longueurs ET LES SCALES s'editent pendant que le sequenceur tourne. Sans ca il faut
 //arreter et refaire PLAY pour que le pas 1 retombe sur le temps - ce qui est justement

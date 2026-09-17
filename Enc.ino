@@ -223,7 +223,12 @@ void EncGet()
       //que la position de piste dans TRACK WRITE, et que la longueur de pile dans
       //key.ino : on ne se promene que sur ce qui existe. Les notes s'ajoutent aux touches
       //de pas, qui allongent la pile d'elles-memes.
-      noteIndex = constrain(noteIndex, 0, pattern[ptrnBuffer].extLength);
+      //Jusqu'a l'emplacement d'ajout, pas jusqu'a la derniere note : meme borne que FWD en
+      //mode clavier (key.ino) et que la position de piste en TRACK WRITE.
+      //Pas de variable locale ici : une declaration avec initialisation dans un case, ce
+      //sont les case suivants qui sautent par-dessus - trois warnings, et l'invariant du
+      //depot est zero. La borne est donc une fonction, cf ExtAddSlot() dans SeqFunc.ino.
+      noteIndex = constrain(noteIndex, 0, ExtAddSlot());
       static unsigned int prevNoteIndex;
       if (noteIndex != prevNoteIndex){
         prevNoteIndex = noteIndex;

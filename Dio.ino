@@ -253,12 +253,18 @@ void SetDacA(byte velocity)
   unsigned int command = 0;
   command |= 0x1000;// Active DAC out A
   command |= (milliVolt & 0x0FFF);
-  //CS asserted and settled before the transaction : with SPI.usingInterrupt(255) the
-  //library masks every interrupt between begin and endTransaction, no need to spend
-  //the 5 us settling time in there.
+  //CS DANS LA FENETRE MASQUEE, comme les trois autres fonctions SPI de ce fichier.
+  //Il etait abaisse AVANT beginTransaction(), donc avec les interruptions ouvertes, et
+  //les 5 us d'etablissement se passaient dehors : appelee depuis la boucle principale -
+  //une note MIDI, une frappe TAP - la fonction pouvait y etre interrompue par le tick,
+  //dont le balayage ecrit ses douze tensions et REMONTE CS en partant. Au retour, les
+  //deux octets partaient CS haut, donc dans le vide : la voix gardait la tension
+  //precedente, avec l'accent du coup d'avant.
+  //Le cout est de 5 us de masquage en plus par ecriture venant de la boucle principale.
+  //Depuis l'interruption il est nul : les drapeaux y sont deja baisses.
+  SPI.beginTransaction(SPIset);
   DAC_CS_LOW;
   delayMicroseconds(5);
-  SPI.beginTransaction(SPIset);
   SPI.transfer(command >> 8);
   SPI.transfer(command & 0xFF);
   DAC_CS_HIGH;

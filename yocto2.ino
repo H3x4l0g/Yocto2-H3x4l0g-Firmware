@@ -131,7 +131,16 @@ void setup()
   InstToStepWord();
   SetDoutTrig(0);
 
-  MIDI.begin();//opens Serial1 at 31250 baud
+  //OMNI, ET LE FILTRE EST DANS LE HANDLER. setInputChannel() n'etait appele qu'ici, au
+  //demarrage : changer le canal de reception dans le mode config ecrivait bien
+  //seq.RXchannel (Enc.ino), mais la bibliotheque continuait de filtrer sur la valeur du
+  //boot. Les notes du nouveau canal etaient jetees avant d'arriver au handler, celles de
+  //l'ancien rejetees par le test du handler - plus une seule note ne passait, jusqu'au
+  //prochain allumage.
+  //Deux sources pour une meme verite, dont une seule se mettait a jour. HandleNoteOn() et
+  //HandleNoteOff() comparent deja channel a seq.RXchannel a chaque note : c'est le filtre,
+  //il lit la valeur courante, et il est le seul.
+  MIDI.begin(MIDI_CHANNEL_OMNI);//opens Serial1 at 31250 baud
   //Le thru LOGICIEL de la bibliotheque, a ne pas confondre avec le jack THRU cable en
   //dur - celui-la fait son travail et n'est pas concerne.
   //serialMIDI.h pose thruActivated = true par defaut, et MIDI.hpp renvoie vers la SORTIE
@@ -147,7 +156,6 @@ void setup()
   MIDI.turnThruOff();
   MIDI.setHandleNoteOn(HandleNoteOn);
   MIDI.setHandleNoteOff(HandleNoteOff);
-  MIDI.setInputChannel(seq.RXchannel);
 
   sei();
 

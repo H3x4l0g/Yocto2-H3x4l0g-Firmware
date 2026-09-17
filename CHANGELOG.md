@@ -181,6 +181,11 @@ le détail technique vit dans `TODO.md`.
   tenait indéfiniment.
 - Les douze notes du haut ne repartent plus dans l'octave du bas. Au-delà d'une certaine
   hauteur, la note envoyée débordait et rebouclait ; la molette s'arrête maintenant avant.
+- **Plus de note en l'air au clavier.** Tenir une touche, changer d'octave, relâcher : la
+  coupure partait sur la nouvelle hauteur et la note tenue sonnait indéfiniment.
+- **La pile ne se troue plus.** BACK et FWD s'arrêtent à l'emplacement d'ajout, comme sur
+  les pistes. On pouvait avancer à l'index 40 d'une pile de cinq notes et y poser une note :
+  les places intermédiaires gardaient ce qui traînait en mémoire.
 - **La pile de notes s'enregistre enfin.** Sa longueur n'était ni sauvegardée ni relue :
   les notes revenaient au complet, mais sans leur point de bouclage, qui gardait la valeur
   laissée par le pattern chargé avant. La piste EXT n'a jamais été enregistrable depuis
@@ -254,6 +259,9 @@ le détail technique vit dans `TODO.md`.
   notes en jeu dense, et rien pour la distinguer d'une fausse manœuvre au clavier.
 - **Un vrai note-off au lieu du seul CC 123** quand tout s'arrête. Beaucoup de machines
   ignorent le All Notes Off — une x0xb0x parmi elles.
+- **Changer le canal MIDI de réception fonctionne enfin.** Le réglage était écrit mais
+  jamais transmis à la réception : après l'avoir changé, la machine ne répondait plus à
+  aucune note, sur aucun canal, jusqu'au prochain allumage.
 
 ## Fiabilité
 
