@@ -244,7 +244,11 @@ void SeqParameter()
     //Les deux lignes qui etaient ici repetaient mot pour mot le haut de la fonction,
     //qui tourne a chaque passe AVANT elles. Le cas 2 ci-dessus remet deja le compteur a
     //zero, et configPage n'est incremente que dans la branche SHIFT, hors d'atteinte.
-    if (tempoBtn.justRelease) needLcdUpdate = TRUE;
+    //L'appui redessine comme le relachement : a l'appui pour que la valeur du tempo
+    //apparaisse, au relachement pour rendre l'ecran du dessous. Seul le relachement etait
+    //la, le bloc tempo de LcdUpdate() se redessinant alors a chaque passe sans rien
+    //demander a personne. Maintenant qu'il respecte le drapeau, l'appui doit le poser.
+    if (tempoBtn.justPressed || tempoBtn.justRelease) needLcdUpdate = TRUE;
   }
 
   //==============================================================================

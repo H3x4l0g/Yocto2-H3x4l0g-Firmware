@@ -22,12 +22,26 @@
 //Initialise IO PORT and libraries
 void LcdUpdate()
 {
-  //display tempo
-  if (tempoBtn.pressed && curSeqMode != PTRN_PLAY && !shiftBtn.pressed ){
+  //LE TEMPO PAR-DESSUS, PENDANT QUE TEMPO EST TENU------------------------------------
+  //Ce bloc redessinait a CHAQUE TOUR DE BOUCLE, seul du fichier a ignorer needLcdUpdate -
+  //l'en-tete ci-dessus enonce pourtant la regle qu'il enfreignait.
+  //Six octets vers le LCD : un positionnement de curseur et cinq caracteres. En mode 4
+  //bits - c'est le cablage, lcd(18,19,20,21,22,23) - la bibliotheque envoie deux quartets
+  //par octet et temporise 100 us apres chacun, soit ~200 us l'octet et ~1,3 ms la passe.
+  //La boucle tombait de ~2800 a ~600 tours par seconde TANT QUE LA TOUCHE ETAIT TENUE.
+  //Or EncRead() n'echantillonne la molette qu'une fois par tour, et valider un cran
+  //demande au moins deux de ses quatre transitions : un saut de deux etats vaut 0 dans
+  //knobDir[]. A 600 Hz on en rate trois sur quatre et le cran est perdu - pile pendant le
+  //geste ou l'on tient TEMPO pour regler le tempo. Le tempo qui ne suivait pas la main,
+  //c'etait l'ecran qui mangeait la boucle.
+  //needLcdUpdate est pose a l'appui (Seq.ino) pour que la valeur apparaisse, et a chaque
+  //cran par Enc.ino. Tenue sans rien tourner, la touche n'ecrit plus rien du tout.
+  if (needLcdUpdate && tempoBtn.pressed && curSeqMode != PTRN_PLAY && !shiftBtn.pressed){
+    needLcdUpdate = FALSE;
     lcd.setCursor(11,1);
     LcdPrintTempo();
   }
-  //display global accent
+  //L'ecran du dessous, tempo relache----------------------------------------------------
   if(needLcdUpdate && !tempoBtn.pressed){
     needLcdUpdate = FALSE;
     if (seq.configMode)
@@ -312,7 +326,7 @@ void LcdPrintGlobalAcc()
 void  LcdPrintEEpromInit()
 {
   lcd.setCursor(0,0);
-  lcd.print(" EEprom is being ");
+  lcd.print(" EEprom is being");//seize signes pile : le dix-septieme partait hors ecran
   lcd.setCursor(0,1);
   LcdClearLine();
   lcd.setCursor(0,1);

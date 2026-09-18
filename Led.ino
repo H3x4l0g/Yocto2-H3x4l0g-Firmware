@@ -99,6 +99,13 @@ void SetLeds()
     fwdLed = fwdBtn.pressed;
   }
 
+  //LA LED NUM N'ETAIT JAMAIS ALLUMEE : numLed etait declaree et lue dans le mot envoye
+  //aux registres, mais aucune ligne du depot ne l'ecrivait - donc zero pour toujours.
+  //NUM fait pourtant trois choses : il montre le numero de piste sur les LED de pas en
+  //TRACK WRITE, il sert de modificateur dans Seq.ino, et il fait entrer en mode clavier
+  //quand EXT INST est choisi. Tous ses voisins s'allument tant qu'on les tient - BANK,
+  //DIR, BACK, FWD, TEMPO - il etait le seul a ne rien dire.
+  numLed = numBtn.pressed;
   dirLed = dirBtn.pressed;
   scaleLeds = 1 << scaleBtn.counter;
   guideLed =  guideBtn.counter;
@@ -123,9 +130,12 @@ void SetLeds()
 
 
   //Update step Leds depends sequencer Mode
+  //temp etait declaree DANS le switch, avant la premiere etiquette de cas : du code que
+  //l'execution ne peut pas atteindre, puisqu'on saute toujours sur un case. Ca marchait -
+  //la variable existe quand meme et les deux branches qui s'en servent lui posent 0
+  //d'abord - mais une declaration qu'aucun chemin ne traverse ne se lit pas.
+  unsigned int temp;//assemblage des LED de pas, cf PTRN_PLAY et PTRN_STEP
   switch (curSeqMode){
-    //------------------------------
-    unsigned int temp;// tmep data of stepLeds;
   case TRACK_PLAY:
     if (isRunning) stepLeds = (1 << trk.current) ^ (1 << curStep[longerInstLength]);
     else stepLeds = blinkTempo << trk.current;

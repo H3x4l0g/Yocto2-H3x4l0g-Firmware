@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.053**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.054**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -12,6 +12,10 @@ le détail technique vit dans `TODO.md`.
   tourne, depuis n'importe quel écran d'édition. **Y compris sur le slot ACC et en mode
   clavier**, où l'écran montrait bien le tempo pendant que la molette éditait l'accent
   global ou la note sous le curseur.
+- **Et le tempo suit la main.** Tant que TEMPO était tenu, l'écran se réécrivait à chaque
+  tour de boucle : la machine passait son temps à parler au LCD au lieu de lire la molette,
+  et un cran sur deux se perdait dès qu'on tournait un peu vite. L'écran ne se redessine
+  plus que lorsque la valeur change.
 - SHUFFLE maintenu règle le shuffle en PATT TAP aussi. Il y bougeait le tempo en silence.
 - Le « Total Accent » s'appelle **Global Accent** : tous les paramètres qui portent sur
   le pattern entier sont des « global » dans cette machine.
@@ -41,6 +45,10 @@ le détail technique vit dans `TODO.md`.
 
 ## Lisibilité du panneau
 
+- **La LED NUM s'allume quand on tient NUM.** Elle n'était jamais allumée — le firmware
+  réservait la lampe et n'y écrivait rien. NUM montre le numéro de piste, sert de
+  modificateur et fait entrer en mode clavier : c'était le seul bouton maintenu dont le
+  panneau ne disait rien.
 - BANK maintenu allume les **huit banques** en veilleuse, la courante à pleine intensité.
 - Les touches 9 à 16 ne sélectionnent plus la banque H : ce ne sont pas des banques.
 - Le curseur de lecture suit la mesure, plus la longueur de l'instrument sélectionné.
