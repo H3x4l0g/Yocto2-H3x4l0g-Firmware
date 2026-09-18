@@ -116,7 +116,44 @@ static_assert(BUFFER_LENGTH >= MAX_PAGE_SIZE + 2,
               "Tampon I2C trop petit : il faut WireN (BUFFER_LENGTH 132), pas Wire (32)");
 #define HRDW_ADDRESS       0x50
 #define HRDW_ADDRESS_UP    (0x50 | B100)
-#define DELAY_WR           10
+
+//L'EEPROM DIT ELLE-MEME QUAND ELLE A FINI------------------------------------------------
+//Apres un endTransmission() qui a ecrit une page, la puce entre dans son cycle d'ecriture
+//interne et NAK sa propre adresse tant qu'il dure. On l'interroge donc au lieu de deviner :
+//beginTransmission puis endTransmission a vide, et un zero veut dire "c'est ecrit".
+//
+//Ca remplace seize delay(DELAY_WR) de 10 ms - le DOUBLE des 5 ms que la fiche donne pour
+//maximum, et plus du triple des ~3 ms que la puce prend vraiment. Une sauvegarde de pattern
+//fait quatre pages, une de piste huit : 40 a 80 ms de delay() qui bloquaient TOUT, la
+//relache de TRIG-1 comme MIDI.read(), donc l'horloge en synchro esclave. L'attente devient
+//juste au lieu d'etre devinee, et elle reste correcte sur une puce lente.
+//
+//MIDI.read() dans la boucle : c'est le meme geste que les appels deja semes au fil des
+//sauvegardes de ce fichier, et pour la meme raison. Le bus I2C est libre a cet instant - la
+//transaction est finie - et CountPPQN() ne touche qu'au SPI et a l'UART, jamais a l'I2C.
+//
+//BORNEE. Une puce morte ou absente NAK pour toujours : sans borne, le panneau se figerait
+//sans rien dire. 400 essais a ~30 us l'un plafonnent a une douzaine de millisecondes, deja
+//plus que le maximum de la fiche - au-dela on rend la main, et l'ecriture suivante echouera
+//visiblement plutot que de figer la machine.
+//
+//L'idee vient du firmware MSS pour la NAVA, EepWaitReady().
+#define WIRE_READY_TRIES   400
+
+//La puce visee par la derniere transaction : WireBeginTX() la calcule deja depuis l'adresse
+//sur 24 bits, et il n'y a aucune raison de refaire ce calcul ici - c'est le meme piege que
+//les neuf recopies du choix de puce, dont deux s'etaient trompees.
+static byte wireDevice = HRDW_ADDRESS;
+
+void WireWaitReady()
+{
+  for (unsigned int t = 0; t < WIRE_READY_TRIES; t++){
+    Wire.beginTransmission(wireDevice);
+    if (Wire.endTransmission() == 0) return;//la puce repond : le cycle est fini
+    MIDI.read();//l'horloge esclave ne s'arrete pas pour une sauvegarde
+  }
+}
+
 ////////////////////////Function//////////////////////
 
 //save pattern
@@ -156,7 +193,7 @@ void SavePattern(byte patternNbr)
   //104 bytes => 24 byte left ;)
 
   Wire.endTransmission();//end page transmission
-  delay(DELAY_WR);//delay between each write page
+  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
 
   MIDI.read();// to improve slave sync response
 
@@ -171,7 +208,7 @@ void SavePattern(byte patternNbr)
       MIDI.read();// to improve slave sync response
     }
     Wire.endTransmission();//end of 128 bytes transfer
-    delay(DELAY_WR);//delay between each write page
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
 
     
   }//2 * 128 bytes = 256 bytes
@@ -187,7 +224,7 @@ void SavePattern(byte patternNbr)
   }//128 bytes  
   MIDI.read();// to improve slave sync response
   Wire.endTransmission();//end page transmission
-  delay(DELAY_WR);//delay between each write page
+  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
   // 128 bytes
 
   
@@ -281,7 +318,7 @@ void SaveTrack(byte trackNbr)
       Wire.write((byte)(track[trkBuffer].patternNbr[i + (MAX_PAGE_SIZE * nbrPage)] & 0xFF)); 
     }
     Wire.endTransmission();//end of 128 bytes transfer
-    delay(DELAY_WR);//delay between each write page
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
   }
 
 }
@@ -325,7 +362,7 @@ void SaveSeqSetup()
   Wire.write((byte)(seq.RXchannel));
   Wire.write((byte)(seq.ptrnChangeSync));
   Wire.endTransmission();//end page transmission
-  delay(DELAY_WR);//delay between each write page
+  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
 }
 
 //Load Setup
@@ -359,7 +396,7 @@ void SavePatternGroup(byte firstPattern, byte length)
     Wire.write((byte)(a)); //pattern[ptrnBuffer].groupPos
     Wire.write((byte)(length));//pattern[ptrnBuffer].groupLength
     Wire.endTransmission();//end page transmission
-    delay(DELAY_WR);//delay between each write page
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
   }
 }
 
@@ -375,7 +412,7 @@ void ClearPatternGroup(byte firstPattern, byte length)
     Wire.write((byte)(0)); //pattern[ptrnBuffer].groupPos
     Wire.write((byte)(0));//pattern[ptrnBuffer].groupLength
     Wire.endTransmission();//end page transmission
-    delay(DELAY_WR);//delay between each write page
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
   }
 }
 
@@ -433,7 +470,7 @@ void InitEEprom()
     }//128 bytes FIRST PAGE
 
     Wire.endTransmission();//end page transmission
-    delay(DELAY_WR);//delay between each write page
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
 
     //VELOCITY-----------------------------------------------
     for(int nbrPage = 0; nbrPage < 2; nbrPage++){
@@ -445,7 +482,7 @@ void InitEEprom()
         }
       }
       Wire.endTransmission();//end of 64 bytes transfer
-      delay(DELAY_WR);//delay between each write page
+      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
     }//2 * 128 bytes = 256 bytes
 
     //PROBALITY-----------------------------------------------
@@ -458,7 +495,7 @@ void InitEEprom()
         }
       }
       Wire.endTransmission();//end of 64 bytes transfer
-      delay(DELAY_WR);//delay between each write page
+      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
     }//2 * 128 bytes = 256 bytes
 
     //uTIMING-----------------------------------------------
@@ -471,7 +508,7 @@ void InitEEprom()
         }
       }
       Wire.endTransmission();//end of 64 bytes transfer
-      delay(DELAY_WR);//delay between each write page
+      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
     }//2 * 128 bytes = 256 bytes
 
     //RETRIG-----------------------------------------------
@@ -484,7 +521,7 @@ void InitEEprom()
         }
       }
       Wire.endTransmission();//end of 64 bytes transfer
-      delay(DELAY_WR);//delay between each write page
+      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
     }
 
     //EXT INST-----------------------------------------------
@@ -494,7 +531,7 @@ void InitEEprom()
       Wire.write((byte)(0));
     }//128 bytes -> fisrt page
     Wire.endTransmission();//end page transmission
-    delay(DELAY_WR);//delay between each write page
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
 
     //Show init statut on steps Leds
     static unsigned int tempInitLeds;
@@ -513,7 +550,7 @@ void InitEEprom()
         Wire.write((byte)(0));
       }//128 bytes -> fisrt page
       Wire.endTransmission();//end page transmission
-      delay(DELAY_WR);//delay between each write page
+      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
     }
     //Show init statut on steps Leds
     static unsigned int tempInitLeds;
@@ -529,7 +566,7 @@ void InitEEprom()
   Wire.write((byte)(1));//seq.TXchannel));
   Wire.write((byte)(1));//seq.RXchannel));
   Wire.endTransmission();//end page transmission
-  delay(DELAY_WR);//delay between each write page
+  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
 
   //Set the 3 last byte of the first EEprom to 0, 1, 2 value to NEVER init EEPROM again
   WireBeginTX(262137);
@@ -537,7 +574,7 @@ void InitEEprom()
   Wire.write((byte)(1));//seq.TXchannel));
   Wire.write((byte)(2));//seq.RXchannel));
   Wire.endTransmission();//end page transmission
-  delay(DELAY_WR);//delay between each write page
+  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
 
 
 }
@@ -568,6 +605,7 @@ void WireBeginTX(unsigned long address)
 {
   byte hardwareAddress;
   hardwareAddress = HRDW_ADDRESS + (address >> 16); 
+  wireDevice = hardwareAddress;//c'est elle que WireWaitReady() interrogera
   Wire.beginTransmission(hardwareAddress);
   Wire.write((byte)(address >> 8));
   Wire.write((byte)(address & 0xFF));

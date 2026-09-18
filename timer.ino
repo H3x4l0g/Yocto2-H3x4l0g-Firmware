@@ -83,6 +83,8 @@ void TimerStart()
 {
   TCCR1A = 0;
   TCCR1B = _BV(CS11) | _BV(WGM12);  //CTC, prediviseur 8 : 16 MHz / 8 = 2 MHz de comptage
+  TCNT1 = 0;                        //un depart franc : sans ca, le rattrapage ci-dessous
+                                    //verrait un compte herite et tirerait un tick aussitot
   TimerSetFrequency();              //pose OCR1A, et recale TCNT1 s'il est deja au-dela
   TIFR1 = _BV(OCF1A);               //jeter une comparaison restee en attente
   TIMSK1 = _BV(OCIE1A);
@@ -167,9 +169,16 @@ void TimerSetFrequency()
   cli();
   OCR1A = (unsigned int)(ticks - 1);
   //Un OCR1A neuf plus bas que le compte deja atteint serait simplement manque : le
-  //compteur grimperait jusqu'a 0xFFFF avant de reboucler, un hoquet de 32 ms. On
-  //redemarre la periode plutot.
-  if (TCNT1 > OCR1A) TCNT1 = 0;
+  //compteur grimperait jusqu'a 0xFFFF avant de reboucler, un hoquet de 32 ms.
+  //
+  //ON FAIT PARTIR LE TICK DU, ON NE REDEMARRE PAS LA PERIODE. La parade d'ici remettait
+  //TCNT1 a zero, ce qui ne perd pas de tick mais en ETIRE un : celui qui etait deja du
+  //attendait encore une periode entiere, jusqu'a 5,2 ms a 120 BPM. Poser OCR1A - 1 fait
+  //partir la comparaison au compte suivant, donc tout de suite.
+  //L'idee vient du firmware MSS pour la NAVA, qui a trouve le meme defaut de son cote
+  //et note qu'il s'entendait A CHAQUE CRAN de la molette de tempo en marche.
+  //OCR1A ne peut pas valoir zero ici : ticks vaut au moins 5000 a 250 BPM.
+  if (TCNT1 >= OCR1A) TCNT1 = OCR1A - 1;
   SREG = sreg;
 }
 

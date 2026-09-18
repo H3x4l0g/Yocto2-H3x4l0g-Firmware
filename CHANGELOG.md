@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.055**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.056**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -68,6 +68,11 @@ le détail technique vit dans `TODO.md`.
   porte aussi les sorties de trig : le gate d'une note 60 retombait au passage.
 
 ## Tempo et swing
+
+- **Tourner le tempo en marche ne décale plus le temps en cours.** Le cran arrivait pendant
+  qu'une période était déjà entamée, et la suivante repartait de zéro : le temps en cours
+  s'allongeait d'une fraction de pas à chaque cran. Il part maintenant à l'instant où il
+  était dû.
 
 - Les 221 valeurs de BPM sont exactes. Il n'y en avait que **sept**.
 - Plus de hoquet de 32 ms en tournant le tempo.
@@ -293,6 +298,12 @@ le détail technique vit dans `TODO.md`.
 
 ## Fiabilité
 
+- **Sauvegarder est trois fois plus rapide, et la machine ne se fige plus pendant.**
+  Après chaque page écrite, le firmware attendait 10 ms en aveugle — le double de ce que la
+  fiche de l'EEPROM donne pour maximum, et le triple de ce qu'elle prend vraiment. Une
+  sauvegarde de piste, c'était 80 ms pendant lesquelles plus rien ne répondait : ni les
+  LED, ni la sortie TRIG-1, ni l'horloge MIDI entrante en synchro esclave. La puce dit
+  maintenant elle-même quand elle a fini.
 - **Plus de gel au démarrage.** Il arrivait une fois sur deux ou trois : deux fusibles
   faux depuis l'assemblage du PCB — détection de sous-tension désactivée, oscillateur mal
   configuré — et deux attentes non bornées dans le code.
