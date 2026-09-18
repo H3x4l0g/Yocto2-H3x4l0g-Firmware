@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.050**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.053**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -9,10 +9,17 @@ le détail technique vit dans `TODO.md`.
 - Sur les écrans d'édition de pattern, la molette nue ne touche plus au **tempo** — qui
   n'y est même pas affiché. On ne le déplace plus en croyant régler autre chose.
 - TEMPO maintenu reste le chemin vers le tempo, et en affiche la valeur pendant qu'on
-  tourne, depuis n'importe quel écran d'édition.
+  tourne, depuis n'importe quel écran d'édition. **Y compris sur le slot ACC et en mode
+  clavier**, où l'écran montrait bien le tempo pendant que la molette éditait l'accent
+  global ou la note sous le curseur.
 - SHUFFLE maintenu règle le shuffle en PATT TAP aussi. Il y bougeait le tempo en silence.
 - Le « Total Accent » s'appelle **Global Accent** : tous les paramètres qui portent sur
   le pattern entier sont des « global » dans cette machine.
+- **Sur la page 2 du mode config, la molette n'écrit plus les réglages de la page 1.**
+  Les trois positions marquées `nc.` — celles qui affichent `xxx` — réglaient en réalité
+  le BPM de démarrage et les deux canaux MIDI. On pouvait ressortir du mode config avec un
+  canal de réception qu'on n'avait pas choisi, sans rien à l'écran pour le dire, et ENTER
+  le gravait. Elles ne font plus rien.
 - **La molette ne touche qu'à ce qui est affiché.** C'est désormais la règle, et elle
   tient en une phrase. En MUTE elle réglait le tempo en silence pendant que l'écran
   montrait une page d'édition, un bargraphe de shuffle ou l'accent global : elle retrouve
@@ -262,6 +269,10 @@ le détail technique vit dans `TODO.md`.
 - **Changer le canal MIDI de réception fonctionne enfin.** Le réglage était écrit mais
   jamais transmis à la réception : après l'avoir changé, la machine ne répondait plus à
   aucune note, sur aucun canal, jusqu'au prochain allumage.
+- **Repasser de esclave à maître marche du premier coup.** Sur une machine sauvée en
+  esclave, le premier cran de molette vers « maître » ne faisait rien du tout : ni l'écran
+  ni l'horloge ne bougeaient, et il fallait d'abord tourner dans l'autre sens — où il n'y
+  a rien — pour décoincer le réglage. Même chose pour la synchro de changement de pattern.
 
 ## Fiabilité
 

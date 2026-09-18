@@ -13,9 +13,16 @@
 //   sinon, Global Accent visee -> la valeur d'accent global, molette nue
 //   sinon, TRACK WRITE         -> les champs de la piste
 //   sinon, mode clavier        -> la pile de notes externes
-//   sinon, mode config         -> le parametre affiche
+//   sinon, mode config         -> le parametre affiche DE LA PAGE AFFICHEE
 //   sinon, PATT EDIT/TAP/TRACK -> inerte, volontairement
 //   sinon                      -> le tempo   (PATT PLAY, ou il est affiche)
+//
+//   Les quatre maillons du milieu portent tous "et TEMPO relache" : tenir TEMPO affiche
+//   le tempo (LCD.ino) et donne la molette au tempo, depuis chacun de ces quatre etats.
+//   C'est la regle 2 ci-dessous prise dans l'autre sens - la molette ne touche qu'a ce
+//   qui est affiche, donc au tempo des qu'il l'est. SHUFFLE garde la molette parce qu'il
+//   faudrait trois doigts pour tenir les deux, et le mode config parce que TEMPO y est
+//   la touche qui tourne les pages.
 //
 //   MUTE n'apparait pas dans cette liste : ce n'est pas un mode mais une surcouche des
 //   touches de pas, et la chaine lit le mode REEL du dessous. La molette y fait donc ce
@@ -37,6 +44,14 @@
 //   3. UN CRAN = UN PAS. Le decodage accumule les transitions du cycle de Gray et ne
 //      valide qu'au retour sur l'etat de repos. La table d'origine comptait les quatre
 //      transitions : la molette avancait de quatre.
+//
+//   4. AUCUN TEMOIN STATIQUE. Chaque branche compare la valeur AVANT et APRES le cran,
+//      dans la meme passe. Les onze "prev..." qui vivaient ici retenaient la valeur d'une
+//      passe a l'autre, et se perimaient des que leur valeur changeait par un autre
+//      chemin - chargement de pattern, touches de pas, reglage global, EEPROM au boot. Le
+//      cran qui retombait ensuite pile sur la valeur perimee ne posait ni redessin ni
+//      drapeau : un cran mort, au hasard, sur une valeur pourtant modifiee. Comparer dans
+//      la passe est immunise par construction, rien ne survivant a la passe.
 //
 //======================================================================================
 
@@ -108,14 +123,18 @@ void EncGet()
   //Molette nue, comme depuis toujours. Elle est passee derriere INST maintenu en v2.013,
   //quand elle est devenue selecteur d'instrument - pour eviter qu'arriver sur ACC en
   //tournant ne la piege sur la valeur. Le selecteur est parti, le geste revient.
-  else if (curInst == GLOBAL_ACC && from == PTRN_STEP){
+  //TEMPO maintenu passe devant : l'ecran montre alors le tempo (LCD.ino), et la molette
+  //ne touche qu'a ce qui est affiche. Le slot ACC etait, avec le mode clavier, l'un des
+  //deux endroits ou tenir TEMPO reglait autre chose que le tempo.
+  else if (curInst == GLOBAL_ACC && from == PTRN_STEP && !tempoBtn.pressed){
+    //globalAcc change aussi au chargement d'un pattern et au coller, sans que le temoin
+    //le sache : un cran mort attendait derriere chaque changement de pattern.
+    byte before = pattern[ptrnBuffer].globalAcc;
     pattern[ptrnBuffer].globalAcc = EncGet(pattern[ptrnBuffer].globalAcc, 1);
     //MIN_GLOBAL_ACC / MAX_GLOBAL_ACC sat in define.h without a single user, the bound
     //being written out here and a third time as the width of the bargraph. One source.
     pattern[ptrnBuffer].globalAcc = constrain(pattern[ptrnBuffer].globalAcc, MIN_GLOBAL_ACC, MAX_GLOBAL_ACC);
-    static byte prevGlobalAcc;
-    if (pattern[ptrnBuffer].globalAcc != prevGlobalAcc){
-      prevGlobalAcc = pattern[ptrnBuffer].globalAcc;
+    if (pattern[ptrnBuffer].globalAcc != before){
       patternWasEdited = TRUE;
       needLcdUpdate = TRUE;
     }
@@ -206,15 +225,23 @@ void EncGet()
   }
 
   ///////////////////////////////////KEYBOARD MODE////////////////////////////////////
-  else if (keyboardMode){
+  //TEMPO maintenu passe devant ici aussi : l'ecran affiche le tempo pendant qu'on le
+  //tient, et la molette le suit au lieu d'editer une note qu'on ne voit plus.
+  else if (keyboardMode && !tempoBtn.pressed){
     switch (curIndex){
-      //track position
     //Le "break" de ce premier cas etait ENFERME dans le if qui suit, et l'accolade de ce
     //if manquait : les cas 1, 2 et 3 etaient donc imbriques DEDANS. Ca compilait et ca
     //marchait, un "case" pouvant se placer n'importe ou dans le corps d'un switch et le
     //saut ignorant la condition - mais toute ligne ajoutee a la fin du premier cas serait
     //tombee dans la queue du quatrieme. Remis d'aplomb.
-    case 0://l'index de la note qu'on edite
+    //Une accolade par cas depuis, comme dans TRACK WRITE : les quatre temoins statiques
+    //sont devenus des locales, et une declaration ne peut pas etre franchie par un saut
+    //de "case".
+    case 0:{//l'index de la note qu'on edite
+      //noteIndex bouge aussi par BACK et FWD (key.ino) : le temoin restait sur la valeur
+      //posee a la molette, et revenir dessus a la molette ne redessinait pas. L'ecran
+      //montrait alors la note d'un autre index que celui ou etait le curseur.
+      byte before = noteIndex;
       if(instBtn) noteIndex = EncGet(noteIndex, 10);
       else noteIndex = EncGet(noteIndex, 1);
       //L'index s'arretait a 99 au lieu de s'arreter a la pile. On pouvait donc amener le
@@ -223,28 +250,28 @@ void EncGet()
       //que la position de piste dans TRACK WRITE, et que la longueur de pile dans
       //key.ino : on ne se promene que sur ce qui existe. Les notes s'ajoutent aux touches
       //de pas, qui allongent la pile d'elles-memes.
-      //Jusqu'a l'emplacement d'ajout, pas jusqu'a la derniere note : meme borne que FWD en
-      //mode clavier (key.ino) et que la position de piste en TRACK WRITE.
-      //Pas de variable locale ici : une declaration avec initialisation dans un case, ce
-      //sont les case suivants qui sautent par-dessus - trois warnings, et l'invariant du
-      //depot est zero. La borne est donc une fonction, cf ExtAddSlot() dans SeqFunc.ino.
+      //Jusqu'a l'emplacement d'ajout, pas jusqu'a la derniere note : ExtAddSlot() est la
+      //meme borne que FWD en mode clavier (key.ino), ecrite une seule fois pour les deux
+      //curseurs. Deux bornes qui different d'un pas, c'est la molette qui ramene en
+      //arriere pendant que FWD se tient plus loin.
       noteIndex = constrain(noteIndex, 0, ExtAddSlot());
-      static unsigned int prevNoteIndex;
-      if (noteIndex != prevNoteIndex){
-        prevNoteIndex = noteIndex;
-        needLcdUpdate = TRUE;
-      }
+      if (noteIndex != before) needLcdUpdate = TRUE;
       break;
+    }
 
-    case 1://la note elle-meme
+    case 1:{//la note elle-meme
+      //LE TEMOIN ETAIT LE PIRE DES ONZE : il gardait la valeur d'une note pendant que le
+      //curseur en designait une AUTRE. Editer la note 0 a 61, passer sur la note 1 qui
+      //vaut 60, la monter d'un cran : 61, egale au temoin, donc ni redessin ni
+      //patternWasEdited. L'ecran restait sur 60 quand la memoire disait deja 61, et
+      //l'edition partait en silence au chargement suivant, faute d'avoir ete marquee.
+      byte before = pattern[ptrnBuffer].extNote[noteIndex];
       if(instBtn) pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 12);
       else pattern[ptrnBuffer].extNote[noteIndex] = EncGet(pattern[ptrnBuffer].extNote[noteIndex], 1);
       //115 et non 127 : au-dela, note + 12 depasse 127 a l'envoi et reboucle dans
       //l'octave du bas. Cf MAX_EXT_NOTE dans define.h.
       pattern[ptrnBuffer].extNote[noteIndex] = constrain(pattern[ptrnBuffer].extNote[noteIndex], 0, MAX_EXT_NOTE);
-      static unsigned int prevExtNote;
-      if (pattern[ptrnBuffer].extNote[noteIndex] != prevExtNote){
-        prevExtNote = pattern[ptrnBuffer].extNote[noteIndex];
+      if (pattern[ptrnBuffer].extNote[noteIndex] != before){
         //LE DRAPEAU MANQUAIT, et c'est le meme oubli que pour la direction. Editer une
         //note a la molette ne posait rien : ENTER ne clignotait pas, l'ecriture n'etait
         //pas autorisee, et le travail partait en silence au chargement suivant. La meme
@@ -253,103 +280,130 @@ void EncGet()
         needLcdUpdate = TRUE;
       }
       break;
+    }
 
-    case 2://la longueur de la pile
+    case 2:{//la longueur de la pile
+      //extLength change aussi quand une touche de pas ajoute une note (key.ino) et au
+      //chargement d'un pattern : le temoin les ignorait tous les deux.
+      byte before = pattern[ptrnBuffer].extLength;
       if(instBtn) pattern[ptrnBuffer].extLength = EncGet(pattern[ptrnBuffer].extLength, 10);
       else pattern[ptrnBuffer].extLength = EncGet(pattern[ptrnBuffer].extLength, 1);
       pattern[ptrnBuffer].extLength = constrain(pattern[ptrnBuffer].extLength, 0, MAX_EXT_INST_NOTE);
-      static unsigned int prevExtLength;
-      if (pattern[ptrnBuffer].extLength != prevExtLength){
-        prevExtLength = pattern[ptrnBuffer].extLength;
+      if (pattern[ptrnBuffer].extLength != before){
         //patternNeedSaved etait pose en direct ici, seul site du depot a le faire : tous
         //les autres passent par patternWasEdited, que Seq.ino convertit. Le resultat
         //etait le meme, mais deux drapeaux pour une seule idee finissent toujours par
         //diverger. Et 99 en dur devient MAX_EXT_INST_NOTE, qui vaut 99 et dit pourquoi.
         patternWasEdited = TRUE;
         needLcdUpdate = TRUE;
-        //Raccourcir la pile sous le curseur laisserait celui-ci dans le vide.
-        if (noteIndex > pattern[ptrnBuffer].extLength) noteIndex = pattern[ptrnBuffer].extLength;
+        //Raccourcir la pile sous le curseur laisserait celui-ci dans le vide. Le cran
+        //mort du temoin perime sautait ce recalage avec le reste.
+        if (noteIndex > ExtAddSlot()) noteIndex = ExtAddSlot();
       }
       break;
+    }
 
-    case 3://l'octave des touches de pas - PAS celle de la note affichee
+    case 3:{//l'octave des touches de pas - PAS celle de la note affichee
       //keybOct ne transpose QUE la saisie aux seize touches (key.ino) : il decide dans
       //quelle octave elles ecrivent. Il ne touche ni a la note sous le curseur, ni a ce
       //qui sort en lecture, et il ne fait pas partie du pattern - d'ou l'absence de
       //drapeau, qui est correcte ici. C'est pourquoi le tourner ne semble rien faire
       //quand on regarde [not] : l'effet ne se voit qu'a la prochaine note jouee.
+      //SCALE le change aussi, en mode clavier (key.ino), et PLAY le remet au defaut.
+      byte before = keybOct;
       keybOct = EncGet(keybOct, 1);
       keybOct = constrain(keybOct, 0, MAX_OCT - 1);
-      static unsigned int prevKeybOct;
-      if (keybOct != prevKeybOct){
-        prevKeybOct = keybOct;
-        needLcdUpdate = TRUE;
-      }
+      if (keybOct != before) needLcdUpdate = TRUE;
       break;
+    }
     }
   }
   ///////////////////////////////////CONFIG MODE////////////////////////////////////
+  //LA PAGE DECIDE D'ABORD, LE CURSEUR ENSUITE - comme LcdUpdate(), qui commence lui aussi
+  //par switcher sur configPage. Seul le cas 0 la testait ; les cas 1, 2 et 3 ne la
+  //regardaient pas. Sur la PAGE 2, dont l'ecran n'affiche qu'un parametre et trois "nc."
+  //suivis de "xxx", le curseur s'arretait quand meme sur les trois, et la molette y
+  //editait les parametres de la PAGE 1 : le BPM de demarrage, le canal MIDI d'emission et
+  //celui de reception changeaient sans un mot a l'ecran, setupNeedSaved se levait, et
+  //ENTER les gravait. Trois positions qui annoncent "non connecte" et qui deplacaient le
+  //canal MIDI de la machine.
+  //Les trois consomment le cran sans rien regler : un cran non consomme reste en attente
+  //et part sur le premier parametre venu au changement d'ecran.
+  //Les etiquettes de cas venaient du bloc clavier, copiees et jamais relues - "external
+  //instrument note" devant le BPM, "octave" devant le canal de reception.
   else if (seq.configMode){
-    switch (curIndex){
-      //track position
-    case 0:
-      if(seq.configPage == 1){//sync select
+    if (seq.configPage == 1){
+      switch (curIndex){
+      case 0:{//maitre ou esclave
+        //LE TEMOIN RENDAIT MASTER INATTEIGNABLE AU DEMARRAGE. prevSeqSync valait 0 a
+        //l'allumage et seq.sync sortait de l'EEPROM : machine sauvee en SLAVE, donc sync
+        //a 1. Le premier cran vers le bas posait 0, egal au temoin - ni syncChanged, ni
+        //setupNeedSaved, ni redessin. SeqConf.ino n'etant reveille que par syncChanged,
+        //l'horloge restait esclave pendant que la valeur disait maitre. Il fallait
+        //d'abord tourner vers le haut, ou le cran ne change rien, pour decoincer.
+        boolean before = seq.sync;
         seq.sync = EncGet(seq.sync, 1);
         seq.sync = constrain(seq.sync, 0, 1);
-        static boolean prevSeqSync;
-        if (seq.sync != prevSeqSync){
-          prevSeqSync = seq.sync;
+        if (seq.sync != before){
           seq.syncChanged = TRUE;
           seq.setupNeedSaved = TRUE;
           needLcdUpdate = TRUE;
         }
+        break;
       }
-      else if(seq.configPage == 2){//pattern change sync select
+      case 1:{//le BPM de demarrage
+        unsigned int before = seq.defaultBpm;
+        seq.defaultBpm = EncGet(seq.defaultBpm, 1);
+        seq.defaultBpm = constrain(seq.defaultBpm, MIN_BPM, MAX_BPM);
+        if (seq.defaultBpm != before){
+          seq.setupNeedSaved = TRUE;
+          needLcdUpdate = TRUE;
+        }
+        break;
+      }
+      case 2:{//le canal MIDI d'emission
+        byte before = seq.TXchannel;
+        seq.TXchannel = EncGet(seq.TXchannel, 1);
+        seq.TXchannel = constrain(seq.TXchannel, 1, 16);
+        if (seq.TXchannel != before){
+          seq.setupNeedSaved = TRUE;
+          needLcdUpdate = TRUE;
+        }
+        break;
+      }
+      case 3:{//le canal MIDI de reception
+        //MIDI.setInputChannel() etait encore appele ici : la moitie du correctif du
+        //17/09 manquait. La bibliotheque est ouverte en OMNI par yocto2.ino et le handler
+        //est le seul filtre - il compare le canal a seq.RXchannel a chaque note, donc a
+        //la valeur courante. Reposer un filtre dans la bibliotheque, c'est rouvrir la
+        //deuxieme source de verite qui rendait la machine sourde : elle ne se mettait a
+        //jour qu'ici, et tout autre chemin vers seq.RXchannel la laissait derriere.
+        byte before = seq.RXchannel;
+        seq.RXchannel = EncGet(seq.RXchannel, 1);
+        seq.RXchannel = constrain(seq.RXchannel, 1, 16);
+        if (seq.RXchannel != before){
+          seq.setupNeedSaved = TRUE;
+          needLcdUpdate = TRUE;
+        }
+        break;
+      }
+      }
+    }
+    else if (seq.configPage == 2){
+      if (curIndex == 0){//le seul parametre de la page
+        //Meme piege que sync juste au-dessus : le temoin partait de 0 pendant que la
+        //valeur sortait de l'EEPROM, et le premier cran vers le bas tombait dans le vide.
+        boolean before = seq.ptrnChangeSync;
         seq.ptrnChangeSync = EncGet(seq.ptrnChangeSync, 1);
         seq.ptrnChangeSync = constrain(seq.ptrnChangeSync, 0, 1);
-        static boolean prevPtrnSyncChange;
-        if (seq.ptrnChangeSync != prevPtrnSyncChange){
-          prevPtrnSyncChange = seq.ptrnChangeSync;
-          // seq.syncChanged = TRUE;
+        if (seq.ptrnChangeSync != before){
           seq.setupNeedSaved = TRUE;
           needLcdUpdate = TRUE;
         }
       }
-      break;
-    case 1://external instrument note
-
-      seq.defaultBpm = EncGet(seq.defaultBpm, 1);
-      seq.defaultBpm = constrain(seq.defaultBpm, MIN_BPM, MAX_BPM);
-      static unsigned int prevDefaultBpm;
-      if (seq.defaultBpm != prevDefaultBpm){
-        prevDefaultBpm = seq.defaultBpm;
-        seq.setupNeedSaved = TRUE;
-        needLcdUpdate = TRUE;
-      }
-      break;
-    case 2://external instrument notes stack length
-
-      seq.TXchannel = EncGet(seq.TXchannel, 1);
-      seq.TXchannel = constrain(seq.TXchannel, 1, 16);
-      static unsigned int prevTX;
-      if (seq.TXchannel != prevTX){
-        prevTX = seq.TXchannel;
-        seq.setupNeedSaved = TRUE;
-        needLcdUpdate = TRUE;
-      }
-      break;
-    case 3://octave
-      seq.RXchannel = EncGet(seq.RXchannel, 1);
-      seq.RXchannel = constrain(seq.RXchannel, 1, 16);
-      static unsigned int prevRX;
-      if (seq.RXchannel != prevRX){
-        prevRX = seq.RXchannel;
-        MIDI.setInputChannel(seq.RXchannel);
-        seq.setupNeedSaved = TRUE;
-        needLcdUpdate = TRUE;
-      }
-      break;
+      else encNotch = 0;//les trois "nc." : rien a regler, et le cran ne survit pas
     }
+    else encNotch = 0;//page 0 : hors d'atteinte, configMode impliquant la page 1 ou 2
   }
   ////////////PATT EDIT, PATT TAP ET TRACK PLAY : LA MOLETTE EST INERTE//////////
   //Elle tombait sur le BPM, qui n'est meme pas affiche sur ces ecrans : on reglait le
@@ -372,13 +426,14 @@ void EncGet()
     encNotch = 0;
   }
   else{
+    //Le onzieme temoin. Celui-la ne se perimait pas - InitSeq() pose seq.bpm au demarrage,
+    //avant tout cran, et cette branche est seule a y toucher ensuite. Il part quand meme :
+    //onze constructions identiques dont dix se perimaient, garder la onzieme obligerait a
+    //redemontrer chaque fois pourquoi celle-ci a le droit.
+    unsigned int before = seq.bpm;
     seq.bpm = EncGet(seq.bpm,1);
-    if (seq.bpm <= MIN_BPM) seq.bpm = MIN_BPM;
-    if (seq.bpm >= MAX_BPM) seq.bpm = MAX_BPM;
-    static unsigned int curBpm;
-    if( seq.bpm != curBpm)
-    {
-      curBpm = seq.bpm;
+    seq.bpm = constrain(seq.bpm, MIN_BPM, MAX_BPM);
+    if (seq.bpm != before){
       TimerSetFrequency();
       if (from == PTRN_PLAY || tempoBtn.pressed) needLcdUpdate = TRUE;
     }
