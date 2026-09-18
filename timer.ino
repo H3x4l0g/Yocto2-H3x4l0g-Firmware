@@ -193,6 +193,22 @@ void TimerSetFrequency()
 //possible : on ne peut pas etaler quatre ticks sur une periode qui n'est pas encore
 //ecoulee. Un maitre qui accelere ou ralentit se rattrape a l'impulsion suivante, la phase
 //etant recalee a chacune.
+//
+//OU LA PREDICTION CASSE. Anton Savov - le zabox de la NAVA - fait le meme pari dans le
+//n0nx0x2 pour convertir l'horloge MIDI en DIN sync, et son manuel enumere les cas ou il
+//se perd (antonsavov.net, n0nx0x2 manual, section 3.1.1) : un maitre qui change de tempo
+//d'un tick a l'autre en changeant de morceau, un maitre qui CESSE d'emettre a l'arret -
+//beaucoup de stations le font - et une horloge volontairement shufflee.
+//Les trois arrivent ici de la meme facon : la prediction est trop longue, les sous-ticks
+//restants n'ont pas fini de partir, et l'impulsion suivante les tire d'un coup en
+//arrivant. C'est exactement l'ancien comportement, pour cette impulsion-la seulement, et
+//la suivante retrouve la phase. Le garde-fou de plage attrape le cas du maitre relance
+//apres un silence, ou l'intervalle mesure n'a plus aucun sens.
+//Savov offre une largeur d'impulsion FIXE - 2 a 5 ms - pour quand la prediction casse,
+//parce que sa sortie DIN en depend. Ici elle n'en depend pas : la sortie DIN tient un
+//rapport cyclique moitie, soit 1250/BPM millisecondes, donc JAMAIS MOINS DE 5 ms sur les
+//30 a 250 BPM de la machine - la plus large des cinq valeurs fixes qu'il propose. Rien a
+//prevoir tant qu'aucun appareil DIN ne se plaint.
 void SlaveClockSchedule(unsigned long dt)
 {
   unsigned long counts = dt >> 1;
