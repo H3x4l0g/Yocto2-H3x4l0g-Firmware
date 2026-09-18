@@ -95,25 +95,47 @@ void MidiSendNoteOn (byte channel, byte value, byte velocity)
 }
 
 //L'horloge recue, en synchro esclave
+//UN SOUS-TICK ICI, LES TROIS AUTRES A TIMER1. Les quatre partaient d'affilee, donc au
+//meme instant : quatre retards de swing devenaient le meme retard, et le shuffle etait
+//quantifie au 1/24 de noire en esclave. Le detail et la mesure sont dans timer.ino, au
+//dessus de SlaveClockSchedule().
+//Un delayMicroseconds(2000) trainait entre le deuxieme et le troisieme appel, du temps ou
+//l'interruption du sequenceur tenait les sorties de trig avec sa propre attente active.
+//C'est Timer2 qui porte l'impulsion depuis, et cette attente est partie la premiere.
+//zabox est arrive a la meme conclusion sur la NAVA et l'a mise en commentaire la-bas.
+//La sortie DIN n'est plus levee ici : CountPPQN() la mene comme en maitre, front montant
+//sur le premier sous-tick du groupe et descendant sur le troisieme. Elle ne faisait ici
+//qu'une pointe de la duree des quatre appels, la ou le maitre rend un vrai carre.
 void HandleClock()
 {
-  DIN_CLK_HIGH;
-  //Un delayMicroseconds(2000) trainait entre le deuxieme et le troisieme appel. Il etait
-  //la pour laisser l'impulsion de trig finir avant que le tick suivant ne redeclenche,
-  //du temps ou l'interruption du sequenceur tenait les sorties avec sa propre attente
-  //active de 2 ms. C'est Timer2 qui porte l'impulsion desormais : cette attente n'avait
-  //donc plus rien a attendre, elle ne faisait que bloquer la boucle principale 2 ms a
-  //chaque horloge MIDI recue, soit 48 ms par seconde a 120 BPM.
-  //zabox est arrive a la meme conclusion sur la NAVA et l'a mise en commentaire la-bas.
-  //Les quatre appels d'affilee restent faux - les quatre sous-ticks devraient etre
-  //etales sur la periode de l'horloge recue au lieu de partir d'un coup - mais c'est une
-  //reecriture, notee a part dans TODO.md.
-  CountPPQN();//quatre fois : la machine bat a 96 ppqn, l'horloge MIDI a 24
-  CountPPQN();
-  CountPPQN();
-  CountPPQN();
-  DIN_CLK_LOW;
+  //Couper l'interpolateur AVANT de toucher a quoi que ce soit : a partir d'ici et jusqu'au
+  //rearmement, ce contexte est seul a appeler CountPPQN(), et l'interruption de Timer1 ne
+  //peut pas s'y superposer. HandleClock() tourne dans la boucle principale, appelee par
+  //MIDI.read() - c'est la seule chose qui rend cette precaution necessaire.
+  uint8_t sreg = SREG;
+  cli();
+  TIMSK1 = 0;
+  TCCR1B = 0;
+  SREG = sreg;
 
+  //Terminer le groupe precedent s'il en reste : le maitre a accelere, ou les trois
+  //sous-ticks n'ont pas eu le temps de partir. QUATRE PAR IMPULSION, TOUJOURS - un groupe
+  //incomplet decalerait la machine contre le maitre pour de bon, et pour toute la suite.
+  //C'est ppqn lui-meme qui compte, plutot qu'un compteur a part : le groupe est fini quand
+  //le tick suivant retombe sur un multiple de quatre. Un compteur se perimerait a la
+  //premiere remise a zero de ppqn ; ppqn ne peut pas se perimer contre lui-meme.
+  //Trois tours au plus, par construction.
+  for (byte g = 0; g < 3 && (ppqn & 3) != 0; g++) CountPPQN();
+
+  //L'intervalle entre les deux dernieres impulsions. micros() et non un compteur materiel :
+  //on est dans la boucle principale, et Timer1 vient d'etre arrete.
+  unsigned long now = micros();
+  static unsigned long prevClock = 0;
+  unsigned long dt = now - prevClock;
+  prevClock = now;
+
+  CountPPQN();            //le premier sous-tick, cale sur l'impulsion recue
+  SlaveClockSchedule(dt); //Timer1 rend les trois autres, etales
 }
 
 //Start recu

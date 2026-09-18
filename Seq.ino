@@ -61,6 +61,7 @@ void SeqParameter()
     isRunning = TRUE;
     isStop = FALSE;
     ppqn = 0;
+    SlaveClockIdle();//les sous-ticks armes appartenaient a la phase qu'on vient d'annuler
     globalStepCount = 0;
     for(byte z = 0; z < NBR_INST; z++){
       stepCount[z] = 0;
@@ -78,7 +79,6 @@ void SeqParameter()
     DIN_START_HIGH;
     dinStartState = HIGH;
     DIN_CLK_HIGH;
-    dinClkState = HIGH;
   }
 
   //-------------------stop button------------------------------
@@ -101,6 +101,7 @@ void SeqParameter()
       isRunning = TRUE;
       stopBtn.counter = 0;
       ppqn = 0;
+      SlaveClockIdle();//cf le bouton PLAY
       MIDI.sendRealTime(midi::Continue);//MidiSend(CONTINU_CMD);
       DIN_START_HIGH;
       dinStartState = HIGH;

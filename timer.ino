@@ -56,9 +56,11 @@
 //      mis a HIGH sans que personne ne le relise.
 //
 //   3. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1, et ce n'est pas un detail : en
-//      synchro esclave Timer1 est ARRETE, CountPPQN() etant appele par l'horloge MIDI
-//      entrante. Une comparaison OCR1B ne se declencherait jamais et les trigs
-//      resteraient colles en l'air.
+//      synchro esclave Timer1 NE TOURNE QUE PAR RAFALES. Il n'y bat pas la mesure, il
+//      interpole - trois sous-ticks entre deux impulsions MIDI, puis il s'arrete jusqu'a
+//      la suivante. Une comparaison OCR1B tomberait donc dans les trous, et les trigs
+//      resteraient colles en l'air. (Avant le 18/09/2026 il etait simplement arrete : la
+//      conclusion ne change pas, la raison si.)
 //
 //   4. StartTrigPulseIfIdle() NE RELANCE PAS UNE IMPULSION EN COURS. Les voix partent
 //      sur le FRONT montant : un bit qui ne redescend jamais fait taire les notes
@@ -104,9 +106,9 @@ void TimerStop(void)
 //un delayMicroseconds(2000) - 2 ms d'attente active DANS l'interruption, plus que la
 //periode d'un tick entier a 250 BPM. C'est Timer2 qui porte l'impulsion desormais, et il
 //declenche une interruption minuscule dont tout le travail est de relacher les sorties.
-//Timer2 plutot qu'une comparaison OCR1B sur Timer1 : en synchro esclave Timer1 est
-//arrete et CountPPQN() est appele par l'horloge MIDI entrante, donc une comparaison sur
-//Timer1 ne partirait jamais et le trig resterait colle.
+//Timer2 plutot qu'une comparaison OCR1B sur Timer1 : cf le point 3 de l'en-tete. En
+//esclave, Timer1 ne tourne que par rafales entre deux impulsions MIDI, donc une
+//comparaison sur lui tomberait dans les trous et le trig resterait colle.
 //Prediviseur 128 -> 125 kHz, un tick vaut 8 us, donc 2 ms font 250 ticks.
 #define TRIG_PULSE_TICKS 250
 
@@ -169,6 +171,58 @@ void TimerSetFrequency()
   //redemarre la periode plutot.
   if (TCNT1 > OCR1A) TCNT1 = 0;
   SREG = sreg;
+}
+
+//L'HORLOGE ESCLAVE, INTERPOLEE---------------------------------------------------------
+//En synchro esclave l'horloge MIDI arrive a 24 ppqn et la machine bat a 96 : chaque
+//impulsion recue doit rendre QUATRE sous-ticks. HandleClock() appelait CountPPQN() quatre
+//fois d'affilee, donc les quatre au meme instant d'horloge murale.
+//
+//Un pas part quand "ppqn % scale == retard", et le retard se compte en ticks de 96 ppqn.
+//Quatre ticks au meme instant, ce sont quatre retards qui n'en font qu'un : le swing
+//s'effondrait sur une resolution de 1/24 de noire - 20,8 ms a 120 BPM - et les seize crans
+//de shuffle ne rendaient que trois ou quatre valeurs distinctes. Le micro-timing aurait
+//subi exactement la meme chose.
+//
+//Le premier sous-tick part maintenant AVEC l'impulsion recue, ce qui cale la phase sur le
+//maitre, et Timer1 rend les trois autres a intervalle egal : l'intervalle mesure entre les
+//deux dernieres impulsions, divise par quatre. Timer1 compte a 2 MHz - prediviseur 8 -
+//donc un sous-tick de dt/4 microsecondes vaut dt/2 comptes.
+//
+//La mesure sert de PREDICTION pour l'intervalle qui vient, ce qui est la seule chose
+//possible : on ne peut pas etaler quatre ticks sur une periode qui n'est pas encore
+//ecoulee. Un maitre qui accelere ou ralentit se rattrape a l'impulsion suivante, la phase
+//etant recalee a chacune.
+void SlaveClockSchedule(unsigned long dt)
+{
+  unsigned long counts = dt >> 1;
+  //Hors de cette plage on ne sait pas ce qu'on mesure : premiere impulsion apres le
+  //passage en esclave, maitre arrete puis relance, cable rebranche. Les sous-ticks qui
+  //restent partent alors d'un coup, comme avant - une impulsion mal repartie vaut mieux
+  //qu'un OCR1A tronque. La plage couvre 20 a 600 BPM la ou la machine en admet 30 a 250.
+  if (counts < 2000 || counts > 60000){
+    for (byte g = 0; g < 3 && (ppqn & 3) != 0; g++) CountPPQN();
+    return;
+  }
+  TCCR1A = 0;
+  TCCR1B = _BV(CS11) | _BV(WGM12);  //CTC, prediviseur 8 : 2 MHz de comptage
+  OCR1A  = (unsigned int)counts - 1;
+  TCNT1  = 0;
+  TIFR1  = _BV(OCF1A);              //jeter une comparaison restee en attente
+  TIMSK1 = _BV(OCIE1A);
+}
+
+//Couper les sous-ticks encore armes-----------------------------------------------------
+//Une remise a zero de ppqn - PLAY, START recu, CONTINUE - annule le groupe en cours : les
+//sous-ticks qui restaient appartenaient a une phase qui n'existe plus, et les laisser
+//partir declencherait des pas que personne n'a demandes, juste au moment ou la machine
+//demarre. La prochaine impulsion recue reposera la phase.
+//En maitre, Timer1 EST l'horloge de la machine : on n'y touche pas.
+void SlaveClockIdle()
+{
+  if (seq.sync == MASTER) return;
+  TIMSK1 = 0;
+  TCCR1B = 0;
 }
 
 //Relacher TRIG-1 quand sa duree est ecoulee--------------------------------------------

@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.054**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.055**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -256,6 +256,15 @@ le détail technique vit dans `TODO.md`.
 - **Et elle ne met plus les autres voix à zéro.** Chaque note MIDI reposait les douze
   vélocités d'un coup, avec des valeurs nulles pour toute voix jamais frappée en MIDI.
   Séquenceur en marche ça se rattrapait au pas suivant ; à l'arrêt, non.
+- **Le shuffle fonctionne en synchro esclave.** L'horloge MIDI entrante bat quatre fois
+  moins vite que le séquenceur, et les quatre pas de compte qu'elle déclenchait partaient
+  tous au même instant : le retard de swing n'avait plus que 20,8 ms de résolution à
+  120 BPM, si bien que plusieurs crans de shuffle sonnaient identiques. Les quatre sont
+  maintenant étalés sur l'intervalle mesuré entre deux impulsions. Le micro-timing, s'il
+  arrive un jour, aurait eu exactement le même problème.
+- **La sortie DIN rend un vrai signal en esclave.** Elle n'y faisait qu'une pointe de
+  quelques dizaines de microsecondes, là où le mode maître rend un carré. Les deux modes
+  sortent le même signal maintenant.
 - **En synchro esclave, l'horloge n'est plus doublée en sortie.** La bibliothèque MIDI
   renvoyait vers la sortie tout ce qui arrivait à l'entrée, horloge comprise : un appareil
   chaîné derrière recevait 48 impulsions par noire au lieu de 24.

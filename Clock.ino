@@ -9,7 +9,10 @@
 //
 //--------------------------------------------------------------------------------------
 //   ENTRE PAR      ISR(TIMER1_COMPA_vect) -> CountPPQN()      96 fois par noire
-//                  HandleClock() (Midi.ino) en synchro esclave, 4 appels d'affilee
+//                  HandleClock() (Midi.ino) en synchro esclave : le premier sous-tick de
+//                  chaque impulsion recue, les trois autres revenant a Timer1 en
+//                  interpolateur (cf timer.ino). Les deux modes passent donc par la meme
+//                  interruption, aux trois quarts des ticks pres.
 //
 //   SORT VERS      SetMux() puis SetDoutTrig() + StartTrigPulse()   les voix analogiques
 //                  MidiSendNoteOn() / InitMidiNoteOff()             la piste EXT
@@ -63,8 +66,13 @@ byte RandomStep(byte maxStep) {
 }
 
 //L'interruption d'horloge
+//En maitre, Timer1 bat librement a 96 ppqn et l'interruption ne fait que compter.
+//En esclave, il n'est qu'un interpolateur : il rend les trois sous-ticks qui separent deux
+//impulsions MIDI et s'arrete des que le groupe est complet - le tick suivant appartient a
+//l'impulsion suivante, qui le posera elle-meme en se calant dessus.
 ISR(TIMER1_COMPA_vect) {
   CountPPQN();
+  if (seq.sync != MASTER && (ppqn & 3) == 0) TIMSK1 = 0;
 }
 
 //Un tick, appele 96 fois par noire
@@ -135,14 +143,18 @@ void CountPPQN() {
     //ne tourne pas encore et personne n'ecoute. Geler coute tout.
     if (UCSR1A & (1 << UDRE1)) UDR1 = CLOCK_CMD;  //le tick
   }
-  if (seq.sync == MASTER) {
-    if (p % 4 == 0) {
-      DIN_CLK_HIGH;
-      dinClkState = HIGH;
-    } else if (p % 4 == 2) {
-      DIN_CLK_LOW;
-      dinClkState = LOW;
-    }
+  //La sortie DIN, dans les deux modes de synchro. Elle etait gardee par "sync == MASTER"
+  //parce qu'en esclave HandleClock() la menait lui-meme - mais il ne pouvait y faire qu'une
+  //pointe de la duree de ses quatre appels, quelques dizaines de microsecondes, la ou le
+  //maitre rend un carre a rapport cyclique moitie. Depuis que les sous-ticks sont etales,
+  //ces deux lignes-ci donnent le meme signal dans les deux modes : front montant sur le
+  //premier sous-tick du groupe - donc a l'instant de l'impulsion recue - et descendant sur
+  //le troisieme. Une seule ecriture pour les deux modes.
+  //dinClkState est partie avec la garde : ecrite a trois endroits, relue nulle part.
+  if (p % 4 == 0) {
+    DIN_CLK_HIGH;
+  } else if (p % 4 == 2) {
+    DIN_CLK_LOW;
   }
 
   if (isRunning) {
