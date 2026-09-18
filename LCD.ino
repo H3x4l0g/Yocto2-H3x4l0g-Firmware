@@ -102,7 +102,31 @@ void LcdUpdate()
         break;
       case PTRN_STEP:
       case PTRN_TAP:
-        if (curInst == GLOBAL_ACC){
+        //L'ECRAN SUIT LA MEME PRIORITE QUE LA MOLETTE. L'ecran des conditions passait
+        //derriere celui de l'accent global : amener le champ "ins" sur le slot ACC
+        //faisait basculer les deux d'un coup, et on se retrouvait devant un bargraphe
+        //d'accent sans avoir rien demande. Cf la chaine de EncGet().
+        if (condMode){
+          //La condition du pas vise, pour l'instrument courant. Le pas et l'instrument
+          //sont des champs a part entiere : on arrive ici par SHIFT + pas, mais on doit
+          //pouvoir se promener sans relacher la molette.
+          lcd.setCursor(0,0);
+          lcd.print("pas cnd prb ins ");
+          lcd.setCursor(cursorPos[curIndex],0);
+          lcd.print(letterUpCond[curIndex]);
+          lcd.setCursor(0,1);
+          LcdClearLine();
+          lcd.setCursor(0,1);
+          lcd.print(condStep + 1);
+          byte cond = pattern[ptrnBuffer].probality[curInst][condStep];
+          lcd.setCursor(4,1);
+          LcdPrintCond(cond >> 4);
+          lcd.setCursor(8,1);
+          LcdPrintProb(cond & 0x0F);
+          lcd.setCursor(12,1);
+          LcdPrintLabel(selectInstString, curInst);
+        }
+        else if (curInst == GLOBAL_ACC){
           LcdPrintGlobalAcc();
         }
         else if (shufBtn.pressed){
@@ -154,26 +178,6 @@ void LcdUpdate()
           lcd.print(pattern[ptrnBuffer].extLength + 1);
           lcd.setCursor(13,1);
           LcdPrintLabel(nameOct, keybOct);
-        }
-        else if (condMode){
-          //La condition du pas vise, pour l'instrument courant. Le pas et l'instrument
-          //sont des champs a part entiere : on arrive ici par SHIFT + pas, mais on doit
-          //pouvoir se promener sans relacher la molette.
-          lcd.setCursor(0,0);
-          lcd.print("pas cnd prb ins ");
-          lcd.setCursor(cursorPos[curIndex],0);
-          lcd.print(letterUpCond[curIndex]);
-          lcd.setCursor(0,1);
-          LcdClearLine();
-          lcd.setCursor(0,1);
-          lcd.print(condStep + 1);
-          byte cond = pattern[ptrnBuffer].probality[curInst][condStep];
-          lcd.setCursor(4,1);
-          LcdPrintCond(cond >> 4);
-          lcd.setCursor(8,1);
-          LcdPrintProb(cond & 0x0F);
-          lcd.setCursor(12,1);
-          LcdPrintLabel(selectInstString, curInst);
         }
         else{
           lcd.setCursor(0,0);
@@ -317,6 +321,8 @@ void LcdPrintCond(byte c)
 //densite - plus le chiffre est gros, plus la note tombe souvent.
 void LcdPrintProb(byte p)
 {
+  //Zero vaut seize seiziemes : c'est le haut de l'echelle, pas un trou au milieu.
+  //La molette travaille sur la meme course de 1 a 16, cf Enc.ino.
   byte pc = p ? (byte)((p * 100U) / 16U) : 100;
   if (pc < 100) lcd.print(" ");
   if (pc < 10) lcd.print(" ");

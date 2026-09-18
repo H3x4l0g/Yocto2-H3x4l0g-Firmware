@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.057**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.058**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -46,6 +46,9 @@ le détail technique vit dans `TODO.md`.
 - **Les patterns déjà enregistrés ne changent pas.** La place existait dans la mémoire
   depuis l'origine sans jamais servir ; un marqueur distingue les patterns qui portent des
   conditions de ceux qui n'en ont jamais eu.
+- La molette de probabilité se lit dans le sens de la densité, du premier cran au dernier :
+  6 %, 12 %, … 93 %, puis 100 % qui veut dire toujours.
+- Le champ d'instrument enjambe le slot d'accent global, qui n'a pas de pas à conditionner.
 - CLEAR efface les conditions avec le reste.
 
 ## Modes

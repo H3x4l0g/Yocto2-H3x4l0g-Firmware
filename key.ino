@@ -25,6 +25,8 @@ void KeyboardUpdate()
   
   if (numBtn.justPressed && curInst == EXT_INST && curSeqMode == PTRN_STEP){
     keyboardMode = !keyboardMode;
+    //Deux ecrans modaux d'un coup n'ont pas de sens : le clavier prend la place.
+    if (keyboardMode) condMode = FALSE;
     //stop sequencer when keyboard mode ON
     if (keyboardMode){
       //stepBtn[].pressed belongs to this mode alone now : sole reader, sole writer, and

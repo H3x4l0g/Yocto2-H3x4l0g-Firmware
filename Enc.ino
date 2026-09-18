@@ -10,6 +10,7 @@
 //   LA CHAINE, DANS L'ORDRE - ET L'ORDRE EST LA PRIORITE DES GESTES
 //
 //   SHUFFLE maintenu           -> le shuffle
+//   sinon, ecran des conditions-> la condition du pas vise
 //   sinon, Global Accent visee -> la valeur d'accent global, molette nue
 //   sinon, TRACK WRITE         -> les champs de la piste
 //   sinon, mode clavier        -> la pile de notes externes
@@ -17,8 +18,14 @@
 //   sinon, PATT EDIT/TAP/TRACK -> inerte, volontairement
 //   sinon                      -> le tempo   (PATT PLAY, ou il est affiche)
 //
-//   Les quatre maillons du milieu portent tous "et TEMPO relache" : tenir TEMPO affiche
-//   le tempo (LCD.ino) et donne la molette au tempo, depuis chacun de ces quatre etats.
+//   L'ECRAN DES CONDITIONS PASSE DEVANT L'ACCENT GLOBAL, et c'est le seul ordre qui
+//   marche : son champ "ins" peut amener curInst sur le slot ACC, et la branche de
+//   l'accent l'aurait alors capture - la molette n'aurait plus servi le curseur, sans
+//   aucun moyen de ressortir. Un ecran qu'on a explicitement ouvert possede la molette
+//   tant qu'il est ouvert. SHUFFLE reste devant lui, parce qu'on le TIENT.
+//
+//   Les cinq maillons du milieu portent tous "et TEMPO relache" : tenir TEMPO affiche
+//   le tempo (LCD.ino) et donne la molette au tempo, depuis chacun de ces cinq etats.
 //   C'est la regle 2 ci-dessous prise dans l'autre sens - la molette ne touche qu'a ce
 //   qui est affiche, donc au tempo des qu'il l'est. SHUFFLE garde la molette parce qu'il
 //   faudrait trois doigts pour tenir les deux, et le mode config parce que TEMPO y est
@@ -111,6 +118,77 @@ void EncGet()
         needLcdUpdate = TRUE;
         patternWasEdited = TRUE;
       }
+    }
+  }
+  ///////////////////////////////////CONDITIONS DE TRIG///////////////////////////////
+  //Quatre champs comme TRACK WRITE et le clavier, et le meme curseur : la machine n'a pas
+  //besoin d'un idiome de plus. Le pas et l'instrument sont editables ici ET au panneau -
+  //SHIFT + pas, INST + pas - parce qu'on arrive des deux cotes.
+  //
+  //DEVANT LA BRANCHE DE L'ACCENT GLOBAL, et ce n'est pas un detail de rangement : amener
+  //le champ "ins" sur le slot ACC faisait basculer la molette dans la branche du dessous,
+  //qui reglait alors la valeur d'accent global. On ne pouvait plus ressortir du champ -
+  //la molette ne servait plus le curseur. Un ecran qu'on a explicitement ouvert possede
+  //la molette tant qu'il est ouvert ; SHUFFLE reste devant, parce qu'on le TIENT.
+  else if (condMode && !tempoBtn.pressed){
+    switch (curIndex){
+    case 0:{//le pas qu'on edite
+      byte before = condStep;
+      condStep = EncGet(condStep, 1);
+      condStep = constrain(condStep, 0, NBR_STEP - 1);
+      if (condStep != before) needLcdUpdate = TRUE;
+      break;
+    }
+    case 1:{//la condition cyclique - le nibble haut
+      byte c = pattern[ptrnBuffer].probality[curInst][condStep];
+      byte before = c >> 4;
+      byte v = EncGet(before, 1);
+      v = constrain(v, 0, COND_COUNT - 1);
+      if (v != before){
+        pattern[ptrnBuffer].probality[curInst][condStep] = (byte)((v << 4) | (c & 0x0F));
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 2:{//la probabilite - le nibble bas
+      //LA COURSE SE LIT DANS LE SENS DE LA DENSITE, ET LA VALEUR STOCKEE NE CHANGE PAS.
+      //Zero DOIT vouloir dire "toujours" dans le pattern : c'est ce que valent tous les
+      //pas de tous les patterns existants, et un pattern efface. Mais a la molette, zero
+      //tombait entre 93 % et 6 % - on affichait 100, un cran plus haut donnait 6, et la
+      //course se lisait 100, 6, 12 ... 93 puis butait. Un chiffre qui redescend quand on
+      //monte, c'est une echelle qui ment.
+      //La molette travaille donc sur 1 a 16, ou SEIZE SEIZIEMES veut dire toujours, et
+      //seize se range a zero dans l'octet. La course affiche 6, 12 ... 93, 100 et s'arrete
+      //la : monter, c'est jouer plus souvent, du premier cran au dernier.
+      byte c = pattern[ptrnBuffer].probality[curInst][condStep];
+      byte stored = c & 0x0F;
+      byte before = stored ? stored : 16;
+      byte v = EncGet(before, 1);
+      v = constrain(v, 1, 16);
+      if (v != before){
+        pattern[ptrnBuffer].probality[curInst][condStep] = (byte)((c & 0xF0) | ((v == 16) ? 0 : v));
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 3:{//l'instrument
+      byte before = curInst;
+      byte v = EncGet(curInst, 1);
+      v = constrain(v, 0, NBR_INST - 1);
+      //LE SLOT ACC S'ENJAMBE. L'accent global n'a pas de pas a conditionner : la boucle de
+      //declenchement l'exclut deja par "z != GLOBAL_ACC", donc une condition posee la ne
+      //ferait rien du tout. Un champ qui s'arrete sur une valeur qui ne sert a rien, c'est
+      //mot pour mot le reproche que l'en-tete de ce fichier adresse au mode TAP.
+      //Le test sur "v != before" est ce qui empeche le saut de partir tout seul : sans lui,
+      //arriver sur ACC par INST + touche de pas ferait glisser l'instrument sans qu'aucun
+      //cran n'ait ete tourne, a chaque tour de boucle.
+      if (v != before && v == GLOBAL_ACC) v = (v > before) ? GLOBAL_ACC + 1 : GLOBAL_ACC - 1;
+      curInst = v;
+      if (curInst != before) needLcdUpdate = TRUE;
+      break;
+    }
     }
   }
   //////////////////////////////////GLOBAL ACCENT////////////////////////////////////
@@ -314,52 +392,6 @@ void EncGet()
       keybOct = EncGet(keybOct, 1);
       keybOct = constrain(keybOct, 0, MAX_OCT - 1);
       if (keybOct != before) needLcdUpdate = TRUE;
-      break;
-    }
-    }
-  }
-  ///////////////////////////////////CONDITIONS DE TRIG///////////////////////////////
-  //Quatre champs comme TRACK WRITE et le clavier, et le meme curseur : la machine n'a pas
-  //besoin d'un idiome de plus. Le pas et l'instrument sont editables ici ET au panneau -
-  //SHIFT + pas, INST + pas - parce qu'on arrive des deux cotes.
-  else if (condMode && !tempoBtn.pressed){
-    switch (curIndex){
-    case 0:{//le pas qu'on edite
-      byte before = condStep;
-      condStep = EncGet(condStep, 1);
-      condStep = constrain(condStep, 0, NBR_STEP - 1);
-      if (condStep != before) needLcdUpdate = TRUE;
-      break;
-    }
-    case 1:{//la condition cyclique - le nibble haut
-      byte c = pattern[ptrnBuffer].probality[curInst][condStep];
-      byte before = c >> 4;
-      byte v = EncGet(before, 1);
-      v = constrain(v, 0, COND_COUNT - 1);
-      if (v != before){
-        pattern[ptrnBuffer].probality[curInst][condStep] = (byte)((v << 4) | (c & 0x0F));
-        patternWasEdited = TRUE;
-        needLcdUpdate = TRUE;
-      }
-      break;
-    }
-    case 2:{//la probabilite - le nibble bas
-      byte c = pattern[ptrnBuffer].probality[curInst][condStep];
-      byte before = c & 0x0F;
-      byte v = EncGet(before, 1);
-      v = constrain(v, 0, 15);
-      if (v != before){
-        pattern[ptrnBuffer].probality[curInst][condStep] = (byte)((c & 0xF0) | v);
-        patternWasEdited = TRUE;
-        needLcdUpdate = TRUE;
-      }
-      break;
-    }
-    case 3:{//l'instrument
-      byte before = curInst;
-      curInst = EncGet(curInst, 1);
-      curInst = constrain(curInst, 0, NBR_INST - 1);
-      if (curInst != before) needLcdUpdate = TRUE;
       break;
     }
     }
