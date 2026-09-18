@@ -114,6 +114,23 @@
 //compilation.
 static_assert(BUFFER_LENGTH >= MAX_PAGE_SIZE + 2,
               "Tampon I2C trop petit : il faut WireN (BUFFER_LENGTH 132), pas Wire (32)");
+//RELAYER LE MIDI PENDANT LES TRANSFERTS LONGS-------------------------------------------
+//Les "MIDI.read()" semes dans les boucles de ce fichier ne sont pas decoratifs. En synchro
+//esclave, c'est HandleClock() qui depose les credits de sous-ticks (timer.ino), et il n'est
+//appele que par MIDI.read() depuis la boucle principale : tant qu'un transfert EEPROM tient
+//la boucle, la caisse se vide, le timer s'arrete et LA MACHINE PREND DU RETARD SUR LE
+//MAITRE. Les impulsions s'accumulent dans le tampon de l'UART et redeposent tout d'un coup
+//au retour - mais un timer qui tourne exactement a la cadence d'arrivee ne resorbe jamais
+//ce retard-la. Il s'installe, et le changement de pattern suivant s'y ajoute.
+//
+//C'est ce qui derivait au changement de pattern, et SEULEMENT en esclave : en maitre, le
+//timer bat tout seul et se moque de ce que fait la boucle.
+//
+//SavePattern() en avait cinq depuis l'amont, LoadPattern() aucun - alors que c'est le
+//chargement qui tourne a CHAQUE changement de pattern, quand la sauvegarde demande une
+//pression sur ENTER. L'asymetrie datait du debut. Ajoutes le 18/09/2026 dans les deux
+//chargements et dans la sauvegarde de piste, qui fait huit pages.
+
 #define HRDW_ADDRESS       0x50
 #define HRDW_ADDRESS_UP    (0x50 | B100)
 
@@ -278,6 +295,7 @@ void LoadPattern(byte patternNbr)
     pattern[!ptrnBuffer].scale[i]  = Wire.read();
     pattern[!ptrnBuffer].shuffle[i]  = Wire.read();
     pattern[!ptrnBuffer].dir[i]  = Wire.read();
+    MIDI.read();// to improve slave sync response
   }
   //96 bytes requested
   //SETUP-----------------------------------------------
@@ -309,6 +327,7 @@ void LoadPattern(byte patternNbr)
       for (byte j = 0; j < NBR_STEP; j++){
         pattern[!ptrnBuffer].velocity[i + (nbrPage * 8)][j] = (Wire.read() & 0xFF);
       }
+      MIDI.read();// to improve slave sync response
     }
   }
 
@@ -330,6 +349,7 @@ void LoadPattern(byte patternNbr)
         for (byte j = 0; j < NBR_STEP; j++){
           pattern[!ptrnBuffer].probality[i + (nbrPage * 8)][j] = (Wire.read() & 0xFF);
         }
+        MIDI.read();// to improve slave sync response
       }
     }
   }
@@ -350,6 +370,7 @@ void LoadPattern(byte patternNbr)
   for (byte j = 0; j < MAX_PAGE_SIZE; j++){
     pattern[!ptrnBuffer].extNote[j] = Wire.read();
   }
+  MIDI.read();// to improve slave sync response
 }
 
 //Track save
@@ -367,6 +388,7 @@ void SaveTrack(byte trackNbr)
   for(int nbrPage = 0; nbrPage < 8 ; nbrPage++){
     adress = (unsigned long)(TRACK_OFFSET + (trackNbr * TRACK_SIZE) + (MAX_PAGE_SIZE * nbrPage));
     WireBeginTX(adress);
+    MIDI.read();// to improve slave sync response
     for (byte i = 0; i < MAX_PAGE_SIZE; i++){//loop as many instrument for a page
       Wire.write((byte)(track[trkBuffer].patternNbr[i + (MAX_PAGE_SIZE * nbrPage)] & 0xFF)); 
     }
@@ -389,6 +411,7 @@ void LoadTrack(byte trackNbr)
     for (byte i = 0; i < MAX_PAGE_SIZE; i++){//loop as many instrument for a page
       track[trkBuffer].patternNbr[i + (MAX_PAGE_SIZE * nbrPage)] = (Wire.read() & 0xFF);
     }
+    MIDI.read();// to improve slave sync response
   }
   byte lowbyte = track[trkBuffer].patternNbr[1020];
   byte highbyte = track[trkBuffer].patternNbr[1021];

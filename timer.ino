@@ -233,6 +233,16 @@ void SlaveClockRate(unsigned long dt)
   //La plage couvre 20 a 600 BPM la ou la machine en admet 30 a 250.
   if (counts < 2000 || counts > 60000) return;
 
+  //LE RATTRAPAGE, ET POURQUOI IL FAUT EN AVOIR UN. Un timer qui tourne exactement a la
+  //cadence d'arrivee garde son retard pour toujours : si la boucle a bloque assez longtemps
+  //pour vider la caisse, les credits remontent au retour mais la machine reste en retard de
+  //ce qu'elle a manque, et le blocage suivant s'y ajoute. Un decalage constant ne s'entend
+  //pas ; un decalage qui grandit a chaque changement de pattern, si.
+  //Au-dela d'un groupe de retard on accelere de 12 %, jusqu'a resorption. C'est un FILET :
+  //depuis que les chargements relaient le MIDI (EEprom.ino), la caisse ne depasse plus un
+  //groupe et ce test ne se declenche pas.
+  if (slaveTicks > 4) counts -= (counts >> 3);
+
   TCCR1A = 0;
   TCCR1B = _BV(CS11) | _BV(WGM12);  //CTC, prediviseur 8 : 2 MHz de comptage
   TIMSK1 = _BV(OCIE1A);
