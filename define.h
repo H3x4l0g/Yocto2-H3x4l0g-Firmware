@@ -211,6 +211,17 @@ const byte swingTicks[4][16] PROGMEM = {
 #define MAX_EXT_NOTE 115
 
 //trig out  and din synchro
+//TR1 EST ACTIVE A L'ETAT BAS SUR LA BROCHE, ET ACTIVE A L'ETAT HAUT A LA PRISE. Releve sur
+//le schema le 18/09/2026 : PA2 sort par J2, traverse la nappe, entre par J10 dans une
+//resistance de 47k et arrive sur la BASE de Q86, un 2N3906 - un PNP dont l'emetteur est au
+//+5V et le collecteur tire au GND par 22k. Emetteur au +5V veut dire qu'il conduit quand
+//la base descend : TR1_LOW allume le transistor, et la prise MONTE.
+//Consequence pratique : le front que voit l'appareil branche - module de percussion,
+//entree d'horloge d'un SH-101, arpegiateur d'un JUNO-60 - est le front MONTANT de la
+//prise, donc l'instant exact ou CountPPQN() ecrit TR1_LOW, dans l'interruption. Le front
+//descendant, lui, est pose par SetTrigTime() dans la boucle principale et porte toute la
+//gigue de celle-ci. C'est le bon partage : ce qui compte est dans l'interruption.
+//Qui lirait TR1_LOW sans le schema conclurait l'inverse.
 #define TR1_HIGH PORTA |= 1 << 2
 #define TR1_LOW  PORTA &= ~(1 << 2)
 #define TR2_HIGH PORTA |= 1 << 3
