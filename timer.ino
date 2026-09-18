@@ -194,9 +194,9 @@ void TimerSetFrequency()
 //ecoulee. Un maitre qui accelere ou ralentit se rattrape a l'impulsion suivante, la phase
 //etant recalee a chacune.
 //
-//OU LA PREDICTION CASSE. Anton Savov - le zabox de la NAVA - fait le meme pari dans le
-//n0nx0x2 pour convertir l'horloge MIDI en DIN sync, et son manuel enumere les cas ou il
-//se perd (antonsavov.net, n0nx0x2 manual, section 3.1.1) : un maitre qui change de tempo
+//OU LA PREDICTION CASSE. Anton Savov - antto - fait le meme pari dans le n0nx0x2, son
+//firmware pour x0xb0x, pour convertir l'horloge MIDI en DIN sync, et son manuel enumere
+//les cas ou il se perd (antonsavov.net, n0nx0x2 manual, section 3.1.1) : un maitre qui change de tempo
 //d'un tick a l'autre en changeant de morceau, un maitre qui CESSE d'emettre a l'arret -
 //beaucoup de stations le font - et une horloge volontairement shufflee.
 //Les trois arrivent ici de la meme facon : la prediction est trop longue, les sous-ticks
