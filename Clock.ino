@@ -9,10 +9,10 @@
 //
 //--------------------------------------------------------------------------------------
 //   ENTRE PAR      ISR(TIMER1_COMPA_vect) -> CountPPQN()      96 fois par noire
-//                  HandleClock() (Midi.ino) en synchro esclave : le premier sous-tick de
-//                  chaque impulsion recue, les trois autres revenant a Timer1 en
-//                  interpolateur (cf timer.ino). Les deux modes passent donc par la meme
-//                  interruption, aux trois quarts des ticks pres.
+//                  En synchro esclave, c'est la MEME interruption : Timer1 y tourne a la
+//                  cadence mesuree sur l'horloge entrante, et HandleClock() (Midi.ino) ne
+//                  fait que lui deposer quatre credits par impulsion. Les deux modes
+//                  passent donc par le meme chemin, du premier tick au dernier.
 //
 //   SORT VERS      SetMux() puis SetDoutTrig() + StartTrigPulse()   les voix analogiques
 //                  MidiSendNoteOn() / InitMidiNoteOff()             la piste EXT
@@ -98,12 +98,18 @@ boolean CondAllows(byte inst, byte step) {
 
 //L'interruption d'horloge
 //En maitre, Timer1 bat librement a 96 ppqn et l'interruption ne fait que compter.
-//En esclave, il n'est qu'un interpolateur : il rend les trois sous-ticks qui separent deux
-//impulsions MIDI et s'arrete des que le groupe est complet - le tick suivant appartient a
-//l'impulsion suivante, qui le posera elle-meme en se calant dessus.
+//En esclave, il tourne librement AUSSI, a la cadence mesuree sur l'horloge entrante - mais
+//il ne tire que s'il a du credit. Chaque impulsion recue en depose quatre (Midi.ino), un
+//tick en depense un, et la caisse vide veut dire "attendre l'impulsion suivante".
+//C'EST CE QUI MET LES QUATRE SOUS-TICKS DANS L'INTERRUPTION, y compris le premier - celui
+//sur lequel partent tous les pas non swingues. Les temps forts sont donc places par le
+//quartz, et non par l'instant ou la boucle principale a remarque l'octet.
 ISR(TIMER1_COMPA_vect) {
+  if (seq.sync != MASTER){
+    if (!slaveTicks) return;
+    slaveTicks--;
+  }
   CountPPQN();
-  if (seq.sync != MASTER && (ppqn & 3) == 0) TIMSK1 = 0;
 }
 
 //Un tick, appele 96 fois par noire

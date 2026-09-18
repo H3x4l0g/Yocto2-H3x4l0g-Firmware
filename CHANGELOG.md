@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.058**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.059**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -287,6 +287,11 @@ le détail technique vit dans `TODO.md`.
   120 BPM, si bien que plusieurs crans de shuffle sonnaient identiques. Les quatre sont
   maintenant étalés sur l'intervalle mesuré entre deux impulsions. Le micro-timing, s'il
   arrive un jour, aurait eu exactement le même problème.
+- **En synchro esclave, les temps forts sont droits.** Le premier des quatre pas de compte
+  que produit chaque impulsion d'horloge était placé par la boucle principale, et c'est
+  celui sur lequel tombent tous les pas non swingués : les temps forts tremblaient d'une
+  fraction de milliseconde pendant que les contretemps, eux, étaient parfaitement réguliers.
+  C'est le quartz qui les place maintenant, tous les quatre.
 - **Le tempo du maître s'affiche en synchro esclave.** L'écran montrait trois pavés pleins
   à la place du tempo. Il est mesuré sur quatre noires d'horloge entrante, ce qui le rend
   assez stable pour être lu — un intervalle isolé porte trop de gigue pour afficher autre

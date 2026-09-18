@@ -55,12 +55,12 @@
 //      ecrit NULLE PART dans le depot, InitIO() ne pose que TR1_HIGH, et trig2State est
 //      mis a HIGH sans que personne ne le relise.
 //
-//   3. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1, et ce n'est pas un detail : en
-//      synchro esclave Timer1 NE TOURNE QUE PAR RAFALES. Il n'y bat pas la mesure, il
-//      interpole - trois sous-ticks entre deux impulsions MIDI, puis il s'arrete jusqu'a
-//      la suivante. Une comparaison OCR1B tomberait donc dans les trous, et les trigs
-//      resteraient colles en l'air. (Avant le 18/09/2026 il etait simplement arrete : la
-//      conclusion ne change pas, la raison si.)
+//   3. TIMER2 PLUTOT QU'UNE COMPARAISON SUR TIMER1. En synchro esclave, Timer1 tourne
+//      a la cadence du maitre et non a celle du tempo interne, et il ne tire que s'il a
+//      du credit : une comparaison OCR1B y serait tributaire d'une horloge exterieure et
+//      s'arreterait avec elle, les trigs restant colles en l'air. Timer2, lui, ne depend
+//      de rien. (Avant le 18/09/2026, Timer1 etait simplement arrete en esclave, puis il
+//      a interpole par rafales : la conclusion n'a jamais change, la raison deux fois.)
 //
 //   4. StartTrigPulseIfIdle() NE RELANCE PAS UNE IMPULSION EN COURS. Les voix partent
 //      sur le FRONT montant : un bit qui ne redescend jamais fait taire les notes
@@ -193,15 +193,20 @@ void TimerSetFrequency()
 //de shuffle ne rendaient que trois ou quatre valeurs distinctes. Le micro-timing aurait
 //subi exactement la meme chose.
 //
-//Le premier sous-tick part maintenant AVEC l'impulsion recue, ce qui cale la phase sur le
-//maitre, et Timer1 rend les trois autres a intervalle egal : l'intervalle mesure entre les
-//deux dernieres impulsions, divise par quatre. Timer1 compte a 2 MHz - prediviseur 8 -
-//donc un sous-tick de dt/4 microsecondes vaut dt/2 comptes.
+//Timer1 tourne donc LIBREMENT a la cadence mesuree - l'intervalle entre les deux dernieres
+//impulsions, divise par quatre - et place les quatre sous-ticks. Il compte a 2 MHz, donc un
+//sous-tick de dt/4 microsecondes vaut dt/2 comptes.
 //
-//La mesure sert de PREDICTION pour l'intervalle qui vient, ce qui est la seule chose
-//possible : on ne peut pas etaler quatre ticks sur une periode qui n'est pas encore
-//ecoulee. Un maitre qui accelere ou ralentit se rattrape a l'impulsion suivante, la phase
-//etant recalee a chacune.
+//LA PHASE N'EST POSEE QU'UNE FOIS, au depart. La v2.055 la recalait sur CHAQUE impulsion,
+//en tirant le premier sous-tick depuis la boucle principale : la phase etait exacte, mais
+//le plus important des quatre ticks portait la gigue de la boucle. Un pas non swingue part
+//quand ppqn % scale vaut zero, et tous ces instants-la sont des debuts de groupe - donc les
+//temps forts etaient les seuls a trembler, pendant que les contretemps swingues, tires par
+//l'interruption, etaient parfaitement droits. L'inverse de ce qu'on veut.
+//
+//La mesure sert de cadence pour l'intervalle qui vient, ce qui est la seule chose possible :
+//on ne peut pas etaler quatre ticks sur une periode qui n'est pas encore ecoulee. Un maitre
+//qui accelere ou ralentit se rattrape a l'impulsion suivante, le credit absorbant l'ecart.
 //
 //OU LA PREDICTION CASSE. Anton Savov - antto - fait le meme pari dans le n0nx0x2, son
 //firmware pour x0xb0x, pour convertir l'horloge MIDI en DIN sync, et son manuel enumere
@@ -218,23 +223,38 @@ void TimerSetFrequency()
 //rapport cyclique moitie, soit 1250/BPM millisecondes, donc JAMAIS MOINS DE 5 ms sur les
 //30 a 250 BPM de la machine - la plus large des cinq valeurs fixes qu'il propose. Rien a
 //prevoir tant qu'aucun appareil DIN ne se plaint.
-void SlaveClockSchedule(unsigned long dt)
+void SlaveClockRate(unsigned long dt)
 {
   unsigned long counts = dt >> 1;
   //Hors de cette plage on ne sait pas ce qu'on mesure : premiere impulsion apres le
-  //passage en esclave, maitre arrete puis relance, cable rebranche. Les sous-ticks qui
-  //restent partent alors d'un coup, comme avant - une impulsion mal repartie vaut mieux
-  //qu'un OCR1A tronque. La plage couvre 20 a 600 BPM la ou la machine en admet 30 a 250.
-  if (counts < 2000 || counts > 60000){
-    for (byte g = 0; g < 3 && (ppqn & 3) != 0; g++) CountPPQN();
-    return;
-  }
+  //passage en esclave, maitre arrete puis relance, cable rebranche. On garde alors la
+  //cadence precedente plutot que de piloter le timer avec n'importe quoi - les credits,
+  //eux, continuent d'arriver, donc rien ne se perd.
+  //La plage couvre 20 a 600 BPM la ou la machine en admet 30 a 250.
+  if (counts < 2000 || counts > 60000) return;
+
   TCCR1A = 0;
   TCCR1B = _BV(CS11) | _BV(WGM12);  //CTC, prediviseur 8 : 2 MHz de comptage
-  OCR1A  = (unsigned int)counts - 1;
-  TCNT1  = 0;
-  TIFR1  = _BV(OCF1A);              //jeter une comparaison restee en attente
   TIMSK1 = _BV(OCIE1A);
+
+  uint8_t sreg = SREG;
+  cli();
+  unsigned int top = (unsigned int)counts - 1;
+  OCR1A = top;
+  if (!slavePhaseSet){
+    //LA PHASE NE SE POSE QU'UNE FOIS, au premier intervalle mesurable apres un depart.
+    //TCNT1 juste sous le sommet fait partir le tick au compte suivant, donc ici : le
+    //premier sous-tick tombe sur l'impulsion recue, et le decalage contre le maitre est
+    //nul. Ce tick-la, et lui seul, porte la latence de la boucle principale.
+    TCNT1 = top - 1;
+    slavePhaseSet = TRUE;
+  }
+  else if (TCNT1 >= top){
+    //Meme rattrapage qu'en maitre, cf TimerSetFrequency() : un sommet deja depasse serait
+    //manque et le compteur courrait jusqu'a 0xFFFF.
+    TCNT1 = top - 1;
+  }
+  SREG = sreg;
 }
 
 //LE TEMPO DU MAITRE, MESURE SUR QUATRE NOIRES-------------------------------------------
@@ -291,6 +311,11 @@ void SlaveClockIdle()
   if (seq.sync == MASTER) return;
   TIMSK1 = 0;
   TCCR1B = 0;
+  uint8_t sreg = SREG;
+  cli();
+  slaveTicks = 0;//les credits d'un groupe que la remise a zero vient d'annuler
+  SREG = sreg;
+  slavePhaseSet = FALSE;//la prochaine impulsion reposera la phase
 }
 
 //Relacher TRIG-1 quand sa duree est ecoulee--------------------------------------------

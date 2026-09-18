@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.058"
+#define FW_VERSION  "Yocto v2.059"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -625,6 +625,17 @@ volatile unsigned int condPassMask = 1;
 
 //Le tempo du maitre, mesure sur l'horloge entrante. Zero tant qu'on n'a rien mesure.
 unsigned int slaveBpm = 0;
+
+//LE CREDIT DE SOUS-TICKS DE LA SYNCHRO ESCLAVE. Chaque impulsion recue en depose quatre,
+//l'interruption de Timer1 en depense un par tick et ne fait rien quand la caisse est vide.
+//C'est ce qui garantit le compte exact de quatre par impulsion sans que la boucle
+//principale ait a placer quoi que ce soit - cf timer.ino.
+//Le plafond vaut deux impulsions : au-dela, c'est que la cadence estimee est fausse, et
+//accumuler ne rattraperait rien.
+#define SLAVE_TICK_MAX 8
+volatile byte slaveTicks = 0;
+//La phase n'est posee qu'une fois, au demarrage du transport. Ensuite le quartz la tient.
+boolean slavePhaseSet = FALSE;
 
 boolean condMode = FALSE;//l'ecran des conditions, cf LCD.ino
 byte condStep = 0;//le pas qu'on y edite

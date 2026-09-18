@@ -95,10 +95,26 @@ void MidiSendNoteOn (byte channel, byte value, byte velocity)
 }
 
 //L'horloge recue, en synchro esclave
-//UN SOUS-TICK ICI, LES TROIS AUTRES A TIMER1. Les quatre partaient d'affilee, donc au
-//meme instant : quatre retards de swing devenaient le meme retard, et le shuffle etait
-//quantifie au 1/24 de noire en esclave. Le detail et la mesure sont dans timer.ino, au
-//dessus de SlaveClockSchedule().
+//AUCUN SOUS-TICK ICI : LES QUATRE VIENNENT DE TIMER1. Cette fonction ne fait plus que
+//deux choses - mesurer la cadence du maitre, et deposer quatre credits.
+//
+//La v2.055 tirait le premier sous-tick ICI, pour caler la phase sur chaque impulsion. Ca
+//marchait, mais ca mettait LE PLUS IMPORTANT DES QUATRE dans la boucle principale : un pas
+//non swingue part quand ppqn % scale vaut zero, et tous ces instants-la sont des debuts de
+//groupe. Les temps forts portaient donc la gigue de la boucle - de l'ordre de 0,36 ms,
+//davantage sous un redessin d'ecran - pendant que les contretemps swingues, tires par
+//l'interruption, etaient parfaitement droits. Exactement l'inverse de ce qu'on veut :
+//un temps fort doit etre droit, un contretemps peut se promener.
+//
+//Le timer tourne donc librement a la cadence mesuree et place les quatre. La phase n'est
+//posee qu'une fois, au depart ; ensuite c'est le quartz qui la tient, et non l'instant ou
+//la boucle a remarque l'octet. Le compte exact de quatre par impulsion est garanti par les
+//credits : quatre deposes ici, un depense par tick.
+//
+//CE QU'ON PERD : la phase n'est plus recalee sur chaque impulsion, donc un decalage
+//constant peut s'installer contre le maitre - borne par le credit, qui se vide si l'on
+//prend de l'avance et sature si l'on prend du retard. Un decalage constant ne s'entend
+//pas, une gigue si.
 //Un delayMicroseconds(2000) trainait entre le deuxieme et le troisieme appel, du temps ou
 //l'interruption du sequenceur tenait les sorties de trig avec sa propre attente active.
 //C'est Timer2 qui porte l'impulsion depuis, et cette attente est partie la premiere.
@@ -108,36 +124,26 @@ void MidiSendNoteOn (byte channel, byte value, byte velocity)
 //qu'une pointe de la duree des quatre appels, la ou le maitre rend un vrai carre.
 void HandleClock()
 {
-  //Couper l'interpolateur AVANT de toucher a quoi que ce soit : a partir d'ici et jusqu'au
-  //rearmement, ce contexte est seul a appeler CountPPQN(), et l'interruption de Timer1 ne
-  //peut pas s'y superposer. HandleClock() tourne dans la boucle principale, appelee par
-  //MIDI.read() - c'est la seule chose qui rend cette precaution necessaire.
-  uint8_t sreg = SREG;
-  cli();
-  TIMSK1 = 0;
-  TCCR1B = 0;
-  SREG = sreg;
-
-  //Terminer le groupe precedent s'il en reste : le maitre a accelere, ou les trois
-  //sous-ticks n'ont pas eu le temps de partir. QUATRE PAR IMPULSION, TOUJOURS - un groupe
-  //incomplet decalerait la machine contre le maitre pour de bon, et pour toute la suite.
-  //C'est ppqn lui-meme qui compte, plutot qu'un compteur a part : le groupe est fini quand
-  //le tick suivant retombe sur un multiple de quatre. Un compteur se perimerait a la
-  //premiere remise a zero de ppqn ; ppqn ne peut pas se perimer contre lui-meme.
-  //Trois tours au plus, par construction.
-  for (byte g = 0; g < 3 && (ppqn & 3) != 0; g++) CountPPQN();
-
-  //L'intervalle entre les deux dernieres impulsions. micros() et non un compteur materiel :
-  //on est dans la boucle principale, et Timer1 vient d'etre arrete.
+  //L'intervalle entre les deux dernieres impulsions, qui sert de cadence au timer.
   unsigned long now = micros();
   static unsigned long prevClock = 0;
   unsigned long dt = now - prevClock;
   prevClock = now;
 
-  SlaveBpmMeasure(dt);    //le tempo du maitre, pour l'ecran
+  SlaveBpmMeasure(dt);  //le tempo du maitre, pour l'ecran
+  SlaveClockRate(dt);   //la cadence du timer, qui tourne librement
 
-  CountPPQN();            //le premier sous-tick, cale sur l'impulsion recue
-  SlaveClockSchedule(dt); //Timer1 rend les trois autres, etales
+  //QUATRE CREDITS, PLAFONNES. L'interruption en depense un par tick et ne fait rien quand
+  //la caisse est vide : le compte de quatre par impulsion est donc exact sans que personne
+  //ait a compter les ticks. Timer un peu rapide, la caisse se vide et il attend ; timer un
+  //peu lent, elle se remplit et il rattrape. Le plafond de deux impulsions evite qu'un
+  //maitre relance apres un silence ne fasse partir une rafale.
+  //L'interruption ecrit slaveTicks, donc la lecture-modification-ecriture doit etre entiere.
+  uint8_t sreg = SREG;
+  cli();
+  byte t = (byte)(slaveTicks + 4);
+  slaveTicks = (t > SLAVE_TICK_MAX) ? (byte)SLAVE_TICK_MAX : t;
+  SREG = sreg;
 }
 
 //Start recu
