@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.056**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.057**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -30,6 +30,23 @@ le détail technique vit dans `TODO.md`.
   le mode qui joue dessous. En TRACK PLAY, où le tempo n'est pas affiché non plus, elle
   devient inerte. PATT PLAY reste le seul écran où elle règle le tempo nue — c'est le seul
   où il se lit.
+
+## Conditions de trig — nouveau
+
+- **Chaque pas peut ne jouer qu'une mesure sur X, ou une fois sur deux.** Deux réglages par
+  pas et par instrument : une condition cyclique — `1:2` une mesure sur deux, `3:4` la
+  troisième de quatre, jusqu'à `5:8` — et une probabilité. Les deux se combinent : `1:4` à
+  50 %, c'est une note qui tombe une mesure sur quatre, et seulement une fois sur deux
+  parmi celles-là.
+- **SHIFT + une touche de pas** ouvre l'écran de ce pas-là, en édition de pattern. Le même
+  geste sur le même pas le referme ; sur un autre pas, il y saute. Pendant ce temps les
+  seize LED montrent quels pas de la voix portent une condition.
+- Un pas conditionné **se tait sans quitter la grille** : la piste externe garde le rapport
+  entre sa grille et sa pile de notes, exactement comme sous un mute.
+- **Les patterns déjà enregistrés ne changent pas.** La place existait dans la mémoire
+  depuis l'origine sans jamais servir ; un marqueur distingue les patterns qui portent des
+  conditions de ceux qui n'en ont jamais eu.
+- CLEAR efface les conditions avec le reste.
 
 ## Modes
 
@@ -267,6 +284,11 @@ le détail technique vit dans `TODO.md`.
   120 BPM, si bien que plusieurs crans de shuffle sonnaient identiques. Les quatre sont
   maintenant étalés sur l'intervalle mesuré entre deux impulsions. Le micro-timing, s'il
   arrive un jour, aurait eu exactement le même problème.
+- **Le tempo du maître s'affiche en synchro esclave.** L'écran montrait trois pavés pleins
+  à la place du tempo. Il est mesuré sur quatre noires d'horloge entrante, ce qui le rend
+  assez stable pour être lu — un intervalle isolé porte trop de gigue pour afficher autre
+  chose qu'un chiffre qui papillonne. Les trois pavés ne restent que tant qu'il n'y a pas
+  d'horloge à mesurer.
 - **La sortie DIN rend un vrai signal en esclave.** Elle n'y faisait qu'une pointe de
   quelques dizaines de microsecondes, là où le mode maître rend un carré. Les deux modes
   sortent le même signal maintenant.

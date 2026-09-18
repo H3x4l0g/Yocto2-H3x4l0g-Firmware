@@ -134,6 +134,8 @@ void HandleClock()
   unsigned long dt = now - prevClock;
   prevClock = now;
 
+  SlaveBpmMeasure(dt);    //le tempo du maitre, pour l'ecran
+
   CountPPQN();            //le premier sous-tick, cale sur l'impulsion recue
   SlaveClockSchedule(dt); //Timer1 rend les trois autres, etales
 }

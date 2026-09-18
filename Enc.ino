@@ -318,6 +318,52 @@ void EncGet()
     }
     }
   }
+  ///////////////////////////////////CONDITIONS DE TRIG///////////////////////////////
+  //Quatre champs comme TRACK WRITE et le clavier, et le meme curseur : la machine n'a pas
+  //besoin d'un idiome de plus. Le pas et l'instrument sont editables ici ET au panneau -
+  //SHIFT + pas, INST + pas - parce qu'on arrive des deux cotes.
+  else if (condMode && !tempoBtn.pressed){
+    switch (curIndex){
+    case 0:{//le pas qu'on edite
+      byte before = condStep;
+      condStep = EncGet(condStep, 1);
+      condStep = constrain(condStep, 0, NBR_STEP - 1);
+      if (condStep != before) needLcdUpdate = TRUE;
+      break;
+    }
+    case 1:{//la condition cyclique - le nibble haut
+      byte c = pattern[ptrnBuffer].probality[curInst][condStep];
+      byte before = c >> 4;
+      byte v = EncGet(before, 1);
+      v = constrain(v, 0, COND_COUNT - 1);
+      if (v != before){
+        pattern[ptrnBuffer].probality[curInst][condStep] = (byte)((v << 4) | (c & 0x0F));
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 2:{//la probabilite - le nibble bas
+      byte c = pattern[ptrnBuffer].probality[curInst][condStep];
+      byte before = c & 0x0F;
+      byte v = EncGet(before, 1);
+      v = constrain(v, 0, 15);
+      if (v != before){
+        pattern[ptrnBuffer].probality[curInst][condStep] = (byte)((c & 0xF0) | v);
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 3:{//l'instrument
+      byte before = curInst;
+      curInst = EncGet(curInst, 1);
+      curInst = constrain(curInst, 0, NBR_INST - 1);
+      if (curInst != before) needLcdUpdate = TRUE;
+      break;
+    }
+    }
+  }
   ///////////////////////////////////CONFIG MODE////////////////////////////////////
   //LA PAGE DECIDE D'ABORD, LE CURSEUR ENSUITE - comme LcdUpdate(), qui commence lui aussi
   //par switcher sur configPage. Seul le cas 0 la testait ; les cas 1, 2 et 3 ne la

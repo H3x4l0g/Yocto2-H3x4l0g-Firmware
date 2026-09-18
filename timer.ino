@@ -237,6 +237,49 @@ void SlaveClockSchedule(unsigned long dt)
   TIMSK1 = _BV(OCIE1A);
 }
 
+//LE TEMPO DU MAITRE, MESURE SUR QUATRE NOIRES-------------------------------------------
+//En esclave, l'ecran affichait trois paves pleins a la place du tempo : la machine ne bat
+//pas, donc seq.bpm ne veut plus rien dire - mais le maitre, lui, a un tempo, et rien
+//n'empechait de le lire dans ce qu'il envoie.
+//
+//QUATRE NOIRES, ET PAS UN INTERVALLE. Un intervalle isole porte toute la gigue de
+//l'emetteur, du cable, de l'opto-coupleur et de notre propre boucle : un affichage qui
+//papillonne entre 119 et 121 est pire que pas d'affichage du tout, parce qu'on ne peut
+//plus distinguer un maitre qui derive d'un maitre qui va bien. Sur 96 impulsions la
+//gigue se moyenne et l'entier affiche ne bouge plus.
+//C'est la lecon du n0nx0x2 sur le meme probleme.
+//
+//240000000 = 4 x 60e6 : quatre noires en dt microsecondes font 4*60e6/dt battements par
+//minute. La somme tient large en 32 bits - 8e6 microsecondes a 30 BPM - et la demi-somme
+//ajoutee arrondit au lieu de tronquer, un maitre a 90,0 s'affichant sinon 89.
+//
+//Un intervalle hors plage remet le compte a zero : il empoisonnerait la moyenne, et il
+//veut dire qu'il s'est passe quelque chose - maitre relance, cable rebranche.
+//La derniere valeur affichee, elle, survit : effacer l'ecran a chaque PLAY ne sert personne.
+#define SLAVE_BPM_CLOCKS 96
+
+void SlaveBpmMeasure(unsigned long dt)
+{
+  static unsigned long bpmSum = 0;
+  static byte bpmCount = 0;
+
+  if (dt < 4000UL || dt > 120000UL){
+    bpmSum = 0;
+    bpmCount = 0;
+    return;
+  }
+  bpmSum += dt;
+  if (++bpmCount < SLAVE_BPM_CLOCKS) return;
+
+  unsigned int v = (unsigned int)((240000000UL + (bpmSum >> 1)) / bpmSum);
+  bpmSum = 0;
+  bpmCount = 0;
+  if (v != slaveBpm){
+    slaveBpm = v;
+    needLcdUpdate = TRUE;//deux secondes entre deux au plus, l'ecran peut le porter
+  }
+}
+
 //Couper les sous-ticks encore armes-----------------------------------------------------
 //Une remise a zero de ppqn - PLAY, START recu, CONTINUE - annule le groupe en cours : les
 //sous-ticks qui restaient appartenaient a une phase qui n'existe plus, et les laisser

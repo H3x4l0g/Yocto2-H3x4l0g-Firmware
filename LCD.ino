@@ -155,6 +155,26 @@ void LcdUpdate()
           lcd.setCursor(13,1);
           LcdPrintLabel(nameOct, keybOct);
         }
+        else if (condMode){
+          //La condition du pas vise, pour l'instrument courant. Le pas et l'instrument
+          //sont des champs a part entiere : on arrive ici par SHIFT + pas, mais on doit
+          //pouvoir se promener sans relacher la molette.
+          lcd.setCursor(0,0);
+          lcd.print("pas cnd prb ins ");
+          lcd.setCursor(cursorPos[curIndex],0);
+          lcd.print(letterUpCond[curIndex]);
+          lcd.setCursor(0,1);
+          LcdClearLine();
+          lcd.setCursor(0,1);
+          lcd.print(condStep + 1);
+          byte cond = pattern[ptrnBuffer].probality[curInst][condStep];
+          lcd.setCursor(4,1);
+          LcdPrintCond(cond >> 4);
+          lcd.setCursor(8,1);
+          LcdPrintProb(cond & 0x0F);
+          lcd.setCursor(12,1);
+          LcdPrintLabel(selectInstString, curInst);
+        }
         else{
           lcd.setCursor(0,0);
           lcd.print("ptr len scl ins ");
@@ -277,12 +297,43 @@ void LcdPrintScale()
   }
 }
 
+//La condition cyclique, en trois signes---------------------------------------------
+//"---" pour toujours, sinon "X:Y" - jouer a la Xieme mesure de chaque groupe de Y.
+//Les index hors table s'affichent comme "toujours", ce qu'ils font reellement.
+void LcdPrintCond(byte c)
+{
+  if (!c || c >= COND_COUNT){
+    lcd.print("---");
+    return;
+  }
+  lcd.print((int)pgm_read_byte(&condXY[c][0]));
+  lcd.print(":");
+  lcd.print((int)pgm_read_byte(&condXY[c][1]));
+}
+
+//La probabilite, en pour cent, cadree a droite sur trois colonnes-------------------
+//Zero veut dire toujours, donc cent. Les quinze autres valeurs sont des seiziemes :
+//1 donne 6 %, 8 en donne 50, 15 en donne 93. L'echelle se lit dans le sens de la
+//densite - plus le chiffre est gros, plus la note tombe souvent.
+void LcdPrintProb(byte p)
+{
+  byte pc = p ? (byte)((p * 100U) / 16U) : 100;
+  if (pc < 100) lcd.print(" ");
+  if (pc < 10) lcd.print(" ");
+  lcd.print((int)pc);
+}
+
 //Print tempo---------------------------------------------------------
 void LcdPrintTempo()
 {
   lcd.write(byte(5));
   lcd.print("-");
-  if (seq.sync == MASTER)lcd.print(seq.bpm);
+  if (seq.sync == MASTER) lcd.print(seq.bpm);
+  //En esclave c'est le tempo du MAITRE, mesure sur son horloge (cf SlaveBpmMeasure).
+  //Les trois paves pleins ne restent que tant qu'il n'y a rien a mesurer : pas encore
+  //quatre noires recues, ou pas d'horloge du tout. Ils veulent donc dire quelque chose
+  //maintenant - avant, ils etaient l'aveu qu'on ne cherchait pas.
+  else if (slaveBpm) lcd.print(slaveBpm);
   else {
     lcd.print((char)219);
     lcd.print((char)219);

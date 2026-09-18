@@ -185,8 +185,19 @@ void SetLeds()
     break;
     //------------------------------
   case PTRN_STEP:
+    //LES PAS QUI PORTENT UNE CONDITION, celui qu'on edite en clignotant. C'est le seul
+    //endroit ou l'on voit d'un coup d'oeil ce qui a ete pose sur la voix entiere -
+    //l'ecran, lui, ne montre qu'un pas a la fois.
+    if (condMode){
+      stepLeds = 0;
+      for (byte s = 0; s < NBR_STEP; s++){
+        if (pattern[ptrnBuffer].probality[curInst][s]) bitSet(stepLeds, s);
+      }
+      if (blinkTempo) bitSet(stepLeds, condStep);
+      else bitClear(stepLeds, condStep);
+    }
     //display selected inst on steps Leds
-    if (instBtn){
+    else if (instBtn){
       if(flagLedIntensity >= 8){
         stepLeds = instSlctLed ;
         flagLedIntensity = 0;

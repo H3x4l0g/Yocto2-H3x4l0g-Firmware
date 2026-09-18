@@ -65,6 +65,37 @@ byte RandomStep(byte maxStep) {
   return (byte)((((unsigned int)(rngState & 0xFF)) * ((unsigned int)maxStep + 1)) >> 8);
 }
 
+//Quelles conditions cycliques passent cette mesure-ci----------------------------------
+//Appelee a chaque fin de mesure, depuis l'interruption. Onze modulos d'octet, une
+//soixantaine de cycles chacun, UNE FOIS PAR MESURE - le budget d'un tick est de 40000
+//cycles a 250 BPM, et une mesure en compte des centaines.
+//Les index 12 a 15 passent toujours : le nibble haut en tient seize et la table n'en
+//remplit que douze. Un octet abime degrade alors vers "toujours" plutot que vers
+//"jamais", ce qui se remarque moins et se repare tout seul.
+void CondUpdateMask() {
+  unsigned int m = 0xF001;  //l'index 0 passe toujours, et les quatre hors table aussi
+  for (byte c = 1; c < COND_COUNT; c++) {
+    byte x = pgm_read_byte(&condXY[c][0]);
+    byte y = pgm_read_byte(&condXY[c][1]);
+    if ((byte)(measureCount % y) == (byte)(x - 1)) m |= ((unsigned int)1 << c);
+  }
+  condPassMask = m;
+}
+
+//Ce pas a-t-il le droit de sonner ?-----------------------------------------------------
+//Zero veut dire "rien de pose", et c'est le cas de tous les pas de tous les patterns qui
+//existent aujourd'hui : le chemin rapide est une lecture et un test.
+boolean CondAllows(byte inst, byte step) {
+  byte c = pattern[ptrnBuffer].probality[inst][step];
+  if (!c) return TRUE;
+  if (!bitRead(condPassMask, c >> 4)) return FALSE;
+  byte p = c & 0x0F;
+  if (!p) return TRUE;
+  //Le meme xorshift que la direction RANDOM, et pour la meme raison : random() de
+  //l'Arduino passe par une division 32 bits logicielle, et on est dans l'interruption.
+  return (RandomStep(15) < p);
+}
+
 //L'interruption d'horloge
 //En maitre, Timer1 bat librement a 96 ppqn et l'interruption ne fait que compter.
 //En esclave, il n'est qu'un interpolateur : il rend les trois sous-ticks qui separent deux
@@ -169,6 +200,9 @@ void CountPPQN() {
     //la boucle des seize instruments - un aller-retour en SRAM par iteration.
     //Construit ici dans une locale, publie une seule fois.
     unsigned int sv = 0;
+    //Les pas que leur condition fait taire ce tour-ci. Retire de sv plus bas, avec les
+    //mutes - cf le commentaire a l'endroit ou la condition est evaluee.
+    unsigned int cb = 0;
 
     for (byte z = 0; z < NBR_INST; z++) {
       //Rebouclage du compteur de pas. Il vivait dans une SECONDE boucle de seize
@@ -245,6 +279,12 @@ void CountPPQN() {
         //il est lu par MuxValue() au moment du balayage.
         if (z != GLOBAL_ACC) {  //&& z != TR1 && z != TR2){
           sv |= ((bitRead(pattern[ptrnBuffer].inst[z], curStep[z])) << z);
+          //LA CONDITION MASQUE, ELLE NE SUPPRIME PAS. Le bit est pose ici et retire plus
+          //bas avec les mutes, donc APRES que la piste EXT a releve son pas : un pas
+          //conditionne se tait, mais la grille et la pile continuent d'avancer ensemble.
+          //C'est mot pour mot la regle du mute, et pour la meme raison - le rapport entre
+          //la grille et la pile est ce qui fait la fonction, et le figer le casse.
+          if (!CondAllows(z, curStep[z])) bitSet(cb, z);
         }
 
         stepCount[z]++;
@@ -287,8 +327,9 @@ void CountPPQN() {
     //On releve donc l'etat du pas EXT AVANT le masque, et on masque seulement l'emission.
     boolean extStep = bitRead(sv, EXT_INST);
 
-    //Retirer les instruments mutes, puis publier pour Led.ino
-    sv &= ~muteInst;
+    //Retirer les instruments mutes et ceux que leur condition fait taire, puis publier
+    //pour Led.ino - qui montre donc exactement ce qui sonne, conditions comprises.
+    sv &= ~(muteInst | cb);
     stepValue = sv;
 
     //Y a-t-il quelque chose a declencher ?
@@ -358,6 +399,10 @@ void CountPPQN() {
       endMeasure = TRUE;
       trackPosNeedIncremante = TRUE;
       globalStepCount = 0;
+      //Le compteur des conditions de trig, et le masque qui en decoule. Ici et nulle part
+      //ailleurs : c'est le seul endroit du depot qui sait qu'une mesure vient de finir.
+      if (++measureCount >= COND_WRAP) measureCount = 0;
+      CondUpdateMask();
       //La bascule de buffer etait recopiee ici ; elle ne tournait jamais, la boucle
       //principale ayant deja efface nextPatternReady. Une seule copie desormais, dans
       //SwitchPatternBuffer() - ce qui evite en prime que l'interruption ecrive ptrnBuffer

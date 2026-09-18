@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.056"
+#define FW_VERSION  "Yocto v2.057"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -587,6 +587,48 @@ byte tapVel[NBR_INST];
 //muxInst[] etait ici : la meme table identite qu'instOut[], declaree et jamais lue
 //une seule fois dans tout le depot. Douze octets.
 
+//CONDITIONS DE TRIG--------------------------------------------------------------------
+//Un octet par pas et par instrument, dans pattern[].probality : NIBBLE HAUT la condition
+//cyclique, NIBBLE BAS la probabilite. Le champ existait depuis l'amont - alloue, recopie
+//par le copier-coller, reserve en EEPROM - sans que rien ne l'ecrive ni ne le relise.
+//1536 octets de RAM qui dormaient depuis le debut du projet. Ils travaillent.
+//
+//UNE CONDITION CYCLIQUE EST "X SUR Y" : jouer a la Xieme mesure de chaque groupe de Y.
+//1:2 donne une note une mesure sur deux, 3:4 la troisieme de quatre, 1:8 une sur huit.
+//L'index 0 veut dire toujours, et sa paire n'est jamais lue.
+//La probabilite s'applique APRES et independamment : 1:4 a 50 % est une note qui tombe
+//une mesure sur quatre, et seulement une fois sur deux parmi celles-la.
+#define COND_COUNT 12
+const byte condXY[COND_COUNT][2] PROGMEM = {
+  {0,0}, {1,2}, {2,2}, {1,3}, {2,3}, {3,3},
+  {1,4}, {2,4}, {3,4}, {4,4}, {1,8}, {5,8}};
+
+//LE COMPTEUR DE MESURES BOUCLE SUR 24, ET CE N'EST PAS UN CHIFFRE AU HASARD : c'est le
+//plus petit commun multiple de 2, 3, 4 et 8, les seuls Y de la table. Un compteur qui
+//reboucle sur 256 ferait sauter la phase des cycles en 3 a chaque tour - 256 % 3 vaut 1 -
+//donc un accident toutes les 256 mesures, assez rare pour qu'on le mette sur le compte de
+//soi-meme et assez regulier pour rendre fou. Sur 24, toutes les phases sont exactes.
+#define COND_WRAP 24
+volatile byte measureCount = 0;
+
+//Quelles conditions passent CETTE mesure, un bit par index. Calcule une fois par mesure
+//plutot qu'une fois par pas : onze modulos d'octet par mesure au lieu de deux cent
+//cinquante-six, et le test par pas devient une lecture de bit.
+volatile unsigned int condPassMask = 1;
+
+//Le marqueur ecrit dans la page de reglages d'un pattern enregistre avec des conditions.
+//SANS LUI, LA ZONE EEPROM N'EST PAS RELUE : elle etait reservee et jamais ecrite, donc
+//une puce vierge y rend 0xFF partout - ce qui donnerait a TOUS les patterns d'avant une
+//probabilite de 15 sur 16 sur chaque pas. Le marqueur rend la mise a jour sans effet sur
+//ce qui est deja enregistre, et fait gagner deux pages de lecture sur ces patterns-la.
+#define COND_MAGIC 0xC1
+
+//Le tempo du maitre, mesure sur l'horloge entrante. Zero tant qu'on n'a rien mesure.
+unsigned int slaveBpm = 0;
+
+boolean condMode = FALSE;//l'ecran des conditions, cf LCD.ino
+byte condStep = 0;//le pas qu'on y edite
+
 //LCD------------------------------------------------
 boolean needLcdUpdate = TRUE;
 byte curIndex;//position of the cursor
@@ -604,6 +646,8 @@ const char *letterUpConfPage1[MAX_CUR_POS]={
   "S", "B", "M", "M"};
 const char *letterUpConfPage2[MAX_CUR_POS]={
   "P", "N", "N", "N"};
+const char *letterUpCond[MAX_CUR_POS]={
+  "P", "C", "P", "I"};
 
 //MIDI-----------------------------------------------
 volatile boolean midiNoteOnActive = FALSE;

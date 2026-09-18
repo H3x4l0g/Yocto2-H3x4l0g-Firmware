@@ -190,7 +190,14 @@ void SavePattern(byte patternNbr)
   //Elle se range dans la queue inutilisee de la page : aucun offset ne bouge, aucun
   //pattern deja enregistre n'est decale.
   Wire.write((byte)(pattern[ptrnBuffer].extLength));
-  //104 bytes => 24 byte left ;)
+  //LE MARQUEUR DES CONDITIONS DE TRIG. La zone qui les porte etait reservee dans la carte
+  //depuis l'amont et JAMAIS ECRITE : une puce vierge y rend 0xFF partout, ce qui donnerait
+  //a tous les patterns d'avant une probabilite de 15 sur 16 sur chacun de leurs pas. Sans
+  //ce marqueur dans la page de reglages - qui, elle, a toujours ete ecrite - la zone n'est
+  //pas relue et les conditions partent a zero. Un pattern d'avant se charge donc
+  //exactement comme avant, et on economise deux pages de lecture au passage.
+  Wire.write((byte)(COND_MAGIC));
+  //105 bytes => 23 byte left ;)
 
   Wire.endTransmission();//end page transmission
   WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
@@ -215,6 +222,23 @@ void SavePattern(byte patternNbr)
 
   //======================================NOT USED YET=============================================
   //========================================================================================================
+
+  //CONDITIONS DE TRIG-------------------------------------
+  //Deux pages de 128 dans la zone reservee a la probabilite, a PTRN_VEL_OFFSET. Elle
+  //attendait depuis l'amont : aucun offset ne bouge, aucun pattern deja enregistre n'est
+  //decale. Huit instruments par page, seize pas chacun.
+  for(int nbrPage = 0; nbrPage < 2; nbrPage++){
+    adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_VEL_OFFSET);
+    WireBeginTX(adress);
+    for (byte i = 0; i < 8; i++){
+      for (byte j = 0; j < NBR_STEP; j++){
+        Wire.write((byte)(pattern[ptrnBuffer].probality[i + (nbrPage * 8)][j]));
+      }
+      MIDI.read();// to improve slave sync response
+    }
+    Wire.endTransmission();//end of 128 bytes transfer
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  }//2 * 128 bytes = 256 bytes
 
   //EXT INST-----------------------------------------------
   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + PTRN_RETRIG_OFFSET);
@@ -270,7 +294,10 @@ void LoadPattern(byte patternNbr)
   //patterns font de toute facon aujourd'hui. Meme garde qu'a la saisie, cf key.ino.
   pattern[!ptrnBuffer].extLength = Wire.read();
   if (pattern[!ptrnBuffer].extLength > MAX_EXT_INST_NOTE) pattern[!ptrnBuffer].extLength = 0;
-  //104 bytes requested
+  //Le marqueur des conditions de trig, cf SavePattern(). La requete demande deja une page
+  //entiere, donc cet octet-la etait dans le tampon depuis toujours.
+  boolean condSaved = (Wire.read() == COND_MAGIC);
+  //105 bytes requested
 
     //VELOCITY-----------------------------------------------
   for(int nbrPage = 0; nbrPage < 2; nbrPage++){
@@ -287,6 +314,32 @@ void LoadPattern(byte patternNbr)
 
   //======================================NOT USED YET=============================================
   //======================================================================================================
+
+  //CONDITIONS DE TRIG-------------------------------------
+  //Relues seulement si le pattern a ete enregistre avec. Sinon on remet le champ a zero :
+  //il porte encore celles du pattern precedemment charge dans ce tampon, et les laisser
+  //serait le "trou au bout de la pile" une fois de plus - une donnee qui traine et qu'on
+  //prend pour la sienne.
+  if (condSaved){
+    for(int nbrPage = 0; nbrPage < 2; nbrPage++){
+      adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_VEL_OFFSET);
+      WireBeginTX(adress);
+      Wire.endTransmission();
+      WireRequestFrom(adress, MAX_PAGE_SIZE);
+      for (byte i = 0; i < 8; i++){
+        for (byte j = 0; j < NBR_STEP; j++){
+          pattern[!ptrnBuffer].probality[i + (nbrPage * 8)][j] = (Wire.read() & 0xFF);
+        }
+      }
+    }
+  }
+  else {
+    for (byte i = 0; i < NBR_INST; i++){
+      for (byte j = 0; j < NBR_STEP; j++){
+        pattern[!ptrnBuffer].probality[i][j] = 0;
+      }
+    }
+  }
 
   //EXT INST-----------------------------------------------
   adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + PTRN_RETRIG_OFFSET);

@@ -62,6 +62,18 @@ void SeqParameter()
     isStop = FALSE;
     ppqn = 0;
     SlaveClockIdle();//les sous-ticks armes appartenaient a la phase qu'on vient d'annuler
+    //Les conditions de trig repartent de la premiere mesure du cycle. Sans ca, un 1:4
+    //tomberait a un endroit different a chaque PLAY - la meme chose a l'oreille qu'une
+    //machine qui ne repete pas. Le masque est refait dans la foulee, pour que la mesure
+    //qui demarre soit deja jugee. Sous cli() : condPassMask fait deux octets et
+    //l'interruption le lit.
+    {
+      uint8_t sregC = SREG;
+      cli();
+      measureCount = 0;
+      CondUpdateMask();
+      SREG = sregC;
+    }
     globalStepCount = 0;
     for(byte z = 0; z < NBR_INST; z++){
       stepCount[z] = 0;
@@ -135,7 +147,7 @@ void SeqParameter()
       if (!IS_TRACK_MODE(from) || !isRunning){
         curSeqMode = PTRN_TAP;
         needLcdUpdate = TRUE;
-        keyboardMode = FALSE;
+        keyboardMode = condMode = FALSE;
         seq.configMode  = FALSE;
         //trackNeedSaved deliberately left alone : cf the ptrnBtn handler below.
       }
@@ -191,7 +203,7 @@ void SeqParameter()
         //soudain ce qui compte.
         TrackPosToPattern();
         needLcdUpdate = TRUE;
-        keyboardMode = FALSE;
+        keyboardMode = condMode = FALSE;
         seq.configMode  = FALSE;
       }
     }
@@ -204,7 +216,7 @@ void SeqParameter()
         else if (from == PTRN_PLAY) curSeqMode = PTRN_STEP;
         else curSeqMode = (from == TRACK_PLAY) ? PTRN_PLAY : PTRN_STEP;//crossing over
         needLcdUpdate = TRUE;
-        keyboardMode = FALSE;
+        keyboardMode = condMode = FALSE;
         seq.configMode  = FALSE;
       }
       //trackNeedSaved was cleared here. It is the flag that blinks the ENTER LED and
@@ -265,7 +277,7 @@ void SeqParameter()
 
     if (instBtn && readButtonState){
       curInstChanged = TRUE;
-      keyboardMode = FALSE;
+      keyboardMode = condMode = FALSE;
       curInst = FirstBitOn();
     }
     if (curInstChanged && stepsBtn.justRelease){
@@ -285,6 +297,7 @@ void SeqParameter()
     if (clearBtn.pressed && !keyboardMode && curSeqMode != PTRN_TAP && isRunning){
       bitClear (pattern[ptrnBuffer].inst[curInst], curStep[curInst]);
       pattern[ptrnBuffer].velocity[curInst][curStep[curInst]] = instVelLow[curInst];
+      pattern[ptrnBuffer].probality[curInst][curStep[curInst]] = 0;//la condition aussi
       //if (curInst == CH) pattern[ptrnBuffer].velocity[CH][curStep] = instVelHigh[HH];//update HH velocity that OH is trigged correctly   
 
       patternWasEdited = TRUE;   
@@ -297,6 +310,12 @@ void SeqParameter()
         pattern[ptrnBuffer].length[a] = NBR_STEP - 1;
         pattern[ptrnBuffer].scale[a] = SCALE_16;
         pattern[ptrnBuffer].dir[a] = 0;//0 is forward
+        //Les conditions de trig partent avec le reste. Une condition sans trig ne fait
+        //rien, donc les laisser ne s'entend pas tout de suite : ca s'entend le jour ou
+        //l'on reecrit des pas sur le pattern efface et ou ils sortent conditionnes par un
+        //reglage qu'on ne se souvient pas d'avoir pose. C'est le meme raisonnement que les
+        //trois champs globaux ci-dessous - ce qui reste d'avant est ce qui piege.
+        for (byte j = 0; j < NBR_STEP; j++) pattern[ptrnBuffer].probality[a][j] = 0;
       }
       //Les trois champs "globaux" sont le resume des trois tableaux qu'on vient de
       //reecrire, et ils restaient sur l'ancien pattern.
@@ -414,7 +433,30 @@ void SeqParameter()
     /////////////////////////////STEP EDIT///////////////////////////
     if (curSeqMode == PTRN_STEP){
       if (stepsBtn.justRelease) doublePush = FALSE;
-      if(!lastStepBtn.pressed && !instBtn && !keyboardMode){
+
+      //SHIFT + UNE TOUCHE DE PAS : L'ECRAN DES CONDITIONS DE CE PAS-LA.
+      //Le geste etait libre au sens strict : rien ici ne regardait SHIFT, donc SHIFT +
+      //pas faisait exactement ce que fait un pas seul - editer le pas en marche, choisir
+      //le pattern a l'arret. Personne ne tient SHIFT pour ca.
+      //Les trois modificateurs qui donnent DEJA un sens a SHIFT + pas sont exclus, et
+      //c'est ce qui rend le geste sur : LAST STEP (la longueur de toutes les voix), INST
+      //(le choix de l'instrument) et BANK (SHIFT + BANK est le copier de pattern).
+      //Sur le meme pas, le geste referme l'ecran ; sur un autre, il y saute. Il n'y a
+      //donc pas de touche de sortie a apprendre - on sort par ou l'on est entre.
+      if (shiftBtn.pressed && stepsBtn.justPressed && !lastStepBtn.pressed
+          && !instBtn && !bankBtn.pressed && !keyboardMode){
+        byte s = FirstBitOn();
+        if (condMode && s == condStep) condMode = FALSE;
+        else {
+          condMode = TRUE;
+          condStep = s;
+        }
+        curIndex = 1;//le curseur arrive sur la condition, pas sur le pas qu'on vient de designer
+        needLcdUpdate = TRUE;
+      }
+      //SHIFT exclut la suite : sans ca, maintenir SHIFT apres l'ouverture continuerait
+      //d'editer le pas sous le doigt a chaque tour de boucle.
+      if(!lastStepBtn.pressed && !instBtn && !keyboardMode && !shiftBtn.pressed){
         if (isRunning)
         {
           pattern[ptrnBuffer].inst[curInst] = InstValueGet(pattern[ptrnBuffer].inst[curInst]);//cf InstValueGet()
