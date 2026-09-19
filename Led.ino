@@ -195,6 +195,16 @@ void SetLeds()
       }
       if (blinkTempo) bitSet(stepLeds, condStep);
       else bitClear(stepLeds, condStep);
+      //ET LA TETE DE LECTURE PAR-DESSUS, comme partout ailleurs en edition de pas.
+      //Cette branche REMPLACAIT l'affichage au lieu de s'y superposer : on y perdait le
+      //chenillard, donc le seul repere qui dise ou en est la mesure. Poser une condition
+      //"une mesure sur quatre" sans voir tourner la mesure, c'est regler a l'aveugle.
+      //Meme expression que la branche du dessous, au XOR pres de la meme variable : la
+      //tete inverse le pas qu'elle traverse, allume ou eteint, et traverse aussi bien le
+      //pas en cours d'edition. Un seul comportement a apprendre pour les deux ecrans.
+      //Arretee, la machine n'a pas de tete de lecture a montrer - et les conditions,
+      //elles, restent lisibles.
+      if (isRunning) stepLeds ^= blinkFast[curInst] << curStep[curInst];
     }
     //display selected inst on steps Leds
     else if (instBtn){

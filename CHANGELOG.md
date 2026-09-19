@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.063**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.064**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -55,6 +55,9 @@ le détail technique vit dans `TODO.md`.
 - Le champ d'instrument enjambe le slot d'accent global, qui n'a pas de pas à conditionner.
 - **Effacer un pas efface sa condition.** Elle restait en place : réécrire un trig au même
   endroit le rendait conditionné sans que rien ne le dise.
+- **Les seize LED montrent la tête de lecture pendant qu'on règle une condition.** Elles
+  n'affichaient que les pas conditionnés : régler « une mesure sur quatre » sans voir
+  tourner la mesure revenait à régler à l'aveugle.
 - CLEAR efface les conditions avec le reste.
 
 ## Mute et solo
