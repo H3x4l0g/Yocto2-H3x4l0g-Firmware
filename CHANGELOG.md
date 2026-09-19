@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.067**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.068**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -30,6 +30,16 @@ le détail technique vit dans `TODO.md`.
   le mode qui joue dessous. En TRACK PLAY, où le tempo n'est pas affiché non plus, elle
   devient inerte. PATT PLAY reste le seul écran où elle règle le tempo nue — c'est le seul
   où il se lit.
+
+## Micro-timing — nouveau
+
+- **Chaque pas peut être retardé de 0 à 23 ticks**, soit environ 5 ms par cran à 120 BPM.
+  De quoi pousser une voix derrière le temps sans changer la grille.
+- **Pour jouer un coup AVANT un pas, on l'écrit sur le pas précédent et on le retarde
+  presque à fond.** Le clap juste avant la caisse claire se fait comme ça.
+- Le réglage est le troisième champ de la page 2 : `pas rtg utm ins`.
+- Un roulement part avec son coup : le décalage emmène le groupe entier.
+- La piste externe n'est pas concernée.
 
 ## Retrig — nouveau
 

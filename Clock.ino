@@ -307,15 +307,43 @@ void CountPPQN() {
           //la grille et la pile est ce qui fait la fonction, et le figer le casse.
           if (!CondAllows(z, curStep[z])) bitSet(cb, z);
 
-          //LE ROULEMENT DE CE PAS, DECIDE UNE FOIS POUR TOUTES. Pas de trig, pas de
-          //roulement ; condition refusee, pas de roulement non plus - et c'est pour ca
-          //que la decision se prend ICI et pas a chaque sous-coup : CondAllows() tire au
-          //sort quand une probabilite est posee, donc la reevaluer huit fois de suite
-          //donnerait huit reponses differentes dans un seul pas. Une condition gouverne
-          //LE PAS ENTIER, repetitions comprises.
+          //LE ROULEMENT ET LE DECALAGE DE CE PAS, DECIDES UNE FOIS POUR TOUTES. Pas de
+          //trig, pas de roulement ; condition refusee, pas de roulement non plus - et
+          //c'est pour ca que la decision se prend ICI et pas a chaque sous-coup :
+          //CondAllows() tire au sort quand une probabilite est posee, donc la reevaluer
+          //huit fois donnerait huit reponses differentes dans un seul pas. Une condition
+          //gouverne LE PAS ENTIER, repetitions comprises.
           //Les mutes, eux, s'appliquent plus bas sur le mot complet : un sous-coup passe
           //par sv comme le coup principal, donc muter pendant un roulement le coupe.
-          subTrig[z] = (hit && !bitRead(cb, z)) ? RetrigMask(z, curStep[z], sc) : 0;
+          subTrig[z] = 0;
+          if (hit && !bitRead(cb, z)){
+            unsigned long g = RetrigMask(z, curStep[z], sc);
+
+            //LE MICRO-TIMING DECALE LE GROUPE ENTIER, roulement compris : on retarde le
+            //coup, pas seulement sa premiere frappe.
+            //Le bit 0 du masque est le coup principal ; le decalage le fait glisser de ut
+            //ticks et emmene les sous-coups avec lui. On RETIRE donc le bit de sv : le
+            //pas ne part pas maintenant, il partira quand le compte a rebours y arrivera.
+            //
+            //C'EST CE QUI EVITE L'ECRETAGE OBLIGATOIRE que le carnet signalait. La methode
+            //d'origine ajoutait au "d" de la comparaison - et un d superieur ou egal a
+            //scale fait que mod ne l'atteint jamais, donc QUE LE PAS NE PART PLUS DU TOUT.
+            //Ici on planifie au lieu de comparer : un retard trop grand est simplement
+            //coupe par le pas suivant, qui reecrit le masque. Exactement la regle du
+            //roulement, et pour la meme raison.
+            //
+            //La piste EXT est exclue : son bit sert plus bas a faire avancer la pile de
+            //notes, et retarder une note-on sans retarder sa note-off est un autre sujet.
+            byte ut = pattern[ptrnBuffer].uTiming[z][curStep[z]];
+            if (ut > MAX_UTIM) ut = 0;//octet jamais initialise
+            else if (ut >= sc) ut = (byte)(sc - 1);//serre contre le pas suivant
+
+            if (ut && z != EXT_INST){
+              sv &= ~((unsigned int)1 << z);
+              subTrig[z] = (g | 1UL) << ut;
+            }
+            else subTrig[z] = g;
+          }
         }
 
         stepCount[z]++;

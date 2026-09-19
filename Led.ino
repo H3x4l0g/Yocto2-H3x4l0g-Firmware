@@ -194,9 +194,17 @@ void SetLeds()
       //roulent. L'ecran n'en montre qu'un, les seize lampes montrent la voix entiere -
       //c'est toute la raison d'etre de cet affichage.
       for (byte s = 0; s < NBR_STEP; s++){
-        byte v = condPage ? (byte)(pattern[ptrnBuffer].retrig[curInst][s] & 0x0F)
-                          : pattern[ptrnBuffer].probality[curInst][s];
-        if (condPage && v >= RETRIG_COUNT) v = 0;//octet jamais initialise
+        byte v;
+        if (condPage){
+          //La page 2 regle DEUX choses : la lampe dit "ce pas porte quelque chose ici",
+          //roulement ou decalage. L'ecran, lui, les distingue.
+          byte r = pattern[ptrnBuffer].retrig[curInst][s] & 0x0F;
+          byte u = pattern[ptrnBuffer].uTiming[curInst][s];
+          if (r >= RETRIG_COUNT) r = 0;//octets jamais initialises
+          if (u > MAX_UTIM) u = 0;
+          v = r | u;
+        }
+        else v = pattern[ptrnBuffer].probality[curInst][s];
         if (v) bitSet(stepLeds, s);
       }
       if (blinkTempo) bitSet(stepLeds, condStep);

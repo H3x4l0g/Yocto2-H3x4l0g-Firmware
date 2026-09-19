@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.067"
+#define FW_VERSION  "Yocto v2.068"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -661,6 +661,30 @@ volatile unsigned int condPassMask = 1;
 //Une fausse correspondance serait sans consequence : RetrigMask() rejette tout index hors
 //table, et un octet jamais ecrit vaut 15 apres masquage.
 #define RTG_MAGIC 0xC2
+//Et celui du micro-timing, octet 106. Meme role, meme raison.
+#define UTIM_MAGIC 0xC3
+
+//LE MICRO-TIMING : DES RETARDS, ET RIEN QUE DES RETARDS--------------------------------
+//uTiming[] porte un retard en ticks, de 0 a MAX_UTIM. Zero veut dire "sur la grille",
+//soit le comportement d'avant. Un tick vaut 625/BPM millisecondes : 5,2 ms a 120 BPM,
+//ce qui est la maille d'une avance perceptible.
+//
+//L'AMONT PREVOYAIT 0 A 24 POUR DIRE -12 A +12, et c'est ce qu'on abandonne. Jouer AVANT
+//le point de grille veut dire partir pendant la cellule precedente, ou curStep[] designe
+//encore le pas d'avant : il faudrait savoir quel pas vient ensuite, ce que RANDOM ne sait
+//pas avant de tirer et que PING_PONG ne dit qu'en connaissant son demi-tour. Et curStep[]
+//est lu a quinze endroits hors de Clock.ino - tete de lecture, CLEAR, accent, velocite.
+//
+//H3X4L0G A SUPPRIME LE PROBLEME LE 13/09/2026 : pour jouer avant un pas, on ecrit sur
+//le pas PRECEDENT et on le retarde presque a fond. Aucune anticipation, donc aucune
+//question sur RANDOM ni sur PING_PONG - on ne travaille jamais que sur un pas deja connu.
+//Le cas vise : le clap un poil avant la caisse claire, pour l'effet d'aspiration.
+//
+//MAX_UTIM vaut 23 et pas 24 : a 24 ticks on tomberait pile sur le pas suivant d'une
+//grille de doubles-croches, donc sur son propre coup. 23 serre contre lui sans le
+//toucher. Le retard est de toute facon ecrete a scale-1 au declenchement, parce qu'un
+//meme reglage doit rester en place quand on change la resolution de la voix.
+#define MAX_UTIM 23
 
 //LE RETRIG : UN TAUX, PAS UNE GRILLE----------------------------------------------------
 //Le champ retrig[] existe depuis l'amont avec, pour toute definition, "TO BE DEFINE" dans
@@ -763,12 +787,11 @@ const char *letterUpConfPage1[MAX_CUR_POS]={
   "S", "B", "M", "M"};
 const char *letterUpConfPage2[MAX_CUR_POS]={
   "P", "N", "N", "N"};
-//La page 2 n'a que TROIS champs : pas, taux, instrument. Le curseur y est borne a trois
-//dans Seq.ino, la ou il avance - meme mecanisme que la page 2 du mode config, et pour la
-//meme raison : un curseur qui s'arrete sur un champ vide se lit comme une panne.
-//La quatrieme case attend le micro-timing ; elle n'existera que le jour ou il agira.
+//La page 2 a quatre champs depuis la v2.068 : pas, taux, decalage, instrument. La
+//quatrieme case n'a existe qu'au jour ou le micro-timing a agi - c'etait la regle, et
+//c'est pour ca que le curseur n'a jamais eu de champ mort a traverser entre-temps.
 const char *letterUpCondPage2[MAX_CUR_POS]={
-  "P", "R", "I", " "};
+  "P", "R", "U", "I"};
 const char *letterUpCond[MAX_CUR_POS]={
   "P", "C", "P", "I"};
 

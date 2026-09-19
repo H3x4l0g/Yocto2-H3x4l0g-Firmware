@@ -138,7 +138,9 @@ void EncGet()
     byte field = curIndex;
     if (condPage == 1){
       if (curIndex == 1) field = 4;//le taux
-      else if (curIndex == 2) field = 3;//l'instrument, la troisieme case de cette page
+      else if (curIndex == 2) field = 5;//le decalage
+      //curIndex 0 et 3 gardent leur sens : le pas et l'instrument sont aux memes
+      //colonnes sur les deux pages, ce sont les reperes.
     }
     switch (field){
     case 0:{//le pas qu'on edite
@@ -194,6 +196,21 @@ void EncGet()
       v = constrain(v, 0, RETRIG_COUNT - 1);
       if (v != before){
         pattern[ptrnBuffer].retrig[curInst][condStep] = (byte)((c & 0xF0) | v);
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 5:{//le decalage micro-timing - page 2
+      //Un retard en ticks, de 0 a MAX_UTIM. Pour jouer AVANT un pas, on ecrit sur le pas
+      //precedent et on le retarde presque a fond : cf define.h, c'est ce qui rend toute
+      //cette fonction possible sans anticipation.
+      byte c = pattern[ptrnBuffer].uTiming[curInst][condStep];
+      if (c > MAX_UTIM) c = 0;//octet jamais initialise
+      byte v = EncGet(c, 1);
+      v = constrain(v, 0, MAX_UTIM);
+      if (v != c){
+        pattern[ptrnBuffer].uTiming[curInst][condStep] = v;
         patternWasEdited = TRUE;
         needLcdUpdate = TRUE;
       }

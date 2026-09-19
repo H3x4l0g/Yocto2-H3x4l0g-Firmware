@@ -159,7 +159,7 @@ void LcdUpdate()
           //Deux pages, et le pas comme l'instrument restent aux memes colonnes sur les
           //deux : ce sont les reperes, ils ne doivent pas bouger sous l'oeil.
           lcd.setCursor(0,0);
-          lcd.print(condPage ? "pas rtg ins     " : "pas cnd prb ins ");
+          lcd.print(condPage ? "pas rtg utm ins " : "pas cnd prb ins ");
           lcd.setCursor(cursorPos[curIndex],0);
           lcd.print(condPage ? letterUpCondPage2[curIndex] : letterUpCond[curIndex]);
           lcd.setCursor(0,1);
@@ -170,6 +170,8 @@ void LcdUpdate()
             lcd.setCursor(4,1);
             LcdPrintRetrig(pattern[ptrnBuffer].retrig[curInst][condStep] & 0x0F);
             lcd.setCursor(8,1);
+            LcdPrintUtim(pattern[ptrnBuffer].uTiming[curInst][condStep]);
+            lcd.setCursor(12,1);
             LcdPrintLabel(selectInstString, curInst);
           }
           else{
@@ -351,6 +353,20 @@ void LcdPrintRetrig(byte r)
   lcd.print("x");
   lcd.print(pgm_read_byte(&retrigDiv[r]));
   lcd.print(" ");
+}
+
+//Le decalage, en ticks. Un point pour zero : un "0" au milieu de trois chiffres se lit
+//comme une valeur qu'on a posee, un point se lit comme une case vide - et c'est bien ce
+//que zero veut dire ici, le pas est sur la grille.
+void LcdPrintUtim(byte u)
+{
+  if (u > MAX_UTIM) u = 0;
+  if (!u){
+    lcd.print(".  ");
+    return;
+  }
+  lcd.print(u);
+  lcd.print(u < 10 ? "  " : " ");
 }
 
 void LcdPrintProb(byte p)

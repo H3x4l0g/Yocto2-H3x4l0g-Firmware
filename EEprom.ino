@@ -215,7 +215,8 @@ void SavePattern(byte patternNbr)
   //exactement comme avant, et on economise deux pages de lecture au passage.
   Wire.write((byte)(COND_MAGIC));
   Wire.write((byte)(RTG_MAGIC));//le roulement, meme role et meme raison
-  //106 bytes => 22 byte left ;)
+  Wire.write((byte)(UTIM_MAGIC));//le decalage, idem
+  //107 bytes => 21 byte left ;)
 
   Wire.endTransmission();//end page transmission
   WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
@@ -272,6 +273,22 @@ void SavePattern(byte patternNbr)
     for (byte i = 0; i < 8; i++){
       for (byte j = 0; j < NBR_STEP; j++){
         Wire.write((byte)(pattern[ptrnBuffer].retrig[i + (nbrPage * 8)][j]));
+      }
+      MIDI.read();// to improve slave sync response
+    }
+    Wire.endTransmission();//end of 128 bytes transfer
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  }//2 * 128 bytes = 256 bytes
+
+  //MICRO-TIMING-------------------------------------------
+  //Deux pages a PTRN_uTIMING_OFFSET - la zone nommee RETRIG, cf le decalage des noms
+  //explique au-dessus : chaque _OFFSET designe le debut de la zone SUIVANTE.
+  for(int nbrPage = 0; nbrPage < 2; nbrPage++){
+    adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_uTIMING_OFFSET);
+    WireBeginTX(adress);
+    for (byte i = 0; i < 8; i++){
+      for (byte j = 0; j < NBR_STEP; j++){
+        Wire.write((byte)(pattern[ptrnBuffer].uTiming[i + (nbrPage * 8)][j]));
       }
       MIDI.read();// to improve slave sync response
     }
@@ -338,6 +355,7 @@ void LoadPattern(byte patternNbr)
   //entiere, donc cet octet-la etait dans le tampon depuis toujours.
   boolean condSaved = (Wire.read() == COND_MAGIC);
   boolean rtgSaved = (Wire.read() == RTG_MAGIC);
+  boolean utimSaved = (Wire.read() == UTIM_MAGIC);
   //105 bytes requested
 
     //VELOCITY-----------------------------------------------
@@ -410,6 +428,33 @@ void LoadPattern(byte patternNbr)
     for (byte i = 0; i < NBR_INST; i++){
       for (byte j = 0; j < NBR_STEP; j++){
         pattern[!ptrnBuffer].retrig[i][j] = 0;
+      }
+    }
+  }
+
+  //MICRO-TIMING-------------------------------------------
+  //Meme regle et meme raison que les deux champs au-dessus. Sans marqueur, zone non
+  //relue et champ remis a zero : un pattern enregistre avant aujourd'hui se charge
+  //exactement comme avant, et une puce vierge ne rend pas 0xFF sur les seize pas de
+  //toutes les voix - ce qui vaudrait un retard sur chaque pas du pattern.
+  if (utimSaved){
+    for(int nbrPage = 0; nbrPage < 2; nbrPage++){
+      adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_uTIMING_OFFSET);
+      WireBeginTX(adress);
+      Wire.endTransmission();
+      WireRequestFrom(adress, MAX_PAGE_SIZE);
+      for (byte i = 0; i < 8; i++){
+        for (byte j = 0; j < NBR_STEP; j++){
+          pattern[!ptrnBuffer].uTiming[i + (nbrPage * 8)][j] = (Wire.read() & 0xFF);
+        }
+        MIDI.read();// to improve slave sync response
+      }
+    }
+  }
+  else {
+    for (byte i = 0; i < NBR_INST; i++){
+      for (byte j = 0; j < NBR_STEP; j++){
+        pattern[!ptrnBuffer].uTiming[i][j] = 0;
       }
     }
   }

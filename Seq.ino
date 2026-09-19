@@ -64,9 +64,7 @@ void SeqParameter()
     //peut rester hors plage en arrivant sur la page 2.
     //La page 2 des conditions n'a que trois champs - pas, taux, instrument - tant que le
     //micro-timing n'agit pas. Meme raison que la page 2 du config juste au-dessus.
-    byte fields = (seq.configMode && seq.configPage == 2) ? 1
-                : (condMode && condPage == 1)             ? 3
-                : MAX_CUR_POS;
+    byte fields = (seq.configMode && seq.configPage == 2) ? 1 : MAX_CUR_POS;
     curIndex++;
     if (curIndex >= fields)  curIndex = 0;
     needLcdUpdate = TRUE;
@@ -326,6 +324,7 @@ void SeqParameter()
       pattern[ptrnBuffer].velocity[curInst][curStep[curInst]] = instVelLow[curInst];
       pattern[ptrnBuffer].probality[curInst][curStep[curInst]] = 0;//la condition aussi
       pattern[ptrnBuffer].retrig[curInst][curStep[curInst]] = 0;//et le roulement
+      pattern[ptrnBuffer].uTiming[curInst][curStep[curInst]] = 0;//et le decalage
       //if (curInst == CH) pattern[ptrnBuffer].velocity[CH][curStep] = instVelHigh[HH];//update HH velocity that OH is trigged correctly   
 
       patternWasEdited = TRUE;   
@@ -346,6 +345,7 @@ void SeqParameter()
         for (byte j = 0; j < NBR_STEP; j++){
           pattern[ptrnBuffer].probality[a][j] = 0;
           pattern[ptrnBuffer].retrig[a][j] = 0;
+          pattern[ptrnBuffer].uTiming[a][j] = 0;
         }
       }
       //Les trois champs "globaux" sont le resume des trois tableaux qu'on vient de
