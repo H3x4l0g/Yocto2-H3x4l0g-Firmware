@@ -255,7 +255,7 @@ void SetLeds()
     break;
     //------------------------------
   case MUTE:
-    stepLeds = muteInst ^ stepValue;
+    stepLeds = ActiveMute() ^ stepValue;
     break;
   }
   //Send OUTPUTS now !

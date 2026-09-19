@@ -941,8 +941,16 @@ void SeqParameter()
 
   if (curSeqMode == MUTE){
     MuteButtonGet();
-    if (encBtn.pressed){
+    //TOUT REVIENT : LES MUTES ET LE SOLO. C'est la meme question - quelles voix on
+    //entend - et laisser l'un des deux debout apres un geste qui veut dire "efface"
+    //est la facon de chercher une minute pourquoi la machine reste presque muette.
+    //justPressed et non pressed : au niveau, la remise a zero repartait a CHAQUE tour
+    //de boucle tant que l'encodeur restait enfonce, donc un pad presse pendant ce
+    //temps etait defait aussi vite que pose et la rangee refusait toute edition
+    //jusqu'a ce qu'on lache. Le firmware MSS a corrige exactement ce defaut-la.
+    if (encBtn.justPressed){
       muteInst = 0;
+      soloInst = 0;
       InitMuteBtnCounter();
     }
   }  

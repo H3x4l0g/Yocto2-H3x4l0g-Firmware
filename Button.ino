@@ -189,21 +189,31 @@ void MuteButtonGet()
     if (muteStepBtn[a].curState != muteStepBtn[a].prevState){
       if ((muteStepBtn[a].pressed == LOW) && (muteStepBtn[a].curState == HIGH)){
         muteStepBtn[a].justPressed = 1;
-        muteStepBtn[a].counter++;
-        //Solo Mode
+        //SOLO : SHIFT + touche de pas, et c'est un interrupteur----------------------
+        //Plusieurs voix peuvent etre soloees ensemble. Appuyer a nouveau sur une voix
+        //soloee la retire, et retirer la derniere sort du solo et rend les mutes : il
+        //n'y a donc pas de touche de sortie a apprendre.
         if (shiftBtn.pressed){
-          muteInst = 0xFFFF;
-          bitClear(muteInst,a);
-          for (byte ct = 0; ct < NBR_STEP_BTN; ct++){
-            muteStepBtn[ct].counter = 1;
-          }
-          muteStepBtn[a].counter = 0;
+          //UN EMPLACEMENT IMMUNISE NE SE SOLO PAS. Il sonne deja sous tous les solos,
+          //donc l'operation ne pourrait rien exprimer - et sur l'accent global elle
+          //donnerait le silence complet : tout mute, et rien de ce qui reste ne fait
+          //de son. C'est le cul-de-sac que le firmware MSS a laisse sur son CLEAR+MUTE,
+          //et c'est la meme classe que le champ "ins" de l'ecran des conditions.
+          if (!bitRead(SOLO_IMMUNE, a)) soloInst ^= ((unsigned int)1 << a);
         }
-        //Mute mode
-        else{
+        //MUTE : hors solo seulement--------------------------------------------------
+        //Pendant un solo, un pad nu ecrirait dans muteInst, qu'ActiveMute() recouvre :
+        //ni le son ni les LED ne bougeraient, et on decouvrirait le resultat en sortant
+        //du solo - une voix manquante ressemble exactement a une voix cassee. Rien ne
+        //doit modifier un etat qu'on ne voit pas.
+        //Le compteur n'avance donc que quand la pression veut dire quelque chose : le
+        //faire avancer dans le vide le decalerait de muteInst, et la voix suivante
+        //partirait sur le mauvais des deux crans.
+        else if (!soloInst){
+          muteStepBtn[a].counter++;
           switch (muteStepBtn[a].counter){
           case 1:
-            bitSet (muteInst,a);//bitSet (muteInst,muteOut[a]);
+            bitSet (muteInst,a);
             break;
           case 2:
             muteStepBtn[a].counter = 0;

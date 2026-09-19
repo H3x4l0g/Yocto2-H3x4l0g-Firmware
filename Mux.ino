@@ -83,7 +83,7 @@ static byte MuxValue(byte src, byte inst)
   //marchait que parce que bitRead rend exactement 0 ou 1 : ~0 vaut 0xFFFF et ~1 vaut
   //0xFFFE, donc seul le bit 0 decidait. Juste par accident ; ecrit ici comme il se lit.
   boolean acc = bitRead(pattern[ptrnBuffer].inst[GLOBAL_ACC], curStep[GLOBAL_ACC])
-             && !bitRead(muteInst, GLOBAL_ACC);
+             && !bitRead(ActiveMute(), GLOBAL_ACC);
   //127 au plus pour la velocite, 13 * 4 = 52 au plus pour l'accent : 179, pas de
   //debordement d'octet. SetDacA ecrete de toute facon a 127.
   //Le metronome sonne sur le rimshot sans rien ecrire dans le pattern : le tick pose sa

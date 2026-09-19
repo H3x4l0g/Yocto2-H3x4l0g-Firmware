@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.060"
+#define FW_VERSION  "Yocto v2.061"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -468,9 +468,42 @@ group;
 
 unsigned int tempInst[NBR_INST]={
   0};
-unsigned int muteInst = 0;
-byte muteOut[NBR_STEP_BTN]=  { 
-  BD, SD, LT, MT, HT,RM, HC, CB, CY, OH, CH, PC2};
+//MUTE ET SOLO : DEUX MASQUES, ET UN ARBITRE----------------------------------------
+//muteInst est ce qu'on a coupe a la main. soloInst est ce qu'on veut entendre, et il
+//RECOUVRE les mutes au lieu de les ecraser : sortir du solo rend donc exactement
+//l'etat de mute qu'on avait, sans comptabilite et sans rien a remettre d'accord.
+//Avant, le solo posait muteInst = 0xFFFF puis liberait une voix : ce qu'on avait pose
+//avant n'existait plus, et il fallait ressortir pad par pad.
+//
+//CE QUE LE SOLO NE BALAIE JAMAIS. Trois des seize bits ne sont pas des voix :
+// - L'ACCENT GLOBAL n'est pas un son, c'est un nombre ajoute a une velocite. Soloer la
+//   grosse caisse lui retirait ses accents, donc changeait SA sonorite - un solo qui
+//   ment sur ce qu'il isole.
+// - TR1 ET TR2 clockent le dehors : un autre sequenceur de pas, un arpege. Soloer la
+//   grosse caisse ne doit pas arreter le SH-101.
+//EXT_INST n'en est PAS. Chez nous cette piste pilote un instrument qui fait du son,
+//donc le solo la coupe comme il coupe les voix. C'est le seul point ou l'on s'ecarte
+//du firmware MSS, qui immunise les quatre.
+//Le mute explicite, lui, garde les seize : couper TR2 expres pour arreter un arpege
+//est un geste utile. C'est LE BALAYAGE qu'on borne, pas le geste qui nomme.
+//
+//volatile : ecrits dans la boucle principale, lus par l'interruption d'horloge a
+//travers ActiveMute(). Sans lui, LTO peut garder la valeur dans un registre. L'acces
+//16 bits reste non atomique - un pas peut sortir avec un mot a moitie ecrit, soit une
+//frappe fausse a l'instant meme ou l'on appuie sur le pad. Inaudible, et borne a ca.
+volatile unsigned int muteInst = 0;
+volatile unsigned int soloInst = 0;
+
+#define SOLO_IMMUNE (((unsigned int)1 << GLOBAL_ACC)                    | ((unsigned int)1 << TR1)                    | ((unsigned int)1 << TR2))
+
+//LE SEUL MOT DE MUTE QUE LES CONSOMMATEURS ONT LE DROIT DE LIRE. Trois s'en servent :
+//le masque des trigs (Clock.ino), l'accent global (Mux.ino) et les LED de pas en mode
+//MUTE (Led.ino) - qui montrent donc exactement ce qui se tait, solo compris.
+static inline unsigned int ActiveMute()
+{
+  if (soloInst) return (unsigned int)(~soloInst) & ~SOLO_IMMUNE;
+  return muteInst;
+}
 //Les deux niveaux de la touche de pas, instrument par instrument----------------------
 //Une touche de pas a trois etats : eteint, demi, plein. Ces deux tables disent quelle
 //velocite chaque etat tamponne dans le pattern, POUR CHAQUE VOIX separement - le Yocto

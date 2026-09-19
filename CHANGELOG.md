@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.060**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.061**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -50,6 +50,22 @@ le détail technique vit dans `TODO.md`.
   6 %, 12 %, … 93 %, puis 100 % qui veut dire toujours.
 - Le champ d'instrument enjambe le slot d'accent global, qui n'a pas de pas à conditionner.
 - CLEAR efface les conditions avec le reste.
+
+## Mute et solo
+
+- **Sortir du solo rend les sourdines qu'on avait posées avant.** Le solo les écrasait :
+  il fallait ensuite ressortir pad par pad. C'est maintenant un calque, pas une réécriture.
+- **Soloer une voix ne lui retire plus ses accents**, et n'arrête plus les deux sorties de
+  trig. L'accent global n'est pas un son mais un niveau ajouté à une voix, et TR1/TR2
+  clockent du matériel extérieur : soloer la grosse caisse ne doit pas arrêter le
+  séquenceur qu'elle pilote. La piste EXT, elle, se tait comme les autres voix — elle fait
+  du son.
+- On peut soloer **plusieurs voix ensemble** ; SHIFT + le pad d'une voix soloée la retire,
+  et retirer la dernière sort du solo. La pression sur l'encodeur rend tout, solo compris.
+- Pendant un solo, un pad seul ne fait plus rien : il modifiait une sourdine invisible
+  qu'on ne découvrait qu'en sortant.
+- **L'encodeur tenu enfoncé n'empêche plus de muter.** Il remettait les sourdines à zéro
+  en continu, donc toute pression sur un pad était défaite aussitôt.
 
 ## Modes
 

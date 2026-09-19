@@ -335,7 +335,7 @@ void CountPPQN() {
 
     //Retirer les instruments mutes et ceux que leur condition fait taire, puis publier
     //pour Led.ino - qui montre donc exactement ce qui sonne, conditions comprises.
-    sv &= ~(muteInst | cb);
+    sv &= ~(ActiveMute() | cb);
     stepValue = sv;
 
     //Y a-t-il quelque chose a declencher ?
