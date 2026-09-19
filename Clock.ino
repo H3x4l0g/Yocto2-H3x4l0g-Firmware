@@ -89,25 +89,14 @@ void CondUpdateMask() {
 //Le bit 0 reste toujours vide - c'est le coup principal, qui part par le chemin normal.
 //Rien a voir avec le swing : le masque est construit A L'INSTANT OU LE PAS PART, donc le
 //retard de swing est deja dans le passe et n'entre pas dans le calcul.
+//UNE LECTURE DE TABLE, ET RIEN D'AUTRE SUR LE TICK DE DECLENCHEMENT. Le calcul vit
+//desormais dans retrigMask[] (define.h), ou le compilateur l'a fait une fois pour toutes.
+//C'est notre [B-07] : le cout du front ne depend plus du nombre de voix qui roulent.
 unsigned long RetrigMask(byte inst, byte step, byte sc)
 {
   byte r = pattern[ptrnBuffer].retrig[inst][step] & 0x0F;
   if (r >= RETRIG_COUNT) return 0;//octet jamais initialise : pas de roulement invente
-  byte div = pgm_read_byte(&retrigDiv[r]);
-  if (div < 2) return 0;
-
-  unsigned long m = 0;
-  //(n * sc) / div, et non n * (sc / div) : la division entiere repartit alors son reste
-  //sur toute la course au lieu de l'accumuler a la fin. Trois coups sur seize ticks
-  //donnent 0, 5, 10 - ecarts 5, 5, 6 - la ou l'autre forme donnerait 0, 5, 10 avec un
-  //trou de six. Les quatre resolutions divisent exactement par 2 et par 4 ; le 1/16 et
-  //le 1/32 divisent aussi par 3 et par 6, les scales de triolet non - un triolet de
-  //triolet serait une division par neuf.
-  //k reste sous sc, donc sous 32 : le decalage ne peut pas sortir du type.
-  for (byte n = 1; n < div; n++){
-    bitSet(m, (byte)(((unsigned int)n * sc) / div));
-  }
-  return m;
+  return pgm_read_dword(&retrigMask[SCALE_ROW(sc)][r]);
 }
 
 boolean CondAllows(byte inst, byte step) {

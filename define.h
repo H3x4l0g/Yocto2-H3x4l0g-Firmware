@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.066"
+#define FW_VERSION  "Yocto v2.067"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -686,6 +686,34 @@ volatile unsigned int condPassMask = 1;
 //0xFF, donc 15 apres masquage : hors table, et RetrigMask() le rend a zero.
 #define RETRIG_COUNT 6
 const byte retrigDiv[RETRIG_COUNT] PROGMEM = {1, 2, 3, 4, 6, 8};
+
+//LES VINGT-QUATRE MASQUES, CALCULES ICI PLUTOT QUE SEIZE FOIS PAR PAS------------------
+//Bit k = un sous-coup k ticks apres le depart du pas. Le bit 0 est toujours vide : c'est
+//le coup principal, qui part par le chemin normal.
+//
+//La v2.065 les calculait a chaud, "(n * sc) / div" pour n de 1 a div-1. La multiplication
+//promeut en entier, donc __udivmodhi4 - environ 230 cycles - et le bitSet sur 32 bits a
+//index variable est lui aussi une boucle de decalage. Jusqu'a SEPT tours, PAR INSTRUMENT,
+//sur le tick ou le pas part. Quatre voix en x4 coutaient deja plus de 150 us AVANT que le
+//declenchement ne sorte, et le prix montait avec le nombre de voix qui roulent : une
+//gigue correlee a la densite, exactement ce que le [B-07] du MSS decrit - sauf qu'ici
+//c'est nous qui venions de la creer, le matin meme.
+//
+//Quatre resolutions, six taux : vingt-quatre valeurs que le compilateur connait. 96
+//octets de PROGMEM contre une division par sous-coup, et RetrigMask() devient une lecture.
+//
+//Les ecarts, verifies a la generation : AU 1/16 TOUT TOMBE EXACT, x3 et x6 compris - et
+//c'est precisement pour ca qu'un taux bat une grille de positions. Ailleurs le reste de
+//la division entiere est reparti sur toute la course, jamais accumule a la fin : au pire
+//un tick d'ecart entre deux sous-coups, cinq millisecondes a 120 BPM.
+//Rangs indexes par SCALE_ROW() : 12, 16, 24 puis 32 ticks - le meme rang que la table de
+//swing, pour qu'il n'y ait qu'une convention a retenir.
+const unsigned long retrigMask[4][RETRIG_COUNT] PROGMEM = {
+  {0x00000000UL, 0x00000040UL, 0x00000110UL, 0x00000248UL, 0x00000554UL, 0x000006DAUL},//12 ticks
+  {0x00000000UL, 0x00000100UL, 0x00000420UL, 0x00001110UL, 0x00002524UL, 0x00005554UL},//16 ticks
+  {0x00000000UL, 0x00001000UL, 0x00010100UL, 0x00041040UL, 0x00111110UL, 0x00249248UL},//24 ticks
+  {0x00000000UL, 0x00010000UL, 0x00200400UL, 0x01010100UL, 0x04210420UL, 0x11111110UL} //32 ticks
+};
 
 //LES SOUS-COUPS ENCORE DUS : un bit par tick a venir, le bit 0 etant "maintenant".
 //Pose quand le pas part, consomme par un decalage a droite a chaque tick - le test coute

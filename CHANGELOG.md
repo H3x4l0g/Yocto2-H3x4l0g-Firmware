@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.066**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.067**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -43,6 +43,7 @@ le détail technique vit dans `TODO.md`.
 - **`SHIFT` + une touche de pas, deux fois** : la première ouvre les conditions de ce pas,
   la seconde son roulement, la troisième referme. Comme les pages du mode config.
 - Les seize LED montrent les pas qui roulent, comme elles montrent les pas conditionnés.
+- Le placement d'un coup ne dépend plus du nombre de voix qui roulent en même temps.
 - Toutes les répétitions sonnent **au même niveau** que le coup principal, et le pas
   suivant interrompt le roulement.
 - Une condition ou une sourdine gouverne **le pas entier**, répétitions comprises.
