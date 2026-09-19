@@ -102,44 +102,20 @@ void LcdUpdate()
         break;
       case PTRN_STEP:
       case PTRN_TAP:
-        //L'ECRAN SUIT LA MEME PRIORITE QUE LA MOLETTE. L'ecran des conditions passait
-        //derriere celui de l'accent global : amener le champ "ins" sur le slot ACC
-        //faisait basculer les deux d'un coup, et on se retrouvait devant un bargraphe
-        //d'accent sans avoir rien demande. Cf la chaine de EncGet().
-        if (condMode){
-          //La condition du pas vise, pour l'instrument courant. Le pas et l'instrument
-          //sont des champs a part entiere : on arrive ici par SHIFT + pas, mais on doit
-          //pouvoir se promener sans relacher la molette.
-          //Deux pages, et le pas comme l'instrument restent aux memes colonnes sur les
-          //deux : ce sont les reperes, ils ne doivent pas bouger sous l'oeil.
-          lcd.setCursor(0,0);
-          lcd.print(condPage ? "pas rtg ins     " : "pas cnd prb ins ");
-          lcd.setCursor(cursorPos[curIndex],0);
-          lcd.print(condPage ? letterUpCondPage2[curIndex] : letterUpCond[curIndex]);
-          lcd.setCursor(0,1);
-          LcdClearLine();
-          lcd.setCursor(0,1);
-          lcd.print(condStep + 1);
-          if (condPage){
-            lcd.setCursor(4,1);
-            LcdPrintRetrig(pattern[ptrnBuffer].retrig[curInst][condStep] & 0x0F);
-            lcd.setCursor(8,1);
-            LcdPrintLabel(selectInstString, curInst);
-          }
-          else{
-            byte cond = pattern[ptrnBuffer].probality[curInst][condStep];
-            lcd.setCursor(4,1);
-            LcdPrintCond(cond >> 4);
-            lcd.setCursor(8,1);
-            LcdPrintProb(cond & 0x0F);
-            lcd.setCursor(12,1);
-            LcdPrintLabel(selectInstString, curInst);
-          }
-        }
-        else if (curInst == GLOBAL_ACC){
-          LcdPrintGlobalAcc();
-        }
-        else if (shufBtn.pressed){
+        //SHUFFLE TENU PASSE DEVANT TOUT, parce que la molette fait pareil : shufHeld
+        //est la PREMIERE branche de EncGet(). Cette chaine-ci le mettait en troisieme,
+        //donc avec l'ecran des conditions ouvert on tenait SHUFFLE, on tournait, le
+        //shuffle bougeait vraiment - et l'ecran montrait toujours les conditions.
+        //Regler a l'aveugle un parametre qu'on n'a pas demande a regler.
+        //
+        //C'EST LA DEUXIEME FOIS SUR CET ECRAN. La v2.058 avait deja du remettre
+        //condMode devant l'accent global DANS LES DEUX chaines, pour la meme raison.
+        //La lecon ne porte pas sur le shuffle : DEUX CHAINES DE PRIORITE QUI DECRIVENT
+        //LE MEME ARBITRAGE FINISSENT PAR DIVERGER. Celle de la molette fait foi, parce
+        //que c'est elle qui agit ; l'ecran ne fait que dire ce qu'elle sert.
+        //Un ecran qu'on a ouvert possede la molette - sauf contre une touche qu'on
+        //TIENT, qui est un geste plus fort qu'un mode qu'on a laisse ouvert.
+        if (shufBtn.pressed){
           //DEUX GESTES, DEUX ECRANS. SHUFFLE seul regle la voix courante, SHIFT+SHUFFLE
           //regle les seize d'un coup - et les deux dessinaient le MEME ecran, titre
           //compris, avec un bargraphe qui lisait TOUJOURS shuffle[curInst].
@@ -171,6 +147,43 @@ void LcdUpdate()
                                       : pattern[ptrnBuffer].shuffle[curInst];
           lcd.setCursor(1 + shufShown,1);
           lcd.print((char)219);
+        }
+        //L'ECRAN SUIT LA MEME PRIORITE QUE LA MOLETTE. L'ecran des conditions passait
+        //derriere celui de l'accent global : amener le champ "ins" sur le slot ACC
+        //faisait basculer les deux d'un coup, et on se retrouvait devant un bargraphe
+        //d'accent sans avoir rien demande. Cf la chaine de EncGet().
+        else if (condMode){
+          //La condition du pas vise, pour l'instrument courant. Le pas et l'instrument
+          //sont des champs a part entiere : on arrive ici par SHIFT + pas, mais on doit
+          //pouvoir se promener sans relacher la molette.
+          //Deux pages, et le pas comme l'instrument restent aux memes colonnes sur les
+          //deux : ce sont les reperes, ils ne doivent pas bouger sous l'oeil.
+          lcd.setCursor(0,0);
+          lcd.print(condPage ? "pas rtg ins     " : "pas cnd prb ins ");
+          lcd.setCursor(cursorPos[curIndex],0);
+          lcd.print(condPage ? letterUpCondPage2[curIndex] : letterUpCond[curIndex]);
+          lcd.setCursor(0,1);
+          LcdClearLine();
+          lcd.setCursor(0,1);
+          lcd.print(condStep + 1);
+          if (condPage){
+            lcd.setCursor(4,1);
+            LcdPrintRetrig(pattern[ptrnBuffer].retrig[curInst][condStep] & 0x0F);
+            lcd.setCursor(8,1);
+            LcdPrintLabel(selectInstString, curInst);
+          }
+          else{
+            byte cond = pattern[ptrnBuffer].probality[curInst][condStep];
+            lcd.setCursor(4,1);
+            LcdPrintCond(cond >> 4);
+            lcd.setCursor(8,1);
+            LcdPrintProb(cond & 0x0F);
+            lcd.setCursor(12,1);
+            LcdPrintLabel(selectInstString, curInst);
+          }
+        }
+        else if (curInst == GLOBAL_ACC){
+          LcdPrintGlobalAcc();
         }
         else if (keyboardMode){
           lcd.setCursor(0,0);

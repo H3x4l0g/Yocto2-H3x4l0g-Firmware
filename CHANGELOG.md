@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.065**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.066**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -32,6 +32,10 @@ le détail technique vit dans `TODO.md`.
   où il se lit.
 
 ## Retrig — nouveau
+
+- **Tenir SHUFFLE affiche à nouveau son bargraphe** quand un écran de réglage de pas est
+  ouvert. La molette réglait bien le shuffle, mais l'écran montrait autre chose : on
+  réglait à l'aveugle.
 
 - **Chaque pas peut sonner 2, 3, 4, 6 ou 8 fois dans son propre intervalle.** Roulements de
   charley, buzz de caisse claire, bégaiement de grosse caisse — et les triolets sont
