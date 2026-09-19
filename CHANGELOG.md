@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.061**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.062**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -32,6 +32,10 @@ le détail technique vit dans `TODO.md`.
   où il se lit.
 
 ## Conditions de trig — nouveau
+
+- **Décaler un pattern emmène ses conditions avec lui.** Les flèches de décalage
+  faisaient avancer les trigs et les vélocités en laissant les conditions sur place :
+  chaque pas héritait de la condition de son voisin.
 
 - **Chaque pas peut ne jouer qu'une mesure sur X, ou une fois sur deux.** Deux réglages par
   pas et par instrument : une condition cyclique — `1:2` une mesure sur deux, `3:4` la

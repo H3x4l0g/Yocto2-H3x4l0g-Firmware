@@ -214,6 +214,21 @@ void ChangePatternDirection()
 }
 
 ///////////////////////shift left pattern///////////////////////////////
+//TOUT CE QUI EST INDEXE PAR PAS VOYAGE AVEC LE PAS-------------------------------------
+//Ces deux fonctions faisaient tourner inst[] et velocity[], et RIEN D'AUTRE. Tant que
+//probality dormait, sans effet. Depuis que les conditions de trig s'en servent (v2.057),
+//decaler un pattern laissait chaque condition sur son ancien pas : les trigs avancaient
+//d'un cran, les conditions non, et le pattern se retrouvait decale contre ses propres
+//regles. Un pas "1:4" heritait de la condition du voisin.
+//
+//Le carnet avait plante ce piquet le 14/09/2026, avant meme que le champ serve : "le jour
+//ou l'un s'allume, un decalage le desynchronise de ses propres pas, et ca se
+//diagnostiquera mal". C'est arrive cinq jours plus tard, par notre propre fonction.
+//
+//LA CONDITION VOYAGE DONC DANS LA MEME BOUCLE QUE LA VELOCITE, pas dans une boucle a
+//cote : deux boucles separees peuvent se desaccorder, une seule ne le peut pas. uTiming
+//et retrig dorment encore - le jour ou l'un des deux s'allume, il s'ajoute ICI, dans ces
+//quatre memes endroits, et le piquet pourra etre retire.
 void ShiftLeftPattern()
 {
 
@@ -228,6 +243,7 @@ void ShiftLeftPattern()
   if (instBtn){
     //remember first step velocity value
     byte temp = pattern[ptrnBuffer].velocity[curInst][0];
+    byte tempC = pattern[ptrnBuffer].probality[curInst][0];
 
     //Shift Left trig value
     if (bitRead(pattern[ptrnBuffer].inst[curInst],0))pattern[ptrnBuffer].inst[curInst] = pattern[ptrnBuffer].inst[curInst] >> 1 | (1U << pattern[ptrnBuffer].length[curInst]);
@@ -235,17 +251,25 @@ void ShiftLeftPattern()
 
     //shift left velocity value
     for (int stp = 0; stp <= pattern[ptrnBuffer].length[curInst]; stp++){
-      if (stp == pattern[ptrnBuffer].length[curInst]) pattern[ptrnBuffer].velocity[curInst][stp] = temp;
-      else pattern[ptrnBuffer].velocity[curInst][stp] = pattern[ptrnBuffer].velocity[curInst][stp+1];
+      if (stp == pattern[ptrnBuffer].length[curInst]){
+        pattern[ptrnBuffer].velocity[curInst][stp] = temp;
+        pattern[ptrnBuffer].probality[curInst][stp] = tempC;
+      }
+      else{
+        pattern[ptrnBuffer].velocity[curInst][stp] = pattern[ptrnBuffer].velocity[curInst][stp+1];
+        pattern[ptrnBuffer].probality[curInst][stp] = pattern[ptrnBuffer].probality[curInst][stp+1];
+      }
     }
   }
   // shift full pattern
   else{
     byte temp[NBR_INST];
+    byte tempC[NBR_INST];
     //Loop as many instrument
     for (int nbrInst = 0; nbrInst < NBR_INST; nbrInst++){
       //remember first step velocity value of each instrument
       temp[nbrInst] = pattern[ptrnBuffer].velocity[nbrInst][0];
+      tempC[nbrInst] = pattern[ptrnBuffer].probality[nbrInst][0];
 
       //Shift Left trig value of all instrument
       if (bitRead(pattern[ptrnBuffer].inst[nbrInst],0))pattern[ptrnBuffer].inst[nbrInst] = pattern[ptrnBuffer].inst[nbrInst] >> 1 | (1U << pattern[ptrnBuffer].length[nbrInst]);
@@ -253,8 +277,14 @@ void ShiftLeftPattern()
 
       //shift left velocity value of all instrument
       for (int stp = 0; stp <= pattern[ptrnBuffer].length[nbrInst]; stp++){
-        if (stp == pattern[ptrnBuffer].length[nbrInst]) pattern[ptrnBuffer].velocity[nbrInst][stp] = temp[nbrInst];
-        else pattern[ptrnBuffer].velocity[nbrInst][stp] = pattern[ptrnBuffer].velocity[nbrInst][stp + 1];      
+        if (stp == pattern[ptrnBuffer].length[nbrInst]){
+          pattern[ptrnBuffer].velocity[nbrInst][stp] = temp[nbrInst];
+          pattern[ptrnBuffer].probality[nbrInst][stp] = tempC[nbrInst];
+        }
+        else{
+          pattern[ptrnBuffer].velocity[nbrInst][stp] = pattern[ptrnBuffer].velocity[nbrInst][stp + 1];
+          pattern[ptrnBuffer].probality[nbrInst][stp] = pattern[ptrnBuffer].probality[nbrInst][stp + 1];
+        }
       }
     }
   }
@@ -276,6 +306,7 @@ void ShiftRightPattern()
     byte lastStep = pattern[ptrnBuffer].length[curInst];
     //remember last step velocity value
     byte temp = pattern[ptrnBuffer].velocity[curInst][lastStep];
+    byte tempC = pattern[ptrnBuffer].probality[curInst][lastStep];
 
     //Shift right trig value
     if (bitRead(trigValue,lastStep)){
@@ -289,8 +320,14 @@ void ShiftRightPattern()
 
     //shift right velocity
     for (int stp = lastStep; stp >= 0; stp--){
-      if (stp == 0) pattern[ptrnBuffer].velocity[curInst][stp] = temp;
-      else pattern[ptrnBuffer].velocity[curInst][stp] = pattern[ptrnBuffer].velocity[curInst][stp-1];
+      if (stp == 0){
+        pattern[ptrnBuffer].velocity[curInst][stp] = temp;
+        pattern[ptrnBuffer].probality[curInst][stp] = tempC;
+      }
+      else{
+        pattern[ptrnBuffer].velocity[curInst][stp] = pattern[ptrnBuffer].velocity[curInst][stp-1];
+        pattern[ptrnBuffer].probality[curInst][stp] = pattern[ptrnBuffer].probality[curInst][stp-1];
+      }
     }
   }
 
@@ -302,7 +339,8 @@ void ShiftRightPattern()
     //Last step variable
     byte lastStep[NBR_INST]; 
     //remember last step velocity value
-    byte temp[NBR_INST]; 
+    byte temp[NBR_INST];
+    byte tempC[NBR_INST];
 
     //Loop as many instrument
     for (int a = 0; a < NBR_INST; a++){
@@ -310,6 +348,7 @@ void ShiftRightPattern()
       trigValue[a] = pattern[ptrnBuffer].inst[a];
       lastStep[a] = pattern[ptrnBuffer].length[a];
       temp[a] = pattern[ptrnBuffer].velocity[a][lastStep[a]];
+      tempC[a] = pattern[ptrnBuffer].probality[a][lastStep[a]];
 
       //Shift right full pattern
       if (bitRead(trigValue[a],lastStep[a])){
@@ -323,8 +362,14 @@ void ShiftRightPattern()
 
       //Shift right full pattern velocity values 
       for (int stp = lastStep[a]; stp >= 0; stp--){
-        if (stp == 0) pattern[ptrnBuffer].velocity[a][stp] = temp[a];
-        else pattern[ptrnBuffer].velocity[a][stp] = pattern[ptrnBuffer].velocity[a][stp-1];      
+        if (stp == 0){
+          pattern[ptrnBuffer].velocity[a][stp] = temp[a];
+          pattern[ptrnBuffer].probality[a][stp] = tempC[a];
+        }
+        else{
+          pattern[ptrnBuffer].velocity[a][stp] = pattern[ptrnBuffer].velocity[a][stp-1];
+          pattern[ptrnBuffer].probality[a][stp] = pattern[ptrnBuffer].probality[a][stp-1];
+        }
       }
     }
   }
