@@ -62,7 +62,11 @@ void SeqParameter()
     //la borne se pose donc ICI, la ou le curseur avance, et pas dans la table.
     //Changer de page remet deja curIndex a zero (branche SHIFT + TEMPO), donc rien ne
     //peut rester hors plage en arrivant sur la page 2.
-    byte fields = (seq.configMode && seq.configPage == 2) ? 1 : MAX_CUR_POS;
+    //La page 2 des conditions n'a que trois champs - pas, taux, instrument - tant que le
+    //micro-timing n'agit pas. Meme raison que la page 2 du config juste au-dessus.
+    byte fields = (seq.configMode && seq.configPage == 2) ? 1
+                : (condMode && condPage == 1)             ? 3
+                : MAX_CUR_POS;
     curIndex++;
     if (curIndex >= fields)  curIndex = 0;
     needLcdUpdate = TRUE;
@@ -83,6 +87,9 @@ void SeqParameter()
       cli();
       measureCount = 0;
       CondUpdateMask();
+      //Les sous-coups encore dus appartenaient au pas qu'on vient d'abandonner : les
+      //laisser ferait partir une queue de roulement sur le premier temps.
+      for (byte z = 0; z < NBR_INST; z++) subTrig[z] = 0;
       SREG = sregC;
     }
     globalStepCount = 0;
@@ -115,6 +122,15 @@ void SeqParameter()
     case 1:
       isStop = TRUE;
       isRunning = FALSE;
+      //Les sous-coups encore dus meurent avec le transport. Sans ca, CONTINUE reprendrait
+      //par la queue d'un roulement interrompu - l'interruption ne touche plus subTrig une
+      //fois isRunning tombe, mais elle peut etre en train de le faire a cet instant meme.
+      {
+        uint8_t sregR = SREG;
+        cli();
+        for (byte z = 0; z < NBR_INST; z++) subTrig[z] = 0;
+        SREG = sregR;
+      }
       MIDI.sendRealTime(midi::Stop);//;MidiSend(STOP_CMD);
       DIN_START_LOW;
       dinStartState = LOW;
@@ -309,6 +325,7 @@ void SeqParameter()
       bitClear (pattern[ptrnBuffer].inst[curInst], curStep[curInst]);
       pattern[ptrnBuffer].velocity[curInst][curStep[curInst]] = instVelLow[curInst];
       pattern[ptrnBuffer].probality[curInst][curStep[curInst]] = 0;//la condition aussi
+      pattern[ptrnBuffer].retrig[curInst][curStep[curInst]] = 0;//et le roulement
       //if (curInst == CH) pattern[ptrnBuffer].velocity[CH][curStep] = instVelHigh[HH];//update HH velocity that OH is trigged correctly   
 
       patternWasEdited = TRUE;   
@@ -326,7 +343,10 @@ void SeqParameter()
         //l'on reecrit des pas sur le pattern efface et ou ils sortent conditionnes par un
         //reglage qu'on ne se souvient pas d'avoir pose. C'est le meme raisonnement que les
         //trois champs globaux ci-dessous - ce qui reste d'avant est ce qui piege.
-        for (byte j = 0; j < NBR_STEP; j++) pattern[ptrnBuffer].probality[a][j] = 0;
+        for (byte j = 0; j < NBR_STEP; j++){
+          pattern[ptrnBuffer].probality[a][j] = 0;
+          pattern[ptrnBuffer].retrig[a][j] = 0;
+        }
       }
       //Les trois champs "globaux" sont le resume des trois tableaux qu'on vient de
       //reecrire, et ils restaient sur l'ancien pattern.
@@ -457,10 +477,22 @@ void SeqParameter()
       if (shiftBtn.pressed && stepsBtn.justPressed && !lastStepBtn.pressed
           && !instBtn && !bankBtn.pressed && !keyboardMode){
         byte s = FirstBitOn();
-        if (condMode && s == condStep) condMode = FALSE;
+        //SUR LE MEME PAS, LE GESTE AVANCE PUIS SORT : conditions, puis retrig, puis rien.
+        //C'est la forme de SHIFT + TEMPO sur les pages du mode config, et la machine n'a
+        //pas besoin d'une touche de sortie de plus. Sur un AUTRE pas, il y saute comme
+        //avant, et repart de la premiere page - on designe un pas pour le regler, pas
+        //pour continuer une navigation.
+        if (condMode && s == condStep){
+          if (condPage == 0) condPage = 1;
+          else {
+            condMode = FALSE;
+            condPage = 0;
+          }
+        }
         else {
           condMode = TRUE;
           condStep = s;
+          condPage = 0;
         }
         curIndex = 1;//le curseur arrive sur la condition, pas sur le pas qu'on vient de designer
         needLcdUpdate = TRUE;

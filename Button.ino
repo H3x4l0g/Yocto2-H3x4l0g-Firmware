@@ -149,6 +149,7 @@ unsigned int InstValueGet(unsigned int value)
             //d'un geste neuf est ce qu'on ferme partout depuis la reprise.
             //CLEAR efface deja les conditions de tout le pattern, pour cette raison-la.
             pattern[ptrnBuffer].probality[curInst][a] = 0;
+            pattern[ptrnBuffer].retrig[curInst][a] = 0;
             break;
           }
         }
@@ -178,6 +179,7 @@ unsigned int InstValueGet(unsigned int value)
             bitClear (value, a);
             pattern[ptrnBuffer].velocity[curInst][a] = instVelLow[curInst];
             pattern[ptrnBuffer].probality[curInst][a] = 0;//cf le bloc du dessus
+            pattern[ptrnBuffer].retrig[curInst][a] = 0;
             break;
           }
         }

@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.064"
+#define FW_VERSION  "Yocto v2.065"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -655,6 +655,47 @@ volatile unsigned int condPassMask = 1;
 //probabilite de 15 sur 16 sur chaque pas. Le marqueur rend la mise a jour sans effet sur
 //ce qui est deja enregistre, et fait gagner deux pages de lecture sur ces patterns-la.
 #define COND_MAGIC 0xC1
+//Le marqueur du retrig, octet 105 de la page de reglages - la suivante, et il en reste 22.
+//Meme role que COND_MAGIC : sans lui, la zone n'est pas relue et le champ part a zero,
+//donc un pattern enregistre avant aujourd'hui se charge exactement comme avant.
+//Une fausse correspondance serait sans consequence : RetrigMask() rejette tout index hors
+//table, et un octet jamais ecrit vaut 15 apres masquage.
+#define RTG_MAGIC 0xC2
+
+//LE RETRIG : UN TAUX, PAS UNE GRILLE----------------------------------------------------
+//Le champ retrig[] existe depuis l'amont avec, pour toute definition, "TO BE DEFINE" dans
+//la carte EEPROM de EEprom.ino. Il a donc fallu decider ce que c'etait - et on est alle
+//voir le marche plutot que de trancher seul, sur la proposition de H3x4l0g (19/09/2026).
+//
+//Le TR-8S exprime ses sub-steps en FRACTION du pas : 1/2, 1/3 ou 1/4. Elektron en TAUX :
+//1/32 vaut deux par pas, et le manuel dit d'aller chercher 1/12 pour des triolets. AUCUN
+//DES DEUX ne propose une grille de positions libres, et tous deux vont chercher le 1/3.
+//
+//La raison est arithmetique. Un pas de 1/16 fait 24 ticks ; une grille de huit bits les
+//espace de trois - 0, 3, 6, 9 ... - et un triolet dans le pas demande HUIT ticks d'ecart.
+//Huit n'est pas sur cette grille, a aucune resolution : au 1/8t ce serait 32/3 = 10,67.
+//Un taux, lui, donne 24/3 = 8 exactement. La grille achete le placement libre au prix du
+//triolet, et les deux fabricants ont explicitement paye l'autre cote.
+//
+//LE TAUX RESOUT AUSSI LA QUESTION DU SWING SANS QU'ON AIT A LA POSER : les repetitions
+//partent du trig, swingue ou non, a intervalle fixe, et le pas suivant les interrompt.
+//Rien a comprimer, rien qui deborde. C'est pour ca que ni Roland ni Elektron n'en parlent
+//dans leurs manuels - ce n'est pas un trou, c'est qu'il n'y a rien a dire.
+//
+//Index 0 = un seul coup, soit le comportement d'avant. Un octet jamais initialise vaut
+//0xFF, donc 15 apres masquage : hors table, et RetrigMask() le rend a zero.
+#define RETRIG_COUNT 6
+const byte retrigDiv[RETRIG_COUNT] PROGMEM = {1, 2, 3, 4, 6, 8};
+
+//LES SOUS-COUPS ENCORE DUS : un bit par tick a venir, le bit 0 etant "maintenant".
+//Pose quand le pas part, consomme par un decalage a droite a chaque tick - le test coute
+//un ET, pas un index variable sur 32 bits, qui serait une boucle de decalage sur AVR,
+//seize fois par tick. Le cache des modulos de Clock.ino existe pour cette raison-la.
+//Le pas suivant reecrit la case, donc les bits qui depasseraient sa fin sont jetes
+//d'eux-memes : c'est le "le trig suivant interrompt le roulement" d'Elektron, obtenu
+//sans une ligne pour le dire.
+//32 bits parce qu'un pas de 1/8t fait 32 ticks.
+volatile unsigned long subTrig[NBR_INST] = {0};
 
 //Le tempo du maitre, mesure sur l'horloge entrante. Zero tant qu'on n'a rien mesure.
 unsigned int slaveBpm = 0;
@@ -672,6 +713,10 @@ boolean slavePhaseSet = FALSE;
 
 boolean condMode = FALSE;//l'ecran des conditions, cf LCD.ino
 byte condStep = 0;//le pas qu'on y edite
+//LA PAGE DE L'ECRAN DES CONDITIONS. 0 = "pas cnd prb ins", 1 = "pas rtg ins".
+//SHIFT + le meme pas avance d'une page puis referme - exactement ce que fait
+//SHIFT + TEMPO sur les deux pages du mode config. Aucun idiome nouveau a apprendre.
+byte condPage = 0;
 
 //LCD------------------------------------------------
 boolean needLcdUpdate = TRUE;
@@ -690,6 +735,12 @@ const char *letterUpConfPage1[MAX_CUR_POS]={
   "S", "B", "M", "M"};
 const char *letterUpConfPage2[MAX_CUR_POS]={
   "P", "N", "N", "N"};
+//La page 2 n'a que TROIS champs : pas, taux, instrument. Le curseur y est borne a trois
+//dans Seq.ino, la ou il avance - meme mecanisme que la page 2 du mode config, et pour la
+//meme raison : un curseur qui s'arrete sur un champ vide se lit comme une panne.
+//La quatrieme case attend le micro-timing ; elle n'existera que le jour ou il agira.
+const char *letterUpCondPage2[MAX_CUR_POS]={
+  "P", "R", "I", " "};
 const char *letterUpCond[MAX_CUR_POS]={
   "P", "C", "P", "I"};
 

@@ -85,6 +85,31 @@ void CondUpdateMask() {
 //Ce pas a-t-il le droit de sonner ?-----------------------------------------------------
 //Zero veut dire "rien de pose", et c'est le cas de tous les pas de tous les patterns qui
 //existent aujourd'hui : le chemin rapide est une lecture et un test.
+//LE MASQUE DES SOUS-COUPS D'UN PAS : bit k = tirer k ticks apres celui-ci.
+//Le bit 0 reste toujours vide - c'est le coup principal, qui part par le chemin normal.
+//Rien a voir avec le swing : le masque est construit A L'INSTANT OU LE PAS PART, donc le
+//retard de swing est deja dans le passe et n'entre pas dans le calcul.
+unsigned long RetrigMask(byte inst, byte step, byte sc)
+{
+  byte r = pattern[ptrnBuffer].retrig[inst][step] & 0x0F;
+  if (r >= RETRIG_COUNT) return 0;//octet jamais initialise : pas de roulement invente
+  byte div = pgm_read_byte(&retrigDiv[r]);
+  if (div < 2) return 0;
+
+  unsigned long m = 0;
+  //(n * sc) / div, et non n * (sc / div) : la division entiere repartit alors son reste
+  //sur toute la course au lieu de l'accumuler a la fin. Trois coups sur seize ticks
+  //donnent 0, 5, 10 - ecarts 5, 5, 6 - la ou l'autre forme donnerait 0, 5, 10 avec un
+  //trou de six. Les quatre resolutions divisent exactement par 2 et par 4 ; le 1/16 et
+  //le 1/32 divisent aussi par 3 et par 6, les scales de triolet non - un triolet de
+  //triolet serait une division par neuf.
+  //k reste sous sc, donc sous 32 : le decalage ne peut pas sortir du type.
+  for (byte n = 1; n < div; n++){
+    bitSet(m, (byte)(((unsigned int)n * sc) / div));
+  }
+  return m;
+}
+
 boolean CondAllows(byte inst, byte step) {
   byte c = pattern[ptrnBuffer].probality[inst][step];
   if (!c) return TRUE;
@@ -284,16 +309,41 @@ void CountPPQN() {
         //de pas et sa direction. L'accent global n'en est pas : il ne se declenche pas,
         //il est lu par MuxValue() au moment du balayage.
         if (z != GLOBAL_ACC) {  //&& z != TR1 && z != TR2){
-          sv |= ((bitRead(pattern[ptrnBuffer].inst[z], curStep[z])) << z);
+          boolean hit = bitRead(pattern[ptrnBuffer].inst[z], curStep[z]);
+          sv |= ((unsigned int)hit << z);
           //LA CONDITION MASQUE, ELLE NE SUPPRIME PAS. Le bit est pose ici et retire plus
           //bas avec les mutes, donc APRES que la piste EXT a releve son pas : un pas
           //conditionne se tait, mais la grille et la pile continuent d'avancer ensemble.
           //C'est mot pour mot la regle du mute, et pour la meme raison - le rapport entre
           //la grille et la pile est ce qui fait la fonction, et le figer le casse.
           if (!CondAllows(z, curStep[z])) bitSet(cb, z);
+
+          //LE ROULEMENT DE CE PAS, DECIDE UNE FOIS POUR TOUTES. Pas de trig, pas de
+          //roulement ; condition refusee, pas de roulement non plus - et c'est pour ca
+          //que la decision se prend ICI et pas a chaque sous-coup : CondAllows() tire au
+          //sort quand une probabilite est posee, donc la reevaluer huit fois de suite
+          //donnerait huit reponses differentes dans un seul pas. Une condition gouverne
+          //LE PAS ENTIER, repetitions comprises.
+          //Les mutes, eux, s'appliquent plus bas sur le mot complet : un sous-coup passe
+          //par sv comme le coup principal, donc muter pendant un roulement le coupe.
+          subTrig[z] = (hit && !bitRead(cb, z)) ? RetrigMask(z, curStep[z], sc) : 0;
         }
 
         stepCount[z]++;
+      }
+
+      //LES SOUS-COUPS, UN TICK A LA FOIS. Le bit 0 vaut "maintenant" : on le lit avant de
+      //decaler, donc au tick ou le pas part il vaut zero par construction et le coup
+      //principal ne part pas deux fois.
+      //La velocite n'est PAS rechargee : le condensateur a ete charge par SetMux() au
+      //debut du pas et les repetitions ne font que re-declencher. C'est le choix
+      //de H3x4l0g du 19/09/2026, et il evite le piege que le firmware MSS documente sous
+      //[B-37] - recharger une capacite pendant qu'une voix sonne encore, l'oreille lit le
+      //saut de niveau comme une frappe de plus. Sur CH et OH, qui partagent un
+      //condensateur, c'est exactement la ou ils se sont brules.
+      if (subTrig[z]) {
+        if (subTrig[z] & 1) sv |= ((unsigned int)1 << z);
+        subTrig[z] >>= 1;
       }
     }
 

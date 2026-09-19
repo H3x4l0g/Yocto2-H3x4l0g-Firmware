@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.064**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.065**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -30,6 +30,19 @@ le détail technique vit dans `TODO.md`.
   le mode qui joue dessous. En TRACK PLAY, où le tempo n'est pas affiché non plus, elle
   devient inerte. PATT PLAY reste le seul écran où elle règle le tempo nue — c'est le seul
   où il se lit.
+
+## Retrig — nouveau
+
+- **Chaque pas peut sonner 2, 3, 4, 6 ou 8 fois dans son propre intervalle.** Roulements de
+  charley, buzz de caisse claire, bégaiement de grosse caisse — et les triolets sont
+  atteignables, ce qui a décidé de la forme du réglage.
+- **`SHIFT` + une touche de pas, deux fois** : la première ouvre les conditions de ce pas,
+  la seconde son roulement, la troisième referme. Comme les pages du mode config.
+- Les seize LED montrent les pas qui roulent, comme elles montrent les pas conditionnés.
+- Toutes les répétitions sonnent **au même niveau** que le coup principal, et le pas
+  suivant interrompt le roulement.
+- Une condition ou une sourdine gouverne **le pas entier**, répétitions comprises.
+- **Les patterns déjà enregistrés ne changent pas.**
 
 ## Conditions de trig — nouveau
 

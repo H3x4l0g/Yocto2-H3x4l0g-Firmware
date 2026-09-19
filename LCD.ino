@@ -110,21 +110,31 @@ void LcdUpdate()
           //La condition du pas vise, pour l'instrument courant. Le pas et l'instrument
           //sont des champs a part entiere : on arrive ici par SHIFT + pas, mais on doit
           //pouvoir se promener sans relacher la molette.
+          //Deux pages, et le pas comme l'instrument restent aux memes colonnes sur les
+          //deux : ce sont les reperes, ils ne doivent pas bouger sous l'oeil.
           lcd.setCursor(0,0);
-          lcd.print("pas cnd prb ins ");
+          lcd.print(condPage ? "pas rtg ins     " : "pas cnd prb ins ");
           lcd.setCursor(cursorPos[curIndex],0);
-          lcd.print(letterUpCond[curIndex]);
+          lcd.print(condPage ? letterUpCondPage2[curIndex] : letterUpCond[curIndex]);
           lcd.setCursor(0,1);
           LcdClearLine();
           lcd.setCursor(0,1);
           lcd.print(condStep + 1);
-          byte cond = pattern[ptrnBuffer].probality[curInst][condStep];
-          lcd.setCursor(4,1);
-          LcdPrintCond(cond >> 4);
-          lcd.setCursor(8,1);
-          LcdPrintProb(cond & 0x0F);
-          lcd.setCursor(12,1);
-          LcdPrintLabel(selectInstString, curInst);
+          if (condPage){
+            lcd.setCursor(4,1);
+            LcdPrintRetrig(pattern[ptrnBuffer].retrig[curInst][condStep] & 0x0F);
+            lcd.setCursor(8,1);
+            LcdPrintLabel(selectInstString, curInst);
+          }
+          else{
+            byte cond = pattern[ptrnBuffer].probality[curInst][condStep];
+            lcd.setCursor(4,1);
+            LcdPrintCond(cond >> 4);
+            lcd.setCursor(8,1);
+            LcdPrintProb(cond & 0x0F);
+            lcd.setCursor(12,1);
+            LcdPrintLabel(selectInstString, curInst);
+          }
         }
         else if (curInst == GLOBAL_ACC){
           LcdPrintGlobalAcc();
@@ -319,6 +329,17 @@ void LcdPrintCond(byte c)
 //Zero veut dire toujours, donc cent. Les quinze autres valeurs sont des seiziemes :
 //1 donne 6 %, 8 en donne 50, 15 en donne 93. L'echelle se lit dans le sens de la
 //densite - plus le chiffre est gros, plus la note tombe souvent.
+//Le taux de repetition : "x1" a "x8", et x1 veut dire un seul coup - le comportement
+//d'avant. On ecrit le nombre de coups plutot que la fraction du pas : "1/3" et "x3"
+//designent la meme chose, mais c'est le nombre de coups qu'on entend.
+void LcdPrintRetrig(byte r)
+{
+  if (r >= RETRIG_COUNT) r = 0;
+  lcd.print("x");
+  lcd.print(pgm_read_byte(&retrigDiv[r]));
+  lcd.print(" ");
+}
+
 void LcdPrintProb(byte p)
 {
   //Zero vaut seize seiziemes : c'est le haut de l'echelle, pas un trou au milieu.

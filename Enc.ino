@@ -131,7 +131,16 @@ void EncGet()
   //la molette ne servait plus le curseur. Un ecran qu'on a explicitement ouvert possede
   //la molette tant qu'il est ouvert ; SHUFFLE reste devant, parce qu'on le TIENT.
   else if (condMode && !tempoBtn.pressed){
-    switch (curIndex){
+    //DEUX PAGES, UN SEUL SWITCH. La page 2 reutilise le champ "pas" et le champ
+    //"instrument" tels quels - ce sont les memes champs, au meme endroit, avec le meme
+    //comportement - et n'ajoute que le taux. Les renumeroter ici evite de recopier deux
+    //cas entiers ailleurs, et deux copies d'un champ finissent toujours par diverger.
+    byte field = curIndex;
+    if (condPage == 1){
+      if (curIndex == 1) field = 4;//le taux
+      else if (curIndex == 2) field = 3;//l'instrument, la troisieme case de cette page
+    }
+    switch (field){
     case 0:{//le pas qu'on edite
       byte before = condStep;
       condStep = EncGet(condStep, 1);
@@ -168,6 +177,23 @@ void EncGet()
       v = constrain(v, 1, 16);
       if (v != before){
         pattern[ptrnBuffer].probality[curInst][condStep] = (byte)((c & 0xF0) | ((v == 16) ? 0 : v));
+        patternWasEdited = TRUE;
+        needLcdUpdate = TRUE;
+      }
+      break;
+    }
+    case 4:{//le taux de repetition - page 2
+      //Une course de six crans, index dans retrigDiv[] : 1, 2, 3, 4, 6 et 8 coups par pas.
+      //Le nibble haut est laisse intact - il attend de dire un jour "plat" ou "decroissant",
+      //et ecraser un octet entier pour ecrire quatre bits est la facon de perdre ce qu'on
+      //n'a pas encore invente.
+      byte c = pattern[ptrnBuffer].retrig[curInst][condStep];
+      byte before = c & 0x0F;
+      if (before >= RETRIG_COUNT) before = 0;//octet jamais initialise
+      byte v = EncGet(before, 1);
+      v = constrain(v, 0, RETRIG_COUNT - 1);
+      if (v != before){
+        pattern[ptrnBuffer].retrig[curInst][condStep] = (byte)((c & 0xF0) | v);
         patternWasEdited = TRUE;
         needLcdUpdate = TRUE;
       }

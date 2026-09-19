@@ -214,7 +214,8 @@ void SavePattern(byte patternNbr)
   //pas relue et les conditions partent a zero. Un pattern d'avant se charge donc
   //exactement comme avant, et on economise deux pages de lecture au passage.
   Wire.write((byte)(COND_MAGIC));
-  //105 bytes => 23 byte left ;)
+  Wire.write((byte)(RTG_MAGIC));//le roulement, meme role et meme raison
+  //106 bytes => 22 byte left ;)
 
   Wire.endTransmission();//end page transmission
   WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
@@ -250,6 +251,27 @@ void SavePattern(byte patternNbr)
     for (byte i = 0; i < 8; i++){
       for (byte j = 0; j < NBR_STEP; j++){
         Wire.write((byte)(pattern[ptrnBuffer].probality[i + (nbrPage * 8)][j]));
+      }
+      MIDI.read();// to improve slave sync response
+    }
+    Wire.endTransmission();//end of 128 bytes transfer
+    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  }//2 * 128 bytes = 256 bytes
+
+  //ROULEMENT (RETRIG)-------------------------------------
+  //Deux pages dans la zone reservee au micro-timing, a PTRN_PROB_OFFSET. ATTENTION au
+  //decalage des noms : dans ce fichier chaque _OFFSET designe le DEBUT DE LA ZONE
+  //SUIVANTE, parce qu'il vaut l'offset precedent PLUS sa propre taille. Les velocites
+  //s'ecrivent donc a PTRN_SETUP_OFFSET, les conditions a PTRN_VEL_OFFSET, le roulement
+  //ici a PTRN_PROB_OFFSET, et extNote plus bas a PTRN_RETRIG_OFFSET. La convention vient
+  //de l'amont et on ne la change pas : se tromper d'un cran en renommant decalerait la
+  //lecture de tous les patterns deja enregistres.
+  for(int nbrPage = 0; nbrPage < 2; nbrPage++){
+    adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_PROB_OFFSET);
+    WireBeginTX(adress);
+    for (byte i = 0; i < 8; i++){
+      for (byte j = 0; j < NBR_STEP; j++){
+        Wire.write((byte)(pattern[ptrnBuffer].retrig[i + (nbrPage * 8)][j]));
       }
       MIDI.read();// to improve slave sync response
     }
@@ -315,6 +337,7 @@ void LoadPattern(byte patternNbr)
   //Le marqueur des conditions de trig, cf SavePattern(). La requete demande deja une page
   //entiere, donc cet octet-la etait dans le tampon depuis toujours.
   boolean condSaved = (Wire.read() == COND_MAGIC);
+  boolean rtgSaved = (Wire.read() == RTG_MAGIC);
   //105 bytes requested
 
     //VELOCITY-----------------------------------------------
@@ -357,6 +380,36 @@ void LoadPattern(byte patternNbr)
     for (byte i = 0; i < NBR_INST; i++){
       for (byte j = 0; j < NBR_STEP; j++){
         pattern[!ptrnBuffer].probality[i][j] = 0;
+      }
+    }
+  }
+
+  //ROULEMENT (RETRIG)-------------------------------------
+  //Meme regle et meme raison que les conditions juste au-dessus : sans marqueur, la zone
+  //n'est pas relue et le champ part a zero. Elle n'a jamais ete ecrite avant aujourd'hui,
+  //donc une puce vierge y rend 0xFF partout - soit un index hors table sur les seize pas
+  //de toutes les voix. RetrigMask() le rejetterait, mais l'ecran afficherait des taux
+  //venus de nulle part, et on chercherait pourquoi.
+  //ATTENTION a PTRN_PROB_OFFSET : cf le commentaire de SavePattern(), dans ce fichier
+  //chaque _OFFSET designe le debut de la zone SUIVANTE.
+  if (rtgSaved){
+    for(int nbrPage = 0; nbrPage < 2; nbrPage++){
+      adress = (unsigned long)(PTRN_OFFSET + (patternNbr * PTRN_SIZE) + (MAX_PAGE_SIZE * nbrPage) + PTRN_PROB_OFFSET);
+      WireBeginTX(adress);
+      Wire.endTransmission();
+      WireRequestFrom(adress, MAX_PAGE_SIZE);
+      for (byte i = 0; i < 8; i++){
+        for (byte j = 0; j < NBR_STEP; j++){
+          pattern[!ptrnBuffer].retrig[i + (nbrPage * 8)][j] = (Wire.read() & 0xFF);
+        }
+        MIDI.read();// to improve slave sync response
+      }
+    }
+  }
+  else {
+    for (byte i = 0; i < NBR_INST; i++){
+      for (byte j = 0; j < NBR_STEP; j++){
+        pattern[!ptrnBuffer].retrig[i][j] = 0;
       }
     }
   }

@@ -190,8 +190,14 @@ void SetLeds()
     //l'ecran, lui, ne montre qu'un pas a la fois.
     if (condMode){
       stepLeds = 0;
+      //Chaque page montre CE QU'ELLE REGLE : les pas conditionnes, ou les pas qui
+      //roulent. L'ecran n'en montre qu'un, les seize lampes montrent la voix entiere -
+      //c'est toute la raison d'etre de cet affichage.
       for (byte s = 0; s < NBR_STEP; s++){
-        if (pattern[ptrnBuffer].probality[curInst][s]) bitSet(stepLeds, s);
+        byte v = condPage ? (byte)(pattern[ptrnBuffer].retrig[curInst][s] & 0x0F)
+                          : pattern[ptrnBuffer].probality[curInst][s];
+        if (condPage && v >= RETRIG_COUNT) v = 0;//octet jamais initialise
+        if (v) bitSet(stepLeds, s);
       }
       if (blinkTempo) bitSet(stepLeds, condStep);
       else bitClear(stepLeds, condStep);
