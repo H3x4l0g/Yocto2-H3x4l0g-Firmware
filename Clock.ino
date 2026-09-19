@@ -336,7 +336,31 @@ void CountPPQN() {
             //notes, et retarder une note-on sans retarder sa note-off est un autre sujet.
             byte ut = pattern[ptrnBuffer].uTiming[z][curStep[z]];
             if (ut > MAX_UTIM) ut = 0;//octet jamais initialise
-            else if (ut >= sc) ut = (byte)(sc - 1);//serre contre le pas suivant
+
+            //L'ECRETAGE EST OBLIGATOIRE, ET LE CARNET LE DISAIT DEPUIS LE 13/09/2026.
+            //La place restante n'est pas "scale" mais l'intervalle jusqu'au coup suivant,
+            //et le swing la mange : un pas impair part deja en retard de d, le pas pair
+            //qui suit part a l'heure, donc il ne reste que scale - d. A 1/16 shuffle a
+            //fond, QUATORZE ticks au lieu de vingt-quatre.
+            //Sans cette borne, le bit du coup principal tombait au-dela de la reecriture
+            //du masque par le pas suivant : LE COUP DISPARAISSAIT PUREMENT ET SIMPLEMENT.
+            //Releve au jeu par H3x4l0g le 19/09/2026, et diagnostique par lui dans la
+            //foulee - "on decale le bit en dehors de ce qui reste de dispo".
+            //
+            //J'avais ecrit que planifier au lieu de comparer evitait cet ecretage. C'est
+            //faux : ca evite seulement l'AUTRE mode de panne, celui ou mod n'atteint
+            //jamais d et ou le pas ne part plus du tout, jamais, meme sans swing.
+            //Le symptome reste le meme, la borne aussi - elle est juste ailleurs.
+            //
+            //Ce que ca coute musicalement : rien. Sur un pas swingue, swing + decalage
+            //est le retard TOTAL, et le swing en a deja pris sa part. L'ecretage dit
+            //"le budget est epuise", pas "ton reglage est ignore".
+            //Le pas pair, lui, a scale + swing devant lui : MAX_UTIM ne l'atteint jamais.
+            byte dNext = (stepCount[z] & 1)
+                           ? 0
+                           : SWING_TICKS(sc, pattern[ptrnBuffer].shuffle[z]);
+            byte room = (byte)(sc + dNext - d);//jamais moins de sept, cf la table de swing
+            if (ut >= room) ut = (byte)(room - 1);//un tick avant le coup suivant
 
             if (ut && z != EXT_INST){
               sv &= ~((unsigned int)1 << z);
