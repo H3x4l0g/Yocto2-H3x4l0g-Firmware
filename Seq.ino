@@ -52,8 +52,19 @@ void SeqParameter()
 
   //-------------------Encoder button---------------------------
   if(encBtn.justPressed){
+    //LA PAGE 2 DU MODE CONFIG N'A QU'UN CHAMP. Elle affiche "pCh nc. nc. nc." : un seul
+    //reglage, la synchro des changements de pattern, et trois emplacements vides que
+    //l'amont a laisses a l'ecran. La molette y est inerte depuis la v2.053, donc s'y
+    //arreter ne casse plus rien - mais le curseur disparaissait trois fois sur quatre
+    //sous un "nc.", ce qui se lit comme une page en panne plutot que comme une page
+    //sans champs. Trois arrets qui ne menent nulle part restent trois arrets.
+    //MAX_CUR_POS est partage avec TRACK WRITE, le clavier et l'ecran des conditions :
+    //la borne se pose donc ICI, la ou le curseur avance, et pas dans la table.
+    //Changer de page remet deja curIndex a zero (branche SHIFT + TEMPO), donc rien ne
+    //peut rester hors plage en arrivant sur la page 2.
+    byte fields = (seq.configMode && seq.configPage == 2) ? 1 : MAX_CUR_POS;
     curIndex++;
-    if (curIndex >= MAX_CUR_POS)  curIndex = 0;
+    if (curIndex >= fields)  curIndex = 0;
     needLcdUpdate = TRUE;
   }
   //-------------------play button---------------------------

@@ -362,6 +362,14 @@ void LcdPrintSaved()
   lcd.print("[SAVED!]");
 }
 
+//Le contraire, pour la sortie du mode config sans ENTER. Douze caracteres, colonnes 2
+//a 13 : la ligne du haut en fait seize, et le message se lit d'un coup d'oeil.
+void LcdPrintNotSaved()
+{
+  lcd.setCursor(2,0);
+  lcd.print("[NOT SAVED!]");
+}
+
 //Lcd print Global Accent
 void LcdPrintGlobalAcc()
 {

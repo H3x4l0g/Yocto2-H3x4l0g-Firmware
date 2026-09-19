@@ -34,7 +34,18 @@ void SeqConfiguration()
     seq.setupNeedSaved = FALSE;
     LcdPrintSaved();
   }
-  if (!seq.configMode) seq.setupNeedSaved = FALSE;
+  //QUITTER SANS SAUVER LE DIT MAINTENANT. Les reglages sont appliques en direct, donc
+  //tout marche - jusqu'a l'extinction, ou ils disparaissent. La LED d'ENTER clignotait
+  //bien tant qu'on etait dans le mode (Led.ino), mais elle s'eteint avec lui :
+  //l'avertissement partait a l'instant exact ou il devenait utile.
+  //Le message tient jusqu'au prochain redessin, comme "[SAVED!]" - on sort du mode au
+  //tour precedent, donc l'ecran du dessous est deja repeint et needLcdUpdate retombe.
+  //On n'enregistre PAS d'office : le geste existe, c'est ENTER, et le mode config n'est
+  //pas un endroit ou l'on ecrit dans l'EEPROM sans l'avoir demande.
+  if (!seq.configMode){
+    if (seq.setupNeedSaved) LcdPrintNotSaved();
+    seq.setupNeedSaved = FALSE;
+  }
     
 }
 

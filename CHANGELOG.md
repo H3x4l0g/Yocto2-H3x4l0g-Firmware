@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.062**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.063**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -53,6 +53,8 @@ le détail technique vit dans `TODO.md`.
 - La molette de probabilité se lit dans le sens de la densité, du premier cran au dernier :
   6 %, 12 %, … 93 %, puis 100 % qui veut dire toujours.
 - Le champ d'instrument enjambe le slot d'accent global, qui n'a pas de pas à conditionner.
+- **Effacer un pas efface sa condition.** Elle restait en place : réécrire un trig au même
+  endroit le rendait conditionné sans que rien ne le dise.
 - CLEAR efface les conditions avec le reste.
 
 ## Mute et solo
@@ -70,6 +72,14 @@ le détail technique vit dans `TODO.md`.
   qu'on ne découvrait qu'en sortant.
 - **L'encodeur tenu enfoncé n'empêche plus de muter.** Il remettait les sourdines à zéro
   en continu, donc toute pression sur un pad était défaite aussitôt.
+
+## Mode config
+
+- **Quitter le mode config sans avoir fait ENTER l'affiche : `[NOT SAVED!]`.** Les réglages
+  restent actifs, mais ne survivaient pas à l'extinction, et l'avertissement — la LED
+  d'ENTER qui clignote — s'éteignait avec le mode, donc à l'instant où il servait.
+- **Le curseur ne s'arrête plus sur les trois emplacements vides de la page 2.** Il y
+  disparaissait trois fois sur quatre, ce qui se lisait comme une page en panne.
 
 ## Modes
 

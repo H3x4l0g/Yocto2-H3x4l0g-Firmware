@@ -140,6 +140,15 @@ unsigned int InstValueGet(unsigned int value)
           case 2:
             stepBtn[a].counter = 0;
             bitClear (value, a);
+            //LA CONDITION PART AVEC LE TRIG. La velocite est deja remise a sa valeur
+            //basse dans le cas jumeau du bloc suivant : garder la condition serait
+            //incoherent avec ce que fait l'autre attribut du meme pas. Et surtout, une
+            //condition qui survit a l'effacement rend le trig SUIVANT conditionne sans
+            //que rien ne le dise - on reecrit un pas, il ne joue qu'une mesure sur
+            //quatre, et on cherche pourquoi. L'etat invisible qui change le comportement
+            //d'un geste neuf est ce qu'on ferme partout depuis la reprise.
+            //CLEAR efface deja les conditions de tout le pattern, pour cette raison-la.
+            pattern[ptrnBuffer].probality[curInst][a] = 0;
             break;
           }
         }
@@ -168,6 +177,7 @@ unsigned int InstValueGet(unsigned int value)
             stepBtn[a].counter = 0;
             bitClear (value, a);
             pattern[ptrnBuffer].velocity[curInst][a] = instVelLow[curInst];
+            pattern[ptrnBuffer].probality[curInst][a] = 0;//cf le bloc du dessus
             break;
           }
         }
