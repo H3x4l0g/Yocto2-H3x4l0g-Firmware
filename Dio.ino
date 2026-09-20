@@ -24,9 +24,10 @@
 //      coup, d'ou le miroir logiciel. SetDoutTrig() remplace, AddDoutTrig() ajoute -
 //      confondre les deux, c'est tronquer le declenchement d'un pas.
 //
-//   3. LE "DEBOUNCE" DE ScanDin() N'EN EST PAS UN. DEBOUNCE_TIME ne limite que la
-//      frequence de rafraichissement ; les deux echantillons compares sont separes
-//      d'une iteration de boucle, pas de 5 ms. Ca marche, mais ne compte pas dessus.
+//   3. ScanDin() EST UN VRAI ANTI-REBOND DEPUIS LE 20/09/2026, et pas avant. Les deux
+//      echantillons compares sont espaces de DEBOUNCE_TIME, et il n'y a qu'une seule
+//      lecture SPI par fenetre. Avant, la seconde lecture se faisait a chaque tour de
+//      boucle : ~5 % de masquage d'interruptions permanent. Prix paye : 5 ms de latence.
 //
 //======================================================================================
 
@@ -119,55 +120,54 @@ digitalWrite(28, HIGH);       // turn on pullup resistors
 }
 
 //Lire les registres a decalage des boutons--------------------------------------------
-//Le nom d'origine disait "with debounce time", ce qui n'est pas ce que le code fait.
-//DEBOUNCE_TIME ne fait que limiter la FREQUENCE de rafraichissement de dinSr - il ne
-//separe pas deux echantillons de 5 ms. Les deux lectures qu'on compare pour valider un
-//etat sont separees d'UNE iteration de boucle principale, quelques centaines de
-//microsecondes, pas de 5 ms. Et le second jeu de lectures SPI a lieu a CHAQUE tour de
-//boucle, hors de la temporisation.
-//Ca fonctionne - aucun rebond signale en jeu - mais ce n'est pas un anti-rebond
-//temporise, et compter dessus comme tel serait une erreur. Si un jour un bouton se met a
-//doubler, c'est ici qu'il faut regarder, et la vraie reponse serait de comparer deux
-//echantillons REELLEMENT espaces.
+//ANTI-REBOND REEL DEPUIS LE 20/09/2026. Avant, DEBOUNCE_TIME ne limitait que la
+//FREQUENCE de rafraichissement de dinSr : les deux echantillons compares etaient
+//separes d'UNE iteration de boucle - quelques centaines de microsecondes - et le second
+//jeu de lectures SPI se faisait a CHAQUE tour de boucle, HORS de la temporisation.
+//
+//Deux consequences, et la seconde comptait plus que la premiere :
+//  - ce n'etait pas un anti-rebond temporise, juste deux lectures rapprochees ;
+//  - cinq octets de SPI a ~2,8 kHz, chacun masquant les interruptions ~20 us
+//    (SPI.usingInterrupt(255), cf. en-tete) : environ 5 % de masquage PERMANENT sur
+//    l'interruption qui joue le sequenceur.
+//
+//Maintenant l'echantillon courant est compare a CELUI D'IL Y A 5 ms, garde d'un passage
+//a l'autre, et il n'y a plus qu'une seule lecture par fenetre : le masquage tombe a
+//~0,4 %, et les deux echantillons sont reellement espaces.
+//
+//CE QUE CA COUTE : 5 ms de latence en plus sur le panneau. Une pression etait vue entre
+//0 et 5 ms apres le doigt, elle l'est maintenant entre 5 et 10 ms - la GIGUE, elle, ne
+//bouge pas, c'est un decalage constant. En mode TAP les frappes sont rangees par pas
+//(125 ms a 120 BPM en 16e), donc ca ne se voit qu'au bord d'un pas. Echange assume :
+//5 ms sur le doigt contre 5 % de masquage sur le son.
 void ScanDin()
 {
-  if ((millis() - debounceTimer) > DEBOUNCE_TIME)
-  {
-    debounceTimer = millis();
-    //shiftregisted switches
-    SPI.beginTransaction(SPIset); 
-    SW_CS_HIGH;
-    tempDin[0][0] = SPI.transfer(0);
-    tempDin[1][0] = SPI.transfer(0);
-    tempDin[2][0] = SPI.transfer(0);
-    tempDin[3][0] = SPI.transfer(0);
-    tempDin[4][0] = SPI.transfer(0);
-    SW_CS_LOW;
-    SPI.endTransaction();
-
-    //µC direct pin switches
-    encSwValue[0] = ENC_SW_GET;
-
-    //Compare
-    for (int a = 0; a < 5; a++){
-      if (tempDin[a][0] == tempDin[a][1]) dinSr[a] = tempDin[a][0];
-    }
-    if (encSwValue[0] == encSwValue[1]) encSwState = encSwValue[0];
-  }
+  if ((millis() - debounceTimer) <= DEBOUNCE_TIME) return;
+  debounceTimer = millis();
 
   //shiftregisted switches
   SPI.beginTransaction(SPIset);
   SW_CS_HIGH;
-  tempDin[0][1] = SPI.transfer(0);
-  tempDin[1][1] = SPI.transfer(0);
-  tempDin[2][1] = SPI.transfer(0);
-  tempDin[3][1] = SPI.transfer(0);
-  tempDin[4][1] = SPI.transfer(0);
-  SW_CS_LOW; 
+  tempDin[0][0] = SPI.transfer(0);
+  tempDin[1][0] = SPI.transfer(0);
+  tempDin[2][0] = SPI.transfer(0);
+  tempDin[3][0] = SPI.transfer(0);
+  tempDin[4][0] = SPI.transfer(0);
+  SW_CS_LOW;
   SPI.endTransaction();
 
-  //µC direct pin switches
-  encSwValue[1] = ENC_SW_GET;
+  //uC direct pin switches
+  encSwValue[0] = ENC_SW_GET;
+
+  //Compare : l'echantillon courant contre celui de la fenetre precedente, puis le
+  //courant devient le precedent. Une seule boucle pour les deux, comme pour les champs
+  //indexes par pas de SeqFunc.ino - deux boucles separees peuvent se desaccorder.
+  for (byte a = 0; a < 5; a++){
+    if (tempDin[a][0] == tempDin[a][1]) dinSr[a] = tempDin[a][0];
+    tempDin[a][1] = tempDin[a][0];
+  }
+  if (encSwValue[0] == encSwValue[1]) encSwState = encSwValue[0];
+  encSwValue[1] = encSwValue[0];
 }
 
 //Set Dout LED------------------------------------------------------------

@@ -16,9 +16,9 @@ void VoicesTestMode()
 {
   while(1){
     lcd.setCursor(0, 0);
-    lcd.print("Voices Test Mode");
+    lcd.print(F("Voices Test Mode"));
     lcd.setCursor(0,1);
-    lcd.print("                ");
+    lcd.print(F("                "));
     SetMuxTest();//Set velocity to 127
     SetDoutTrig(0xFFFF);//Trig all instrument    
     delayMicroseconds(1000);
@@ -36,9 +36,9 @@ void UserInterfaceTestMode()
     2, 1, 4, 3, 5, 6, 7, 0    };
   while(1){
     lcd.setCursor(0, 0);
-    lcd.print(" User Interface ");
+    lcd.print(F(" User Interface "));
     lcd.setCursor(0,1);
-    lcd.print("   Test mode    ");
+    lcd.print(F("   Test mode    "));
     for (byte b = 0; b < 2; b++){
       for (byte a = 0; a < 16; a++){
         SetDoutLed(1 << a, 0, 0);

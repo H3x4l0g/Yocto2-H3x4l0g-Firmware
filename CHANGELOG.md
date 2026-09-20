@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.069**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.070**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -138,6 +138,18 @@ le détail technique vit dans `TODO.md`.
 - Le curseur de lecture suit la mesure, plus la longueur de l'instrument sélectionné.
 - L'écran ne reste plus figé en MUTE.
 - Écran d'accueil centré, avec un balayage des LED de pas.
+
+## Les boutons du panneau
+
+- **Les boutons ont enfin un vrai anti-rebond.** Ce qui s'appelait comme ça n'en était
+  pas un : la machine comparait deux lectures prises à quelques dixièmes de milliseconde
+  l'une de l'autre. Elles sont maintenant espacées de 5 ms pour de bon.
+- **Et le panneau a 5 ms de retard en plus** — une pression était vue entre 0 et 5 ms
+  après le doigt, elle l'est entre 5 et 10 ms. C'est un retard **constant**, pas une
+  irrégularité : la main s'y accorde sans le savoir.
+- Ce qu'on achète avec : la machine passait environ **5 % de son temps les interruptions
+  coupées** à relire les boutons en boucle, et c'est l'interruption coupée qui décale les
+  coups. C'est tombé à 0,4 %.
 
 ## Touches de pas
 

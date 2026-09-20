@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.069"
+#define FW_VERSION  "Yocto v2.070"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -427,6 +427,16 @@ struct Pattern
 {
   byte globalLength;//gmlobal length of the pattern
   byte globalScale;
+  //RESERVE, JAMAIS LU, JAMAIS ECRIT PAR AUCUN GESTE - et ce n'est pas un oubli.
+  //Sauvegarde en EEPROM, recharge, copie, colle. Mais ChangePatternDirection() ecrit
+  //dir[], pas lui, et rien nulle part ne le relit pour decider quoi que ce soit.
+  //Ses deux freres sont vivants : globalScale fait avancer tapStepCount (Clock.ino),
+  //globalShuffle sert de point de depart a la molette (Enc.ino). Lui non.
+  //Le retirer couterait une migration du format EEPROM pour un octet par pattern : il
+  //est fige la ou il est. Arbitre le 20/09/2026 - DOCUMENTE plutot que branche, parce
+  //que le brancher n'aurait fait qu'ecrire fidelement un octet que personne ne lit.
+  //Le jour ou un geste "direction globale" existera, il se range ici, et
+  //ChangePatternDirection() est le seul endroit a toucher.
   byte globalDir;//0=>forward, 1=>backword, 2=>ping-pong, 3=>random
   byte globalShuffle;
   unsigned int inst[NBR_INST];
@@ -776,24 +786,28 @@ byte curIndex;//position of the cursor
 byte curPage = 0;
 byte cursorPos[MAX_CUR_POS]={
   0, 4, 8, 12};
+//Les six tables du curseur etaient des tableaux de POINTEURS vers des chaines d'UN seul
+//caractere : quatre pointeurs et quatre chaines en RAM par table, 96 octets pour
+//vingt-quatre lettres. En PROGMEM et en char, c'est quatre octets de flash par table et
+//rien en RAM. Elles se lisent par LcdPrintCursor(), jamais par lcd.print() directement.
 //La quatrieme lettre etait N, pour "num". C'est le NUMERO DE PISTE, et l'appeler trk le
 //dit sans qu'on ait a le deviner - la touche du panneau qui y menait s'appelle NUM, mais
 //le champ, lui, designe une piste.
-const char *letterUpTrackWrite[MAX_CUR_POS]={
-  "P", "P", "L", "T"};
-const char *letterUpExtInst[MAX_CUR_POS]={
-  "I", "N", "L", "O"};
-const char *letterUpConfPage1[MAX_CUR_POS]={
-  "S", "B", "M", "M"};
-const char *letterUpConfPage2[MAX_CUR_POS]={
-  "P", "N", "N", "N"};
+const char letterUpTrackWrite[MAX_CUR_POS] PROGMEM ={
+  'P', 'P', 'L', 'T'};
+const char letterUpExtInst[MAX_CUR_POS] PROGMEM ={
+  'I', 'N', 'L', 'O'};
+const char letterUpConfPage1[MAX_CUR_POS] PROGMEM ={
+  'S', 'B', 'M', 'M'};
+const char letterUpConfPage2[MAX_CUR_POS] PROGMEM ={
+  'P', 'N', 'N', 'N'};
 //La page 2 a quatre champs depuis la v2.068 : pas, taux, decalage, instrument. La
 //quatrieme case n'a existe qu'au jour ou le micro-timing a agi - c'etait la regle, et
 //c'est pour ca que le curseur n'a jamais eu de champ mort a traverser entre-temps.
-const char *letterUpCondPage2[MAX_CUR_POS]={
-  "P", "R", "U", "I"};
-const char *letterUpCond[MAX_CUR_POS]={
-  "P", "C", "P", "I"};
+const char letterUpCondPage2[MAX_CUR_POS] PROGMEM ={
+  'P', 'R', 'U', 'I'};
+const char letterUpCond[MAX_CUR_POS] PROGMEM ={
+  'P', 'C', 'P', 'I'};
 
 //MIDI-----------------------------------------------
 volatile boolean midiNoteOnActive = FALSE;

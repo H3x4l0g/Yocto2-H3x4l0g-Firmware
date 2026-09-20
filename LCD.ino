@@ -49,9 +49,9 @@ void LcdUpdate()
       lcd.setCursor(0,0);
       switch (seq.configPage){
       case 1:// first page
-        lcd.print("syn bpm mTX mRX ");
+        lcd.print(F("syn bpm mTX mRX "));
         lcd.setCursor(cursorPos[curIndex],0);
-        lcd.print(letterUpConfPage1[curIndex]);
+        LcdPrintCursor(letterUpConfPage1, curIndex);
         lcd.setCursor(0,1);
         LcdClearLine();
         lcd.setCursor(0,1);
@@ -64,19 +64,19 @@ void LcdUpdate()
         lcd.print(seq.RXchannel);
         break;
       case 2:// second page
-        lcd.print("pCh nc. nc. nc. ");
+        lcd.print(F("pCh nc. nc. nc. "));
         lcd.setCursor(cursorPos[curIndex],0);
-        lcd.print(letterUpConfPage2[curIndex]);
+        LcdPrintCursor(letterUpConfPage2, curIndex);
         lcd.setCursor(0,1);
         LcdClearLine();
         lcd.setCursor(0,1);
         LcdPrintLabel(namePtrnChange, seq.ptrnChangeSync);
         lcd.setCursor(4,1);
-        lcd.print("xxx");
+        lcd.print(F("xxx"));
         lcd.setCursor(8,1);
-        lcd.print("xxx");
+        lcd.print(F("xxx"));
         lcd.setCursor(12,1);
-        lcd.print("xxx");
+        lcd.print(F("xxx"));
         break;
       }
 
@@ -91,7 +91,7 @@ void LcdUpdate()
         break;//never reached : dispMode resolves MUTE to the mode underneath
       case PTRN_PLAY:
         lcd.setCursor(0,0);
-        lcd.print("  Pattern Play  ");
+        lcd.print(F("  Pattern Play  "));
         lcd.setCursor(0,1);
         LcdClearLine(); 
         lcd.setCursor(2,1);
@@ -129,20 +129,20 @@ void LcdUpdate()
           //luxe.
           boolean shufGlobal = shiftBtn.pressed;
           lcd.setCursor(0,0);
-          if (shufGlobal) lcd.print(" Shuffle  GLOBAL");
+          if (shufGlobal) lcd.print(F(" Shuffle  GLOBAL"));
           else {
-            lcd.print(" Shuffle        ");
+            lcd.print(F(" Shuffle        "));
             lcd.setCursor(13,0);
             LcdPrintLabel(selectInstString, curInst);//trois caracteres, colonnes 13 a 15
           }
           lcd.setCursor(0,1);
           LcdClearLine();
           lcd.setCursor(0,1);
-          lcd.print("-");
+          lcd.print(F("-"));
           lcd.setCursor(2,1);
           LcdPrintLine(MAX_SHUF_TYPE);//columns 2 to 12
           lcd.setCursor(14,1);
-          lcd.print("+");
+          lcd.print(F("+"));
           byte shufShown = shufGlobal ? pattern[ptrnBuffer].globalShuffle
                                       : pattern[ptrnBuffer].shuffle[curInst];
           lcd.setCursor(1 + shufShown,1);
@@ -161,7 +161,7 @@ void LcdUpdate()
           lcd.setCursor(0,0);
           lcd.print(condPage ? "pas rtg utm ins " : "pas cnd prb ins ");
           lcd.setCursor(cursorPos[curIndex],0);
-          lcd.print(condPage ? letterUpCondPage2[curIndex] : letterUpCond[curIndex]);
+          LcdPrintCursor(condPage ? letterUpCondPage2 : letterUpCond, curIndex);
           lcd.setCursor(0,1);
           LcdClearLine();
           lcd.setCursor(0,1);
@@ -189,9 +189,9 @@ void LcdUpdate()
         }
         else if (keyboardMode){
           lcd.setCursor(0,0);
-          lcd.print("idx not len oct ");
+          lcd.print(F("idx not len oct "));
           lcd.setCursor(cursorPos[curIndex],0);
-          lcd.print(letterUpExtInst[curIndex]);
+          LcdPrintCursor(letterUpExtInst, curIndex);
           lcd.setCursor(0,1);
           LcdClearLine();
           lcd.setCursor(1,1);
@@ -206,7 +206,7 @@ void LcdUpdate()
         }
         else{
           lcd.setCursor(0,0);
-          lcd.print("ptr len scl ins ");
+          lcd.print(F("ptr len scl ins "));
           lcd.setCursor(0,1);
           LcdClearLine(); 
           lcd.setCursor(0,1);
@@ -222,9 +222,9 @@ void LcdUpdate()
         break;
       case TRACK_WRITE:
         lcd.setCursor(0,0);
-        lcd.print("pos ptr len trk ");
+        lcd.print(F("pos ptr len trk "));
         lcd.setCursor(cursorPos[curIndex],0);
-        lcd.print(letterUpTrackWrite[curIndex]);
+        LcdPrintCursor(letterUpTrackWrite, curIndex);
         lcd.setCursor(0,1);
         LcdClearLine();
         lcd.setCursor(0,1);
@@ -250,14 +250,14 @@ void LcdUpdate()
         //D'ou l'ordre de lecture : quelle piste a gauche, ou l'on en est a droite.
         //Base 1 des deux cotes, comme partout ailleurs.
         lcd.setCursor(0,0);
-        lcd.print("   Track Play   ");
+        lcd.print(F("   Track Play   "));
         lcd.setCursor(0,1);
         LcdClearLine();
         lcd.setCursor(0,1);
-        lcd.print("trk:");
+        lcd.print(F("trk:"));
         lcd.print(trk.current + 1);
         lcd.setCursor(8,1);
-        lcd.print("pos:");
+        lcd.print(F("pos:"));
         //Le +1 manquait ici : la meme variable etait affichee en base 0 en lecture et en
         //base 1 en edition, donc la premiere mesure s'appelait 0 d'un cote et 1 de
         //l'autre. Base 1 partout - une piste commence a la mesure 1.
@@ -278,7 +278,7 @@ void LcdUpdate()
       if (curSeqMode == MUTE){
         lcd.setCursor(0,0);
         for (byte a = 0; a < 5; a++) lcd.print((char)219);
-        lcd.print(" MUTE ");
+        lcd.print(F(" MUTE "));
         for (byte a = 0; a < 5; a++) lcd.print((char)219);
       }
     }
@@ -295,10 +295,18 @@ void LcdPrintLabel(const char * const *table, byte index)
   lcd.print((const __FlashStringHelper *)pgm_read_word(&(table[index])));
 }
 
+//print the cursor letter of a four-field screen, straight out of flash----------
+//Les tables letterUp* sont en PROGMEM et contiennent des char, pas des pointeurs :
+//lcd.print(table[index]) imprimerait l'adresse au lieu de la lettre. Passer par ici.
+void LcdPrintCursor(const char *table, byte index)
+{
+  lcd.print((char)pgm_read_byte(&table[index]));
+}
+
 //clear 16 character line-------------------------------------
 void LcdClearLine()
 {
-  lcd.print("                ");//16 empty space to clear a line
+  lcd.print(F("                "));//16 empty space to clear a line
 }
 
 //print special character for scale moniotring----------------
@@ -332,11 +340,11 @@ void LcdPrintScale()
 void LcdPrintCond(byte c)
 {
   if (!c || c >= COND_COUNT){
-    lcd.print("---");
+    lcd.print(F("---"));
     return;
   }
   lcd.print((int)pgm_read_byte(&condXY[c][0]));
-  lcd.print(":");
+  lcd.print(F(":"));
   lcd.print((int)pgm_read_byte(&condXY[c][1]));
 }
 
@@ -350,9 +358,9 @@ void LcdPrintCond(byte c)
 void LcdPrintRetrig(byte r)
 {
   if (r >= RETRIG_COUNT) r = 0;
-  lcd.print("x");
+  lcd.print(F("x"));
   lcd.print(pgm_read_byte(&retrigDiv[r]));
-  lcd.print(" ");
+  lcd.print(F(" "));
 }
 
 //Le decalage, en ticks. Un point pour zero : un "0" au milieu de trois chiffres se lit
@@ -362,7 +370,7 @@ void LcdPrintUtim(byte u)
 {
   if (u > MAX_UTIM) u = 0;
   if (!u){
-    lcd.print(".  ");
+    lcd.print(F(".  "));
     return;
   }
   lcd.print(u);
@@ -374,8 +382,8 @@ void LcdPrintProb(byte p)
   //Zero vaut seize seiziemes : c'est le haut de l'echelle, pas un trou au milieu.
   //La molette travaille sur la meme course de 1 a 16, cf Enc.ino.
   byte pc = p ? (byte)((p * 100U) / 16U) : 100;
-  if (pc < 100) lcd.print(" ");
-  if (pc < 10) lcd.print(" ");
+  if (pc < 100) lcd.print(F(" "));
+  if (pc < 10) lcd.print(F(" "));
   lcd.print((int)pc);
 }
 
@@ -383,7 +391,7 @@ void LcdPrintProb(byte p)
 void LcdPrintTempo()
 {
   lcd.write(byte(5));
-  lcd.print("-");
+  lcd.print(F("-"));
   if (seq.sync == MASTER) lcd.print(seq.bpm);
   //En esclave c'est le tempo du MAITRE, mesure sur son horloge (cf SlaveBpmMeasure).
   //Les trois paves pleins ne restent que tant qu'il n'y a rien a mesurer : pas encore
@@ -409,7 +417,7 @@ void LcdPrintLine (byte lineSize)
 void LcdPrintSaved()
 {
   lcd.setCursor(4,0);
-  lcd.print("[SAVED!]");
+  lcd.print(F("[SAVED!]"));
 }
 
 //Le contraire, pour la sortie du mode config sans ENTER. Douze caracteres, colonnes 2
@@ -417,22 +425,22 @@ void LcdPrintSaved()
 void LcdPrintNotSaved()
 {
   lcd.setCursor(2,0);
-  lcd.print("[NOT SAVED!]");
+  lcd.print(F("[NOT SAVED!]"));
 }
 
 //Lcd print Global Accent
 void LcdPrintGlobalAcc()
 {
   lcd.setCursor(0,0);
-  lcd.print("Global Acc value");
+  lcd.print(F("Global Acc value"));
   lcd.setCursor(0,1);
   LcdClearLine();
   lcd.setCursor(0,1);
-  lcd.print("-");
+  lcd.print(F("-"));
   lcd.setCursor(1,1);
   LcdPrintLine(MAX_GLOBAL_ACC + 1);//one cell per value, 0 included
   lcd.setCursor(15,1);
-  lcd.print("+");
+  lcd.print(F("+"));
   lcd.setCursor(1 + pattern[ptrnBuffer].globalAcc, 1);
   lcd.print((char)219);
 }
@@ -441,11 +449,11 @@ void LcdPrintGlobalAcc()
 void  LcdPrintEEpromInit()
 {
   lcd.setCursor(0,0);
-  lcd.print(" EEprom is being");//seize signes pile : le dix-septieme partait hors ecran
+  lcd.print(F(" EEprom is being"));//seize signes pile : le dix-septieme partait hors ecran
   lcd.setCursor(0,1);
   LcdClearLine();
   lcd.setCursor(0,1);
-  lcd.print("  initializing  ");
+  lcd.print(F("  initializing  "));
 
 }
 
@@ -453,11 +461,11 @@ void  LcdPrintEEpromInit()
 void  LcdPrintTM2Adjust()
 {
   lcd.setCursor(0,0);
-  lcd.print("Adjust TM2 until");
+  lcd.print(F("Adjust TM2 until"));
   lcd.setCursor(0,1);
   LcdClearLine();
   lcd.setCursor(0,1);
-  lcd.print("TP1 is +13V...");
+  lcd.print(F("TP1 is +13V..."));
 }
 
 
