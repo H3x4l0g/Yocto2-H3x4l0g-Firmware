@@ -159,7 +159,7 @@ void LcdUpdate()
           //Deux pages, et le pas comme l'instrument restent aux memes colonnes sur les
           //deux : ce sont les reperes, ils ne doivent pas bouger sous l'oeil.
           lcd.setCursor(0,0);
-          lcd.print(condPage ? "pas rtg utm ins " : "pas cnd prb ins ");
+          lcd.print(condPage ? F("pas rtg utm ins ") : F("pas cnd prb ins "));
           lcd.setCursor(cursorPos[curIndex],0);
           LcdPrintCursor(condPage ? letterUpCondPage2 : letterUpCond, curIndex);
           lcd.setCursor(0,1);
@@ -374,7 +374,7 @@ void LcdPrintUtim(byte u)
     return;
   }
   lcd.print(u);
-  lcd.print(u < 10 ? "  " : " ");
+  lcd.print(u < 10 ? F("  ") : F(" "));
 }
 
 void LcdPrintProb(byte p)
