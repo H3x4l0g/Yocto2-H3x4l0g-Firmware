@@ -584,7 +584,17 @@ void SeqParameter()
       } 
       if (!lastStepBtn.pressed && !instBtn)
       {
-
+        //LE PAS SE LIT UNE FOIS PAR TOUR, POUR TOUTES LES FRAPPES DU TOUR. tapStepCount est
+        //avance par l'interruption, a la moitie du pas, et chaque frappe le lisait DEUX
+        //fois : pour la velocite, puis pour le trig, a un quart de milliseconde d'ecart -
+        //le balayage de SetMuxTap() entre les deux. Si le seuil d'arrondi tombait dans cet
+        //intervalle, la velocite pleine partait sur un pas et le trig sur le suivant, qui
+        //gardait la sienne : la frappe s'enregistrait en demi sur un pas vierge. Et les
+        //voix d'un accord, traitees l'une apres l'autre a 2 ms d'ecart, pouvaient se
+        //partager entre deux pas.
+        //Une seule lecture, ici : un accord detecte dans le meme tour tombe sur le meme pas,
+        //et sa velocite avec lui. Un octet volatile se lit en une instruction.
+        byte tapStep = tapStepCount;
 
         for (byte a = 0; a < NBR_STEP_BTN; a++){
           stepBtn[a].curState = bitRead(readButtonState,a);
@@ -602,7 +612,7 @@ void SeqParameter()
               //quatre-la ne posaient aucune velocite. InstValueGet() en pose une pour
               //elles quand on edite au pas - instVelHigh vaut 80 sur les seize entrees -
               //et un pas pose en TAP doit etre indiscernable d'un pas pose au pas.
-              if (isRunning) pattern[ptrnBuffer].velocity[a][tapStepCount] = instVelHigh[a];
+              if (isRunning) pattern[ptrnBuffer].velocity[a][tapStep] = instVelHigh[a];
               //tapVel[] n'est que la table du multiplexeur : douze voix, pas au-dela.
               if (a < NBR_TAP_INST) tapVel[a] = instVelHigh[a];
 
@@ -675,7 +685,7 @@ void SeqParameter()
                 //la piste EXT part donc accentuee, comme les douze voix y partent pleines.
                 MidiExtNoteOn(pattern[ptrnBuffer].extNote[extIdx], instVelHigh[EXT_INST]);
               }
-              if(isRunning) bitSet(tempInst[a],tapStepCount);
+              if(isRunning) bitSet(tempInst[a],tapStep);
               delayMicroseconds(2000);
               SetDoutTrig(0);// Reset Trig
             }      

@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.072**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.073**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -169,6 +169,11 @@ le détail technique vit dans `TODO.md`.
   que leur vélocité était restée dans le premier. Sortir du mode ou arrêter les inscrit
   maintenant tout de suite, et une sauvegarde faite à la barre ne leur fait plus manquer
   la fusion. *(v2.072)*
+- **Un accord tapé en TAP tombe sur un seul pas, à pleine vélocité.** Chaque frappe
+  lisait le pas deux fois, pour la vélocité puis pour le trig : sur le seuil d'arrondi,
+  la vélocité pleine partait sur un pas et le trig sur le suivant, et la frappe
+  s'enregistrait en demi. Les voix d'un accord pouvaient aussi se partager entre deux
+  pas. *(v2.073)*
 
 ## Tempo et swing
 
