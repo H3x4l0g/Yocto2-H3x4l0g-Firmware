@@ -34,6 +34,10 @@
 //      avec leur temporisation. Les MIDI.read() qui la parsement sont la pour que la
 //      synchro esclave ne decroche pas pendant ce temps - ce ne sont pas des restes.
 //
+//   4. TOUTE ECRITURE FINIT PAR WireEndTX(), JAMAIS PAR Wire.endTransmission() NU. C'est
+//      elle qui releve le code d'erreur et attend la puce ; une ecriture qui la
+//      contournerait pourrait de nouveau echouer sans que l'ecran le dise.
+//
 //--------------------------------------------------------------------------------------
 //   LA CARTE
 //
@@ -162,13 +166,41 @@ static_assert(BUFFER_LENGTH >= MAX_PAGE_SIZE + 2,
 //les neuf recopies du choix de puce, dont deux s'etaient trompees.
 static byte wireDevice = HRDW_ADDRESS;
 
-void WireWaitReady()
+//Rend FALSE si la puce n'est jamais revenue : c'est une ecriture ratee, cf WireEndTX().
+//Les NAK de la scrutation elle-meme ne sont PAS des erreurs - c'est la puce qui dit
+//qu'elle ecrit encore - et ne sont donc pas releves.
+boolean WireWaitReady()
 {
   for (unsigned int t = 0; t < WIRE_READY_TRIES; t++){
     Wire.beginTransmission(wireDevice);
-    if (Wire.endTransmission() == 0) return;//la puce repond : le cycle est fini
+    if (Wire.endTransmission() == 0) return TRUE;//la puce repond : le cycle est fini
     MIDI.read();//l'horloge esclave ne s'arrete pas pour une sauvegarde
   }
+  return FALSE;
+}
+
+//LE SEUL POINT DE SORTIE D'UNE ECRITURE---------------------------------------------------
+//Wire.endTransmission() rend un code - 0 si tout est passe, 2 si la puce n'a pas repondu a
+//son adresse, 3 si elle a refuse un octet, 4 pour une erreur de bus, 5 pour un bus fige -
+//et AUCUNE des dix-neuf ecritures de ce fichier ne le lisait. Une puce occupee, mal
+//contactee ou absente perdait donc sa page sans un mot, et on ne l'apprenait qu'au
+//rechargement : sur le seul chemin de la machine qui soit irreversible, aucun garde-fou.
+//Les dix-neuf passent maintenant par ici, pendant de WireBeginTX(). On garde le PREMIER
+//code rencontre dans eepromError, plus EEP_ERR_NOT_READY si la puce ne sort jamais de son
+//cycle d'ecriture ; la fin de LcdUpdate() le montre a la place de "[SAVED!]", et le
+//remet a zero. Le premier et pas le dernier : une puce qui lache fait echouer toutes les
+//pages suivantes, et c'est la premiere qui dit pourquoi.
+//RIEN N'EST RETENTE, et les pages suivantes sont ecrites quand meme. Une ecriture qui
+//echoue une fois sur un faux contact doit SE VOIR : la rattraper en silence cacherait
+//justement ce que ce garde-fou est la pour montrer. Et s'arreter a la premiere page ratee
+//ne rendrait pas la sauvegarde plus entiere - celles d'avant sont deja ecrites.
+//Les LECTURES ne passent pas ici : une lecture ratee charge un pattern faux en RAM, mais
+//ne touche pas a ce qui est enregistre.
+void WireEndTX()
+{
+  byte err = Wire.endTransmission();
+  if (err && !eepromError) eepromError = err;
+  if (!WireWaitReady() && !eepromError) eepromError = EEP_ERR_NOT_READY;
 }
 
 ////////////////////////Function//////////////////////
@@ -218,8 +250,7 @@ void SavePattern(byte patternNbr)
   Wire.write((byte)(UTIM_MAGIC));//le decalage, idem
   //107 bytes => 21 byte left ;)
 
-  Wire.endTransmission();//end page transmission
-  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  WireEndTX();//end page transmission
 
   MIDI.read();// to improve slave sync response
 
@@ -233,8 +264,7 @@ void SavePattern(byte patternNbr)
       }
       MIDI.read();// to improve slave sync response
     }
-    Wire.endTransmission();//end of 128 bytes transfer
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end of 128 bytes transfer
 
     
   }//2 * 128 bytes = 256 bytes
@@ -255,8 +285,7 @@ void SavePattern(byte patternNbr)
       }
       MIDI.read();// to improve slave sync response
     }
-    Wire.endTransmission();//end of 128 bytes transfer
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end of 128 bytes transfer
   }//2 * 128 bytes = 256 bytes
 
   //ROULEMENT (RETRIG)-------------------------------------
@@ -276,8 +305,7 @@ void SavePattern(byte patternNbr)
       }
       MIDI.read();// to improve slave sync response
     }
-    Wire.endTransmission();//end of 128 bytes transfer
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end of 128 bytes transfer
   }//2 * 128 bytes = 256 bytes
 
   //MICRO-TIMING-------------------------------------------
@@ -292,8 +320,7 @@ void SavePattern(byte patternNbr)
       }
       MIDI.read();// to improve slave sync response
     }
-    Wire.endTransmission();//end of 128 bytes transfer
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end of 128 bytes transfer
   }//2 * 128 bytes = 256 bytes
 
   //EXT INST-----------------------------------------------
@@ -303,8 +330,7 @@ void SavePattern(byte patternNbr)
     Wire.write((byte)(pattern[ptrnBuffer].extNote[j] & 0xFF));
   }//128 bytes  
   MIDI.read();// to improve slave sync response
-  Wire.endTransmission();//end page transmission
-  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  WireEndTX();//end page transmission
   // 128 bytes
 
   
@@ -490,8 +516,7 @@ void SaveTrack(byte trackNbr)
     for (byte i = 0; i < MAX_PAGE_SIZE; i++){//loop as many instrument for a page
       Wire.write((byte)(track[trkBuffer].patternNbr[i + (MAX_PAGE_SIZE * nbrPage)] & 0xFF)); 
     }
-    Wire.endTransmission();//end of 128 bytes transfer
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end of 128 bytes transfer
   }
 
 }
@@ -535,8 +560,7 @@ void SaveSeqSetup()
   Wire.write((byte)(seq.TXchannel));
   Wire.write((byte)(seq.RXchannel));
   Wire.write((byte)(seq.ptrnChangeSync));
-  Wire.endTransmission();//end page transmission
-  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  WireEndTX();//end page transmission
 }
 
 //Load Setup
@@ -569,8 +593,7 @@ void SavePatternGroup(byte firstPattern, byte length)
     WireBeginTX(adress);
     Wire.write((byte)(a)); //pattern[ptrnBuffer].groupPos
     Wire.write((byte)(length));//pattern[ptrnBuffer].groupLength
-    Wire.endTransmission();//end page transmission
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end page transmission
   }
 }
 
@@ -585,8 +608,7 @@ void ClearPatternGroup(byte firstPattern, byte length)
     WireBeginTX(adress);
     Wire.write((byte)(0)); //pattern[ptrnBuffer].groupPos
     Wire.write((byte)(0));//pattern[ptrnBuffer].groupLength
-    Wire.endTransmission();//end page transmission
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end page transmission
   }
 }
 
@@ -643,8 +665,7 @@ void InitEEprom()
       Wire.write( (byte)(0));//unused parameters
     }//128 bytes FIRST PAGE
 
-    Wire.endTransmission();//end page transmission
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end page transmission
 
     //VELOCITY-----------------------------------------------
     for(int nbrPage = 0; nbrPage < 2; nbrPage++){
@@ -655,8 +676,7 @@ void InitEEprom()
           Wire.write((byte)(40));//(pattern[ptrnBuffer].velocity[i + 4*nbrPage][j] & 0xFF)); 
         }
       }
-      Wire.endTransmission();//end of 64 bytes transfer
-      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+      WireEndTX();//end of 64 bytes transfer
     }//2 * 128 bytes = 256 bytes
 
     //PROBALITY-----------------------------------------------
@@ -668,8 +688,7 @@ void InitEEprom()
           Wire.write((byte)(0));//(pattern[ptrnBuffer].probality[i + 4*nbrPage][j] & 0xFF)); 
         }
       }
-      Wire.endTransmission();//end of 64 bytes transfer
-      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+      WireEndTX();//end of 64 bytes transfer
     }//2 * 128 bytes = 256 bytes
 
     //uTIMING-----------------------------------------------
@@ -681,8 +700,7 @@ void InitEEprom()
           Wire.write((byte)(0));//(pattern[ptrnBuffer].uTiming[i + 4*nbrPage][j] & 0xFF)); 
         }
       }
-      Wire.endTransmission();//end of 64 bytes transfer
-      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+      WireEndTX();//end of 64 bytes transfer
     }//2 * 128 bytes = 256 bytes
 
     //RETRIG-----------------------------------------------
@@ -694,8 +712,7 @@ void InitEEprom()
           Wire.write((byte)(0));//(pattern[ptrnBuffer].uTiming[i + 4*nbrPage][j] & 0xFF)); 
         }
       }
-      Wire.endTransmission();//end of 64 bytes transfer
-      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+      WireEndTX();//end of 64 bytes transfer
     }
 
     //EXT INST-----------------------------------------------
@@ -704,8 +721,7 @@ void InitEEprom()
     for (byte j = 0; j < MAX_PAGE_SIZE; j++){
       Wire.write((byte)(0));
     }//128 bytes -> fisrt page
-    Wire.endTransmission();//end page transmission
-    WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+    WireEndTX();//end page transmission
 
     //Show init statut on steps Leds
     static unsigned int tempInitLeds;
@@ -723,8 +739,7 @@ void InitEEprom()
       for (byte j = 0; j < MAX_PAGE_SIZE; j++){
         Wire.write((byte)(0));
       }//128 bytes -> fisrt page
-      Wire.endTransmission();//end page transmission
-      WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+      WireEndTX();//end page transmission
     }
     //Show init statut on steps Leds
     static unsigned int tempInitLeds;
@@ -739,16 +754,14 @@ void InitEEprom()
   Wire.write((byte)(DEFAULT_BPM));//seq.defaultBpm));
   Wire.write((byte)(1));//seq.TXchannel));
   Wire.write((byte)(1));//seq.RXchannel));
-  Wire.endTransmission();//end page transmission
-  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  WireEndTX();//end page transmission
 
   //Set the 3 last byte of the first EEprom to 0, 1, 2 value to NEVER init EEPROM again
   WireBeginTX(262137);
   Wire.write((byte)(0));//seq.defaultBpm));
   Wire.write((byte)(1));//seq.TXchannel));
   Wire.write((byte)(2));//seq.RXchannel));
-  Wire.endTransmission();//end page transmission
-  WireWaitReady();//on interroge la puce au lieu d'attendre en aveugle
+  WireEndTX();//end page transmission
 
 
 }

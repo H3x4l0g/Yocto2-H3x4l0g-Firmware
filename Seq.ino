@@ -683,16 +683,10 @@ void SeqParameter()
           stepBtn[a].prevState = stepBtn[a].curState;
         }//END FOR LOOP
       }
-      if (endMeasure){//Update pattern at the end of measure to not get a double trig
-        for (int inst = 0; inst < NBR_INST; inst++){
-          if (tempInst[inst])//if instruments was edited
-          {
-            pattern[ptrnBuffer].inst[inst] |= tempInst[inst];
-            tempInst[inst] = 0;// init tempInst
-            patternWasEdited = TRUE;
-          }
-        }
-      }
+      //Les frappes attendent dans tempInst[] et ne sont versees dans le pattern qu'a la
+      //barre : cf "Les frappes du mode TAP", dans la partie commune plus bas. La fusion
+      //vivait ICI, et c'etait le defaut - une fois sorti de ce bloc, plus rien ne la
+      //faisait.
     }//END IF PTRN_TAP MODE
   }//ENDIF MODE EDIT
 
@@ -904,6 +898,43 @@ void SeqParameter()
         trk.next = sel;
         selectedTrackChanged = TRUE;
         needLcdUpdate = TRUE;
+      }
+    }
+  }
+
+  //=======================================================================================
+  //------------------------------------Les frappes du mode TAP------------------------------
+  //Une frappe de TAP ne va pas dans le pattern tout de suite : elle attend dans tempInst[]
+  //la fin de la mesure. Sinon, arrondie au pas SUIVANT - tapStepCount avance a la moitie
+  //du pas, cf Clock.ino -, elle serait rejouee par le sequenceur un demi-pas apres avoir
+  //sonne sous le doigt. L'attente est gardee.
+  //CE QUI NE L'EST PLUS, C'EST QU'ELLE PUISSE DURER. La fusion vivait A L'INTERIEUR du
+  //bloc TAP et ne lisait qu'un drapeau haut quatre ticks, 21 ms a 120 BPM :
+  //  - quitter le mode avant la barre laissait les frappes en RAM, indefiniment, et la
+  //    fusion suivante les versait dans le pattern courant A CE MOMENT-LA, qui n'avait
+  //    aucune raison d'etre celui ou elles avaient ete jouees - leur velocite, elle,
+  //    etait deja partie dans le premier ;
+  //  - une boucle retenue plus de quatre ticks, par un chargement ou une sauvegarde,
+  //    ratait la barre, et les frappes attendaient la suivante.
+  //La barre est maintenant un loquet que l'interruption leve et que SEULE cette ligne
+  //abaisse, et les frappes partent a la premiere de trois occasions : la barre, la sortie
+  //du mode, l'arret du transport. En tete de la partie commune, donc AVANT tout ce qui
+  //peut charger un autre pattern plus bas : aucun changement de pattern ne passe devant
+  //elles. Le mode TAP n'en change pas de lui-meme - l'avance de chaine n'y tourne pas, cf
+  //"playback advance".
+  //Sortir du mode au milieu d'une mesure verse les frappes tout de suite : une frappe
+  //arrondie au pas suivant, faite dans le demi-pas qui precede la sortie, sonnera donc
+  //deux fois. C'est le prix, sur un demi-pas ; la perdre serait pire.
+  //Un |= sur seize bits n'est pas atomique sur AVR, et l'interruption lit inst[]. Mais il
+  //n'AJOUTE que des bits : une lecture a cheval voit l'ancien mot plus une partie du
+  //nouveau, jamais un bit qui ne serait ni dans l'un ni dans l'autre.
+  if (endMeasure || curSeqMode != PTRN_TAP || !isRunning){
+    endMeasure = FALSE;
+    for (byte inst = 0; inst < NBR_INST; inst++){
+      if (tempInst[inst]){
+        pattern[ptrnBuffer].inst[inst] |= tempInst[inst];
+        tempInst[inst] = 0;
+        patternWasEdited = TRUE;
       }
     }
   }

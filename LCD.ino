@@ -283,6 +283,9 @@ void LcdUpdate()
       }
     }
   }
+  //Une ecriture EEPROM ratee pendant ce tour, quel qu'en soit le chemin. En dernier, par
+  //dessus ce qui vient d'etre dessine : cf LcdPrintSaveFailed().
+  if (eepromError) LcdPrintSaveFailed();
 }
 
 //print a label straight out of one of string.h's PROGMEM tables----------------
@@ -414,10 +417,30 @@ void LcdPrintLine (byte lineSize)
 }
 
 //Lcd print saved !!!!
+//Rien si une ecriture vient d'echouer : l'ecran ne dit plus "[SAVED!]" sur une page
+//perdue. L'echec s'affiche a la place en fin de LcdUpdate(), cf LcdPrintSaveFailed().
 void LcdPrintSaved()
 {
+  if (eepromError) return;
   lcd.setCursor(4,0);
   lcd.print(F("[SAVED!]"));
+}
+
+//Une ecriture EEPROM a echoue----------------------------------------------------------
+//Appelee en fin de LcdUpdate(), donc APRES le dessin de l'ecran : un redessin demande au
+//meme tour - un changement de pattern apres l'enregistrement d'une chaine - effacerait
+//sinon le message aussitot pose. Quinze caracteres depuis la colonne 0, et le chiffre est
+//le code d'erreur, cf eepromError dans define.h. Il tient jusqu'au prochain redessin,
+//comme "[SAVED!]".
+//C'est aussi ce qui rend compte des ecritures qui n'ont pas de message a elles - les
+//chaines enregistrees au pas, l'initialisation de l'EEPROM au premier demarrage.
+void LcdPrintSaveFailed()
+{
+  lcd.setCursor(0,0);
+  lcd.print(F("[SAVE FAILED "));
+  lcd.print(eepromError);
+  lcd.print(F("]"));
+  eepromError = 0;
 }
 
 //Le contraire, pour la sortie du mode config sans ENTER. Douze caracteres, colonnes 2

@@ -1,6 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.070**. Seul ce qui change le comportement de la machine est listé ;
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.072**. Seul ce qui change le comportement de la machine est listé ;
 le détail technique vit dans `TODO.md`.
 
 ## Encodeur
@@ -162,6 +162,13 @@ le détail technique vit dans `TODO.md`.
 - **Une frappe en TAP ne relâche plus une note MIDI tenue.** Le balayage du convertisseur
   de vélocité, recopié à la main dans ce mode, réécrivait douze fois par frappe le port qui
   porte aussi les sorties de trig : le gate d'une note 60 retombait au passage.
+- **Les frappes du mode TAP restent dans le pattern où on les a jouées.** Elles
+  n'entrent dans le pattern qu'à la fin de la mesure, pour ne pas sonner deux fois. Mais
+  quitter TAP ou arrêter avant la barre les laissait en attente, sans rien à l'écran : au
+  passage suivant en TAP, elles tombaient dans le pattern courant de ce moment-là, alors
+  que leur vélocité était restée dans le premier. Sortir du mode ou arrêter les inscrit
+  maintenant tout de suite, et une sauvegarde faite à la barre ne leur fait plus manquer
+  la fusion. *(v2.072)*
 
 ## Tempo et swing
 
@@ -415,6 +422,13 @@ le détail technique vit dans `TODO.md`.
   sauvegarde de piste, c'était 80 ms pendant lesquelles plus rien ne répondait : ni les
   LED, ni la sortie TRIG-1, ni l'horloge MIDI entrante en synchro esclave. La puce dit
   maintenant elle-même quand elle a fini.
+- **Une sauvegarde ratée le dit.** L'écran affichait `[SAVED!]` quoi qu'il arrive : une
+  mémoire occupée, mal contactée ou absente perdait sa page en silence, et on ne
+  l'apprenait qu'au rechargement. Il affiche maintenant `[SAVE FAILED n]`, où `n` est le
+  code d'erreur — 2 : la mémoire ne répond pas ; 3 : elle refuse une donnée ; 4 ou 5 :
+  bus I2C en défaut ; 6 : elle ne termine jamais son écriture. Les chaînes enregistrées
+  au pas et l'initialisation de la mémoire au premier démarrage, qui n'affichaient rien,
+  signalent aussi leur échec. *(v2.072)*
 - **Plus de gel au démarrage.** Il arrivait une fois sur deux ou trois : deux fusibles
   faux depuis l'assemblage du PCB — détection de sous-tension désactivée, oscillateur mal
   configuré — et deux attentes non bornées dans le code.

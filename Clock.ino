@@ -505,11 +505,12 @@ void CountPPQN() {
       //SwitchPatternBuffer() - ce qui evite en prime que l'interruption ecrive ptrnBuffer
       //dans le dos de la boucle principale.
     }
-    //Le drapeau de fin de mesure se rabaisse quatre ticks plus tard, une fois que la
-    //boucle principale a eu le temps de le voir. Valeur heritee, jamais expliquee.
-    if (gsMod == 4 && globalStepCount == 0) {
-      endMeasure = FALSE;
-    }
+    //endMeasure N'EST PLUS RABAISSE ICI. Il retombait quatre ticks plus tard - 21 ms a
+    //120 BPM, "valeur heritee, jamais expliquee" - et une boucle principale retenue plus
+    //longtemps par un chargement ou une sauvegarde ne le voyait jamais : les frappes du
+    //mode TAP, qu'il est seul a gouverner, attendaient alors la barre suivante. C'est
+    //devenu un loquet, que SEULE la partie commune de SeqParameter() abaisse en le
+    //consommant.
   }
 
   if (++p > PPQN) p = 1;

@@ -30,7 +30,7 @@
 //The display is 16 columns wide : the static_assert below catches a string that
 //would not fit, instead of letting it wrap into the second line at runtime.
 #define LCD_COLS 16
-#define FW_VERSION  "Yocto v2.071"
+#define FW_VERSION  "Yocto v2.072"
 #define FW_AUTHOR   "h3x4l0g 2026"
 static_assert(sizeof(FW_VERSION) <= LCD_COLS + 1, "FW_VERSION depasse les 16 colonnes du LCD");
 static_assert(sizeof(FW_AUTHOR)  <= LCD_COLS + 1, "FW_AUTHOR depasse les 16 colonnes du LCD");
@@ -415,6 +415,10 @@ byte armedBank = NO_BANK;
 byte curPattern = 0;// 0 to 255
 byte nextPattern;
 boolean changeDir[NBR_INST]; //use to PING PONG change dir
+//La barre de mesure, en LOQUET : l'interruption la leve (Clock.ino), et seule la partie
+//commune de SeqParameter() l'abaisse, en la consommant - c'est elle qui verse les frappes
+//du mode TAP. Il retombait tout seul quatre ticks plus tard, et une boucle plus lente que
+//ca ratait la barre.
 volatile boolean endMeasure;
 unsigned int metronome;//masque des pas ou le metronome bat, 0 quand il est coupe
 //Velocite du metronome pour le pas en cours, 0 s'il ne bat pas dessus. Posee par le
@@ -476,8 +480,18 @@ struct GroupPattern
 }
 group;
 
+//Les frappes du mode TAP qui attendent la barre, un bit par pas. Versees dans le pattern
+//par la partie commune de SeqParameter(), cf "Les frappes du mode TAP" dans Seq.ino.
 unsigned int tempInst[NBR_INST]={
   0};
+
+//LE PREMIER CODE D'ERREUR D'UNE ECRITURE EEPROM, 0 si toutes sont passees. Pose par
+//WireEndTX() (EEprom.ino), montre et remis a zero par la fin de LcdUpdate(). Les codes 1
+//a 5 sont ceux de Wire.endTransmission() - 2 : la puce ne repond pas a son adresse ; 3 :
+//elle refuse un octet ; 4 : erreur de bus ; 5 : bus fige au-dela de setWireTimeout(). Le
+//6 est le notre : la puce n'est jamais sortie de son cycle d'ecriture interne.
+byte eepromError;
+#define EEP_ERR_NOT_READY 6
 //MUTE ET SOLO : DEUX MASQUES, ET UN ARBITRE----------------------------------------
 //muteInst est ce qu'on a coupe a la main. soloInst est ce qu'on veut entendre, et il
 //RECOUVRE les mutes au lieu de les ecraser : sortir du solo rend donc exactement
