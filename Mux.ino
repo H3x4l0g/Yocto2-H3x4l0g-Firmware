@@ -27,6 +27,12 @@
 //   3. LES delayMicroseconds(5) ET (15) NE SONT PAS DU REMPLISSAGE. Ce sont les temps
 //      de charge des condensateurs d'echantillonnage et de stabilisation du
 //      multiplexeur. Les raccourcir, c'est poser une tension fausse sur une voix.
+//      Mesure au scope le 27/09/2026 : le plus grand saut que la machine produise,
+//      0 -> 80 en mode TAP (2,58 V au DAC), monte en ~5 us au slew du MCP4822. Le
+//      condensateur suit jusqu'au plateau, mais la rampe prend a peu pres toute
+//      l'attente qui suit SetDacA() dans MuxSweep() : il n'y a rien a rendre. Seule
+//      cette attente-la compte - LDAC est a la masse, le DAC ne bouge qu'a la remontee
+//      de CS.
 //
 //======================================================================================
 
