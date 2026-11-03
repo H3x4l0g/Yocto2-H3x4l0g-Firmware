@@ -23,6 +23,8 @@ Everything that changes how the machine behaves is listed in [CHANGELOG.md](CHAN
   probability).
 - **The pattern memory format is unchanged.** Your existing patterns keep working.
 
+**How to use the new features: [docs/new-features.md](docs/new-features.md).**
+
 The development notebook, [TODO.md](TODO.md), records every diagnosis and decision. It
 is in French too.
 
@@ -106,13 +108,14 @@ An ISP upload performs a chip erase, which takes the bootloader with it. So:
 ## Building
 
 - Arduino with **MightyCore 3.1.0**, board `MightyCore:avr:1284:pinout=standard,variant=modelP,clock=16MHz_external,LTO=Os`.
-- Libraries: MIDI Library 5.0.2, LiquidCrystal, and **WireN**. WireN is the core's
-  `Wire` with `BUFFER_LENGTH` and `TWI_BUFFER_LENGTH` raised to 132: a 128-byte EEPROM
-  page plus its 2 address bytes.
+- Libraries: MIDI Library 5.0.2, LiquidCrystal, and **WireN**, which is included in
+  [libraries/WireN](libraries/WireN). WireN is the core's `Wire` with `BUFFER_LENGTH` and
+  `TWI_BUFFER_LENGTH` raised to 132: a 128-byte EEPROM page plus its 2 address bytes.
+  It is LGPL 2.1, like the original.
 - The build must produce no warnings on this repository's files.
 
 ```
-arduino-cli compile --warnings more --fqbn "MightyCore:avr:1284:pinout=standard,variant=modelP,clock=16MHz_external,LTO=Os" .
+arduino-cli compile --warnings more --libraries libraries --fqbn "MightyCore:avr:1284:pinout=standard,variant=modelP,clock=16MHz_external,LTO=Os" .
 python tools/hex2syx.py build/yocto2.ino.hex yocto2.syx
 ```
 
