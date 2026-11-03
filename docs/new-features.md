@@ -198,4 +198,4 @@ In **MUTE** mode, which is now announced in large letters on the screen:
   | 4, 5 | I2C bus fault |
   | 6 | the write never completes |
 
-Every fix is listed in [CHANGELOG.md](../CHANGELOG.md), in French.
+Every fix is listed in [CHANGELOG.en.md](../CHANGELOG.en.md) (French: [CHANGELOG.md](../CHANGELOG.md)).

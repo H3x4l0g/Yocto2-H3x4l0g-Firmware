@@ -11,8 +11,8 @@ this repository adds none of its own.
 
 ## What changes
 
-Everything that changes how the machine behaves is listed in [CHANGELOG.md](CHANGELOG.md)
-(in French). In short:
+Everything that changes how the machine behaves is listed in [CHANGELOG.en.md](CHANGELOG.en.md)
+(French: [CHANGELOG.md](CHANGELOG.md)). In short:
 
 - **Fixes**: the encoder counts one step per detent instead of four. Edits no longer leak
   into fields you are not looking at. Power-on freezes and I2C lockups are cured, and

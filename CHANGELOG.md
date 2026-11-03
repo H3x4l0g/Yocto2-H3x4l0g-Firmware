@@ -2,6 +2,8 @@
 
 De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.074**. Seul ce qui change le comportement de la machine est listé.
 
+*English version: [CHANGELOG.en.md](CHANGELOG.en.md).*
+
 ## Encodeur
 
 - Un cran de la molette avance d'un pas. Il en comptait **quatre**.
