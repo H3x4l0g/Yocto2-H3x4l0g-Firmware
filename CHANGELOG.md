@@ -1,7 +1,6 @@
 # Yocto v2 — changelog
 
-De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.073**. Seul ce qui change le comportement de la machine est listé ;
-le détail technique vit dans `TODO.md`.
+De la **v2.003beta** d'e-licktronic — dernière version publiée — à la **v2.074**. Seul ce qui change le comportement de la machine est listé.
 
 ## Encodeur
 
