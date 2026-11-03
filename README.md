@@ -1,5 +1,7 @@
 # Yocto2 — H3x4l0g Firmware
 
+*Version française : [README.fr.md](README.fr.md).*
+
 A continuation of the firmware for the **e-licktronic Yocto v2**, the TR-808 clone
 (ATmega1284P). It starts from `Yocto_v2_003beta`, the last version e-licktronic
 published in [e-licktronic/Yocto-V2.0](https://github.com/e-licktronic/Yocto-V2.0),
