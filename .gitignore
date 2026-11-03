@@ -15,3 +15,6 @@ docs/eagle/sym-lib-table
 # Listing de desassemblage : 1,2 Mo regeneres a chaque compilation,
 # et truffes de chemins absolus. Reste sur le disque, hors du depot.
 *.lst
+
+# SysEx generes : des artefacts de release, regeneres par tools/hex2syx.py
+*.syx
