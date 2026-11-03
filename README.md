@@ -25,9 +25,6 @@ Everything that changes how the machine behaves is listed in [CHANGELOG.md](CHAN
 
 **How to use the new features: [docs/new-features.md](docs/new-features.md).**
 
-The development notebook, [TODO.md](TODO.md), records every diagnosis and decision. It
-is in French too.
-
 ## Updating over MIDI — no programmer needed
 
 Every Yocto v2 has e-licktronic's SysEx bootloader in its chip. You only need a MIDI
