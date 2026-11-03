@@ -1,5 +1,7 @@
 # Yocto v2.074 — what's new since 2.003beta
 
+*Version française : [new-features.fr.md](new-features.fr.md).*
+
 This complements the original *Yocto v2.002 user manual*. It does not replace it:
 everything the original manual describes still works as written, except where this
 document says otherwise.

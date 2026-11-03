@@ -2,6 +2,14 @@
 
 *English version: [README.md](README.md).*
 
+## 📖 [Manuel : les nouveautés de ce firmware](docs/new-features.fr.md)
+
+**[docs/new-features.fr.md](docs/new-features.fr.md)** — conditions de trig, retrig,
+micro-timing, solo et tout ce qui a changé. English version:
+[docs/new-features.md](docs/new-features.md). Il complète le
+[manuel d'origine d'e-licktronic](docs/Yocto%20v2.002%20user%20manual.pdf) (PDF, en anglais), qui décrit toujours tout le
+reste.
+
 La suite du firmware du **Yocto v2 d'e-licktronic**, le clone de TR-808 (ATmega1284P).
 Il part de `Yocto_v2_003beta`, la dernière version qu'e-licktronic a publiée dans
 [e-licktronic/Yocto-V2.0](https://github.com/e-licktronic/Yocto-V2.0), avant le retrait
@@ -27,8 +35,7 @@ Tout ce qui change le comportement de la machine est dans [CHANGELOG.md](CHANGEL
 - **Le format de la mémoire des patterns ne change pas.** Vos patterns existants
   continuent de marcher.
 
-**Mode d'emploi des nouvelles fonctions : [docs/new-features.md](docs/new-features.md)**
-(en anglais). Les écrans de la machine, eux, sont étiquetés en français.
+Les écrans de la machine sont étiquetés en français ; le manuel en donne le sens.
 
 ## Mise à jour par MIDI, sans programmateur
 
